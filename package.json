@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "eslint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -17,9 +19,10 @@
     "node": ">=20.20.2 <21"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.10",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
-    "next": "16.3.2",
+    "next": "16.3.8",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -30,9 +33,10 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.3.2",
+    "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.40.0"
   }
 }

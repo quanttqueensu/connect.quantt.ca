@@ -1,4 +1,4 @@
-/** Canonical site URL for auth redirects (Netlify sets URL; override with NEXT_PUBLIC_SITE_URL). */
+/** Canonical site URL for auth redirects: NEXT_PUBLIC_SITE_URL (https://connect.quantt.ca on Cloudflare), else the host's own. */
 export function siteUrl() {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (explicit) return explicit;
