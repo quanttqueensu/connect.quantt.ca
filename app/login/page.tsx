@@ -25,7 +25,15 @@ export default async function LoginPage({
       <p className="mt-2 max-w-sm text-center text-sm text-white/55">
         Invite-only access for members and approved companies.
       </p>
-      <form action={login} className="mt-10 w-full max-w-sm space-y-4">
+      {/* A plain link, not <Link>: the route handler redirects off-site. */}
+      <a
+        href="/auth/quantt/start"
+        className="mt-10 block w-full max-w-sm rounded-md bg-white px-4 py-2.5 text-center text-sm font-semibold text-navy hover:bg-white/90"
+      >
+        QUANTT member? Sign in with your Queen&apos;s email
+      </a>
+      <p className="mt-6 text-xs uppercase tracking-wide text-white/40">Companies</p>
+      <form action={login} className="mt-3 w-full max-w-sm space-y-4">
         {errorText && <p className="text-sm text-red-300">{errorText}</p>}
         {reset && (
           <p className="text-sm text-blue-light">

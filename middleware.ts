@@ -19,6 +19,10 @@ import { shouldForwardToAuthCallback, userNeedsPassword } from "@/lib/auth-sessi
  *  - `/auth/set-password`  — an invited user may land here before the client
  *                            has finished establishing the session; the page
  *                            renders <AwaitInviteSession /> in that window.
+ *  - `/auth/quantt/start`, `/auth/quantt/callback` — "Sign in with QUANTT" for
+ *                            club members: there is no session until the
+ *                            callback verifies auth.quantt.ca's ticket
+ *                            (lib/quantt-ticket.ts).
  */
 const PUBLIC_PATHS = [
   "/",
@@ -27,6 +31,8 @@ const PUBLIC_PATHS = [
   "/join",
   "/auth/callback",
   "/auth/set-password",
+  "/auth/quantt/start",
+  "/auth/quantt/callback",
 ];
 
 function isPublic(pathname: string) {

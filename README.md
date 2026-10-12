@@ -46,6 +46,14 @@ The default `{{ .ConfirmationURL }}` still works (tokens arrive in the URL hash)
 
 7. `npm install && npm run dev`
 
+## Sign in with QUANTT (club members)
+
+Club members can skip invites and passwords: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a two-minute ticket signed with a shared secret. The callback signs them into their Supabase account, creating it the first time through the normal invite row, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. Sponsors keep the email and password login. Code: `lib/quantt-ticket.ts`, `app/auth/quantt/`.
+
+Setup:
+1. Pick a long random string. Set it as the secret `CONNECT_SECRET` on the `quantt-auth` Worker and as `QUANTT_AUTH_SECRET` on this site's host.
+2. The site's own URL (`NEXT_PUBLIC_SITE_URL`, or Netlify's `URL`) must be `https://connect.quantt.ca`, or be listed in `CONNECT_ORIGINS` on `quantt-auth` (comma-separated; also for `http://localhost:3000`).
+
 ## Tests
 
 The suite is a **row-level-security harness**: each test signs in as a real
