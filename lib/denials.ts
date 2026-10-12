@@ -72,7 +72,7 @@ const MESSAGES = {
 
   // app/auth/quantt/callback/route.ts
   quantt_signin_failed: "QUANTT sign-in didn't go through. Try again, or ask a QUANTT exec.",
-  quantt_signin_unconfigured: "QUANTT sign-in isn't set up on this copy of the hub yet. Use your email and password.",
+  quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca. Use your email and password here.",
   quantt_signin_company: "That email belongs to a company account. Log in with your email and password instead.",
   password_too_short: "Password must be at least 8 characters.",
   password_mismatch: "Passwords do not match.",

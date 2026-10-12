@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { siteUrl } from "@/lib/site-url";
-import { QUANTT_STATE_COOKIE, quanttAuthUrl } from "@/lib/quantt-ticket";
+import { QUANTT_STATE_COOKIE, quanttAuthUrl } from "@/lib/quantt-signin";
 
-/** Sends a club member to auth.quantt.ca to sign in (see lib/quantt-ticket.ts). */
+/** Sends a club member to auth.quantt.ca to sign in (see lib/quantt-signin.ts). */
 export async function GET() {
   const state = randomBytes(24).toString("base64url");
   const url = new URL(`${quanttAuthUrl()}/signin`);

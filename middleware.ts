@@ -21,8 +21,8 @@ import { shouldForwardToAuthCallback, userNeedsPassword } from "@/lib/auth-sessi
  *                            renders <AwaitInviteSession /> in that window.
  *  - `/auth/quantt/start`, `/auth/quantt/callback` — "Sign in with QUANTT" for
  *                            club members: there is no session until the
- *                            callback verifies auth.quantt.ca's ticket
- *                            (lib/quantt-ticket.ts).
+ *                            callback redeems auth.quantt.ca's code
+ *                            (lib/quantt-signin.ts).
  */
 const PUBLIC_PATHS = [
   "/",

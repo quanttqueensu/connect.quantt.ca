@@ -1,11 +1,12 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site-url";
-import { QUANTT_STATE_COOKIE, verifyTicket } from "@/lib/quantt-ticket";
+import { QUANTT_STATE_COOKIE, redeemSignin } from "@/lib/quantt-signin";
 
 /**
- * Lands "Sign in with QUANTT" (see lib/quantt-ticket.ts). A verified ticket
+ * Lands "Sign in with QUANTT" (see lib/quantt-signin.ts). A redeemed code
  * signs the member into their Supabase account, creating it the first time
  * through the usual invite row so handle_new_user() builds the profile. The
  * directory decides hub admin: its Connect role is copied onto is_admin on
@@ -18,14 +19,15 @@ function back(code: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const result = verifyTicket(
-    request.nextUrl.searchParams.get("ticket"),
-    process.env.QUANTT_AUTH_SECRET,
+  const { env } = await getCloudflareContext({ async: true });
+  const result = await redeemSignin(
+    env.AUTH,
+    request.nextUrl.searchParams.get("code"),
     request.cookies.get(QUANTT_STATE_COOKIE)?.value,
   );
   if (!result.ok) {
     console.warn(`QUANTT sign-in refused: ${result.reason}`);
-    return back(result.reason === "QUANTT_AUTH_SECRET is not set" ? "quantt_signin_unconfigured" : "quantt_signin_failed");
+    return back(result.reason === "the AUTH service binding is missing" ? "quantt_signin_unconfigured" : "quantt_signin_failed");
   }
   const { email, name, role } = result.claims;
   const isAdmin = role === "admin";

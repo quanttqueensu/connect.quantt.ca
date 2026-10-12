@@ -8,6 +8,11 @@
 /.next/
 /out/
 
+# cloudflare (OpenNext build, wrangler state)
+/.open-next/
+/.wrangler/
+.dev.vars
+
 # env / secrets
 .env
 .env.*

@@ -33,8 +33,8 @@ values ('you@quantt.ca', 'Your Name', 'member', true);
 Then send an invite from the Supabase dashboard for that email. Click the email link — you should land on **Create your password**, then log in at `/login`.
 
 5. In **Authentication → URL Configuration**:
-   - Site URL = your Netlify origin (e.g. `https://your-site.netlify.app`)
-   - Redirect URLs include `https://your-site.netlify.app/auth/callback` and `http://localhost:3000/auth/callback`
+   - Site URL = `https://connect.quantt.ca`
+   - Redirect URLs include `https://connect.quantt.ca/auth/callback` and `http://localhost:3000/auth/callback`
 
 6. In **Authentication → Email Templates → Invite user**, replace the button URL with:
 
@@ -48,11 +48,20 @@ The default `{{ .ConfirmationURL }}` still works (tokens arrive in the URL hash)
 
 ## Sign in with QUANTT (club members)
 
-Club members can skip invites and passwords: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a two-minute ticket signed with a shared secret. The callback signs them into their Supabase account, creating it the first time through the normal invite row, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. Sponsors keep the email and password login. Code: `lib/quantt-ticket.ts`, `app/auth/quantt/`.
+Club members can skip invites and passwords: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a one-time code. The callback redeems the code through the service binding `AUTH` (the `quantt-auth` Worker), signs them into their Supabase account, creating it the first time through the normal invite row, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. Sponsors keep the email and password login. No secret is shared: only a Worker bound to `quantt-auth` in the same Cloudflare account can redeem a code. Code: `lib/quantt-signin.ts`, `app/auth/quantt/`.
 
-Setup:
-1. Pick a long random string. Set it as the secret `CONNECT_SECRET` on the `quantt-auth` Worker and as `QUANTT_AUTH_SECRET` on this site's host.
-2. The site's own URL (`NEXT_PUBLIC_SITE_URL`, or Netlify's `URL`) must be `https://connect.quantt.ca`, or be listed in `CONNECT_ORIGINS` on `quantt-auth` (comma-separated; also for `http://localhost:3000`).
+If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://localhost:3000` with `npm run preview`), list that origin in `CONNECT_ORIGINS` on `quantt-auth`.
+
+## Hosting: Cloudflare Workers
+
+The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://opennext.js.org/cloudflare) (`wrangler.jsonc`, `open-next.config.ts`).
+
+1. Workers & Pages → Create → Import a repository → `quanttqueensu/connect.quantt.ca`. Name `quantt-connect`, build command `npx opennextjs-cloudflare build`, deploy command `npx opennextjs-cloudflare deploy`. It must be in the same account as `quantt-auth`.
+2. Build variables (Settings → Build → Variables): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`. These are baked into the browser bundle at build time.
+3. Runtime variables (Settings → Variables and Secrets): the same three, plus the secret `SUPABASE_SERVICE_ROLE_KEY`.
+4. Settings → Domains & Routes → add `connect.quantt.ca` (remove it from the old host first).
+
+Local: `npm run dev` as before; `npm run preview` runs the Worker build locally.
 
 ## Tests
 

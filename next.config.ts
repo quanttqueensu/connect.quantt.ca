@@ -109,13 +109,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Cloudflare Workers has no Next image optimiser; the images are small local logos.
   images: {
-    formats: ["image/webp", "image/avif"],
+    unoptimized: true,
   },
   async headers() {
     return [
       {
-        // Every route, including /_next assets and the image optimiser.
+        // Every route, including /_next assets.
         source: "/:path*",
         headers: securityHeaders,
       },
