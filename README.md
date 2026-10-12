@@ -8,7 +8,7 @@ The public brochure site remains [quantt-website](https://github.com). This app 
 
 Next.js 16, React 19, Tailwind 4, Supabase (Auth, Postgres, Storage).
 
-Node **20.20.2** (see `.nvmrc` and the `engines` field in `package.json`). Run
+Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
 `nvm use` in the repo root to pick it up.
 
 ## Setup
