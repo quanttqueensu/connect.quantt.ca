@@ -8,7 +8,7 @@ The public brochure site remains [quantt-website](https://github.com). This app 
 
 Next.js 16, React 19, Tailwind 4, Supabase (Auth, Postgres, Storage).
 
-Node **20.20.2** (see `.nvmrc` and the `engines` field in `package.json`). Run
+Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
 `nvm use` in the repo root to pick it up.
 
 ## Setup
@@ -54,9 +54,9 @@ If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://lo
 
 ## Hosting: Cloudflare Workers
 
-The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://opennext.js.org/cloudflare) (`wrangler.jsonc`, `open-next.config.ts`).
+The hub runs as the Worker `connect-quantt`, built with [OpenNext](https://opennext.js.org/cloudflare) (`wrangler.jsonc`, `open-next.config.ts`).
 
-1. Workers & Pages → Create → Import a repository → `quanttqueensu/connect.quantt.ca`. Name `quantt-connect`, build command `npx opennextjs-cloudflare build`, deploy command `npx opennextjs-cloudflare deploy`. It must be in the same account as `quantt-auth`.
+1. Workers & Pages → Create → Import a repository → `quanttqueensu/connect.quantt.ca`. Name `connect-quantt`, build command `npx opennextjs-cloudflare build`, deploy command `npx opennextjs-cloudflare deploy`. It must be in the same account as `quantt-auth`.
 2. Build variables (Settings → Build → Variables): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`. These are baked into the browser bundle at build time.
 3. Runtime variables (Settings → Variables and Secrets): the same three, plus the secret `SUPABASE_SERVICE_ROLE_KEY`.
 4. Settings → Domains & Routes → add `connect.quantt.ca` (remove it from the old host first).

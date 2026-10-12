@@ -16,7 +16,7 @@
     "db:reset": "supabase db reset"
   },
   "engines": {
-    "node": ">=20.20.2 <21"
+    "node": ">=22.20.0 <23"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.10",
