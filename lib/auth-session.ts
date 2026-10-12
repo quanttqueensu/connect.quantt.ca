@@ -34,6 +34,8 @@ export function shouldForwardToAuthCallback(
   hash: string,
 ) {
   if (pathname.startsWith("/auth/callback")) return false;
+  // auth.quantt.ca's one-time `code` is not a Supabase code; its own route redeems it.
+  if (pathname.startsWith("/auth/quantt/")) return false;
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   if (params.get("code") || params.get("token_hash")) return true;
   const parsed = parseAuthHash(hash);
