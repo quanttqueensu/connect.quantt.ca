@@ -2,14 +2,14 @@
 // `npx opennextjs-cloudflare build`, deploy command `npx opennextjs-cloudflare deploy`). See README "Hosting".
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "connect-quantt",
+  "name": "quantt-connect",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   // The shared member directory (repo quanttqueensu/auth.quantt.ca): redeems "Sign in with QUANTT" codes.
   "services": [
-    { "binding": "WORKER_SELF_REFERENCE", "service": "connect-quantt" },
+    { "binding": "WORKER_SELF_REFERENCE", "service": "quantt-connect" },
     { "binding": "AUTH", "service": "quantt-auth", "entrypoint": "Directory" }
   ],
   // Supabase keys and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README); keep them on deploy.
