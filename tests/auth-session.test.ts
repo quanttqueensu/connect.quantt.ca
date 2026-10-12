@@ -41,6 +41,12 @@ describe("invite / recovery links that miss /auth/callback", () => {
     ).toBe(false);
   });
 
+  it("leaves auth.quantt.ca's code for the QUANTT sign-in callback", () => {
+    expect(
+      shouldForwardToAuthCallback("/auth/quantt/callback", "?code=abc", ""),
+    ).toBe(false);
+  });
+
   it("does not loop on the callback page itself", () => {
     expect(
       shouldForwardToAuthCallback("/auth/callback", "?code=abc", ""),
