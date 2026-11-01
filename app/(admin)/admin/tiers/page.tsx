@@ -209,7 +209,7 @@ export default async function AdminTiersPage({
                       Deactivate package
                     </ConfirmSubmitButton>
                   ) : (
-                    <GhostButton type="submit">Reactivate</GhostButton>
+                    <GhostButton type="submit">Reactivate package</GhostButton>
                   )}
                 </form>
               )}
@@ -268,7 +268,7 @@ export default async function AdminTiersPage({
                   </label>
                 )}
                 <div className="mt-4">
-                  <PrimaryButton type="submit">Save functionality</PrimaryButton>
+                  <PrimaryButton type="submit">Save features</PrimaryButton>
                 </div>
               </form>
             </article>

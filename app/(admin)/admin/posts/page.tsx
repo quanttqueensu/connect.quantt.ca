@@ -38,9 +38,9 @@ export default async function AdminPostsPage({
           return (
             <li
               key={p.id}
-              className="flex items-start justify-between gap-4 border-t border-white/10 py-4"
+              className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-start sm:justify-between"
             >
-              <div>
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <p className="text-white">{p.title}</p>
                 <p className="mt-1 text-xs text-white/60">
                   {kindLabel(p.kind)} · {company?.name ?? "QUANTT"} · {p.status} ·{" "}
@@ -48,7 +48,7 @@ export default async function AdminPostsPage({
                 </p>
               </div>
               {p.status === "open" && (
-                <form action={closePost}>
+                <form action={closePost} className="shrink-0">
                   <input type="hidden" name="id" value={p.id} />
                   <QuietDangerButton type="submit">Close posting</QuietDangerButton>
                 </form>

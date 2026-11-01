@@ -33,8 +33,8 @@ export default async function RequestsPage({
               {r.contact_name} · {r.contact_email}
             </p>
             {r.note && <p className="mt-2 text-sm text-white/60">{r.note}</p>}
-            <div className="mt-4 flex flex-wrap items-end gap-3">
-              <form action={reviewJoinRequest} className="flex flex-wrap items-end gap-3">
+            <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-end">
+              <form action={reviewJoinRequest} className="grid gap-3 sm:flex sm:flex-wrap sm:items-end">
                 <input type="hidden" name="id" value={r.id} />
                 <input type="hidden" name="decision" value="approved" />
                 <select
@@ -51,12 +51,12 @@ export default async function RequestsPage({
                     </option>
                   ))}
                 </select>
-                <PrimaryButton type="submit">Approve</PrimaryButton>
+                <PrimaryButton type="submit">Approve request</PrimaryButton>
               </form>
               <form action={reviewJoinRequest}>
                 <input type="hidden" name="id" value={r.id} />
                 <input type="hidden" name="decision" value="rejected" />
-                <DangerButton type="submit">Reject</DangerButton>
+                <DangerButton type="submit" className="w-full sm:w-auto">Reject request</DangerButton>
               </form>
             </div>
           </li>

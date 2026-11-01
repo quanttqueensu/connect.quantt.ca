@@ -115,7 +115,7 @@ export default async function ThreadPage({
       <form action={sendMessage} className="mt-8 max-w-lg space-y-3">
         <input type="hidden" name="conversation_id" value={id} />
         <TextArea name="body" rows={3} required aria-label="Message" maxLength={4000} />
-        <PrimaryButton type="submit">Send</PrimaryButton>
+        <PrimaryButton type="submit">Send message</PrimaryButton>
       </form>
     </>
   );

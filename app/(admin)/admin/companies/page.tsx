@@ -120,7 +120,7 @@ export default async function CompaniesPage({
                   </select>
                 </Field>
                 <div className="flex items-end">
-                  <PrimaryButton type="submit">Save level</PrimaryButton>
+                  <PrimaryButton type="submit">Save level &amp; status</PrimaryButton>
                 </div>
               </form>
               <p className="mt-2 text-xs text-white/50">

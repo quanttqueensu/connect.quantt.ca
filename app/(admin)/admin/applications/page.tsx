@@ -3,7 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import { updateApplicationStage } from "@/lib/actions/applications";
 import { createClient } from "@/lib/supabase/server";
 import { QuietButton } from "@/components/Form";
-import type { Application } from "@/lib/types";
+import { applicationKindLabel, stageLabel, type Application } from "@/lib/types";
 
 const stages = ["submitted", "reviewing", "interviewing", "offer", "closed"] as const;
 
@@ -29,14 +29,14 @@ export default async function AdminApplicationsPage({
             <span className="text-white">{a.profiles?.full_name}</span>
             <span className="text-white/60">
               {" "}
-              · {a.kind === "in_app" ? a.posts?.title : a.company_name} · {a.kind}
+              · {a.kind === "in_app" ? a.posts?.title : a.company_name} · {applicationKindLabel(a.kind)}
             </span>
             <form action={updateApplicationStage} className="mt-3 flex flex-wrap items-center gap-2">
               <input type="hidden" name="id" value={a.id} />
-              <select name="stage" defaultValue={a.stage} className="rounded px-2 py-1 text-sm">
+              <select name="stage" aria-label={`Application stage for ${a.profiles?.full_name ?? "applicant"}`} defaultValue={a.stage} className="min-h-10 rounded px-3 py-1.5 text-sm">
                 {stages.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {stageLabel(s)}
                   </option>
                 ))}
               </select>

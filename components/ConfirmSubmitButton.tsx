@@ -21,12 +21,14 @@ import { buttonClass, type ButtonVariant } from "@/components/Form";
  */
 export default function ConfirmSubmitButton({
   confirmMessage,
+  confirmLabel,
   children,
   variant = "primary",
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   confirmMessage: string;
+  confirmLabel?: string;
   variant?: ButtonVariant;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -73,7 +75,7 @@ export default function ConfirmSubmitButton({
         <p className="mt-3 text-sm text-white/80">{confirmMessage}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button type="button" onClick={confirm} className={buttonClass(variant)}>
-            Yes, continue
+            {confirmLabel ?? children}
           </button>
           <button
             type="button"

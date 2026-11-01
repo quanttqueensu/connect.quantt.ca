@@ -73,7 +73,7 @@ export default async function ApplicationsPage({
               {a.kind === "off_platform" && (
                 <form action={updateApplicationStage} className="mt-3 flex flex-wrap items-center gap-2">
                   <input type="hidden" name="id" value={a.id} />
-                  <select name="stage" defaultValue={a.stage} className="rounded px-2 py-1 text-sm">
+                  <select name="stage" aria-label={`Application stage for ${title}`} defaultValue={a.stage} className="min-h-10 rounded px-3 py-1.5 text-sm">
                     {stages.map((s) => (
                       <option key={s} value={s}>
                         {stageLabel(s)}

@@ -65,14 +65,14 @@ export default function TalentList({
               {m.interests && (
                 <p className="mt-1 text-xs text-white/45">Interests: {m.interests}</p>
               )}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-start gap-2">
                 <a
                   href={`/company/talent/${m.id}/resume`}
                   className={buttonClass("quiet")}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Resume
+                  View resume
                 </a>
                 <ExtLink href={m.linkedin_url} label="LinkedIn" />
                 <ExtLink href={m.github_url} label="GitHub" />
@@ -82,7 +82,7 @@ export default function TalentList({
                     <input type="hidden" name="company_id" value={companyId} />
                     <input type="hidden" name="member_id" value={m.id} />
                     <input type="hidden" name="return_to" value={returnTo} />
-                    <QuietButton type="submit">Message</QuietButton>
+                    <QuietButton type="submit">Message member</QuietButton>
                   </form>
                 ) : (
                   <LockedAction
@@ -90,7 +90,7 @@ export default function TalentList({
                     tier={dmTier}
                     tiers={tiers}
                   >
-                    Message
+                    Message member
                   </LockedAction>
                 )}
               </div>

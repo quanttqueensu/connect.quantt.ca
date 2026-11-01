@@ -1,7 +1,7 @@
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
-import { Field, PrimaryButton, QuietDangerButton, TextArea, TextInput } from "@/components/Form";
+import { Field, FileInput, PrimaryButton, QuietDangerButton, TextArea, TextInput } from "@/components/Form";
 import {
   addSection,
   deleteSection,
@@ -60,7 +60,7 @@ export default async function ProfilePage({
       <form action={uploadPhoto} encType="multipart/form-data" className="mb-8 flex flex-wrap items-end gap-3">
         <div className="min-w-0 max-w-full">
           <Field label="Photo">
-            <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" className="max-w-full" />
+            <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
           </Field>
         </div>
         <PrimaryButton type="submit">Upload photo</PrimaryButton>
@@ -96,19 +96,19 @@ export default async function ProfilePage({
         <Field label="Website">
           <TextInput name="website_url" defaultValue={profile.website_url ?? ""} maxLength={500} />
         </Field>
-        <PrimaryButton type="submit">Save profile</PrimaryButton>
+        <PrimaryButton type="submit" className="justify-self-start">Save profile</PrimaryButton>
       </form>
 
       <h2 className="mt-14 font-heading text-lg font-bold text-white">Custom sections</h2>
       <ul className="mt-4 space-y-4">
         {sectionRows.map((s) => (
           <li key={s.id} className="border-t border-white/10 pt-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <p className="text-sm font-medium text-white">{s.label}</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-white/60">{s.body}</p>
               </div>
-              <form action={deleteSection}>
+              <form action={deleteSection} className="shrink-0">
                 <input type="hidden" name="id" value={s.id} />
                 <QuietDangerButton type="submit">Remove section</QuietDangerButton>
               </form>

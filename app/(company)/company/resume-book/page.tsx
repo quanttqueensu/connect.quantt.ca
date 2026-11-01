@@ -80,7 +80,7 @@ export default async function ResumeBookPage({
             <TextInput name="year" type="number" defaultValue={yearRaw} />
           </Field>
           <div className="flex items-end">
-            <PrimaryButton type="submit">Filter</PrimaryButton>
+            <PrimaryButton type="submit">Apply filters</PrimaryButton>
           </div>
         </form>
         <TalentList

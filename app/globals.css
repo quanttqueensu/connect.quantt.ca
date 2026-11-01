@@ -40,6 +40,16 @@ select {
   color: rgba(255, 255, 255, 0.35);
 }
 
+/* Keep controls aligned with the shared 44px action buttons. Utilities can
+   opt into the 40px size used by inline stage editors. */
+@layer base {
+  select {
+    min-height: 2.75rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* Mouse/touch focus stays quiet: the border tint is enough feedback. */
 input:focus,
 textarea:focus,

@@ -1,7 +1,7 @@
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import PostCard from "@/components/PostCard";
-import { PrimaryButton, buttonClass } from "@/components/Form";
+import { PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { createClient } from "@/lib/supabase/server";
 import { kindLabel, roleTypeLabel, type Post, type PostKind, type RoleType } from "@/lib/types";
 import Link from "next/link";
@@ -116,7 +116,7 @@ export default async function FeedPage({
         Jobs, events, connections, and listings from QUANTT and partner firms.
       </PageHeader>
       <Notice message={sp.denied} />
-      <form className="mb-8 grid gap-3 md:grid-cols-5">
+      <form className="mb-8 grid items-end gap-3 md:grid-cols-5">
         <select
           name="kind"
           aria-label="Post type"
@@ -169,14 +169,14 @@ export default async function FeedPage({
             </option>
           ))}
         </select>
-        <input
+        <TextInput
           name="location"
           aria-label="Location"
           defaultValue={sp.location ?? ""}
           placeholder="Location"
           className="rounded px-3 py-2 text-sm"
         />
-        <label className="flex items-center gap-2 text-sm text-white/70">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-white/70">
           <input
             type="checkbox"
             name="sponsor"
@@ -186,7 +186,7 @@ export default async function FeedPage({
           />
           Sponsors only
         </label>
-        <PrimaryButton type="submit">Filter</PrimaryButton>
+        <PrimaryButton type="submit">Apply filters</PrimaryButton>
         {hasFilters && (
           <Link href="/feed" className={buttonClass("ghost")}>
             Clear filters

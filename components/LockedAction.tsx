@@ -7,20 +7,28 @@ export default function LockedAction({
   tier,
   tiers,
   children,
+  label,
 }: {
   capability: CapabilityKey;
   tier: TierWithCaps | null;
   tiers: TierWithCaps[];
   children: ReactNode;
+  label?: string;
 }) {
   if (can(tier, capability)) return <>{children}</>;
   const needed = lowestTierWith(tiers, capability);
   return (
-    <div>
+    <div className="max-w-full">
       <QuietButton type="button" disabled aria-disabled="true">
-        {typeof children === "string" ? children : "Unavailable"}
+        <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5 shrink-0" stroke="currentColor" strokeWidth="1.5">
+          <rect x="3" y="7" width="10" height="7" rx="1.5" />
+          <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+        </svg>
+        {label ?? (typeof children === "string" ? children : "Unavailable")}
       </QuietButton>
-      {needed && <p className="mt-2 text-xs text-white/50">Included from {needed.name}.</p>}
+      <p className="mt-1.5 max-w-48 text-xs text-white/60">
+        {needed ? `Requires ${needed.name}.` : "Not included in your current access."}
+      </p>
     </div>
   );
 }

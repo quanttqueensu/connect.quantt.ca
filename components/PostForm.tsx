@@ -139,7 +139,7 @@ export default function PostForm({
           </p>
         </Field>
       )}
-      <PrimaryButton type="submit">Publish</PrimaryButton>
+      <PrimaryButton type="submit">Publish post</PrimaryButton>
     </form>
   );
 }

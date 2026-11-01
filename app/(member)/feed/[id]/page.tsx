@@ -14,7 +14,7 @@ import {
   type Post,
   type PostComment,
 } from "@/lib/types";
-import { Field, GhostButton, PrimaryButton, TextArea, buttonClass } from "@/components/Form";
+import { Field, FileInput, GhostButton, PrimaryButton, TextArea, buttonClass } from "@/components/Form";
 import Notice from "@/components/Notice";
 import TierBadge from "@/components/TierBadge";
 import { notFound } from "next/navigation";
@@ -136,7 +136,7 @@ export default async function PostDetailPage({
           <form action={startConversation}>
             <input type="hidden" name="company_id" value={p.company_id} />
             <input type="hidden" name="return_to" value={`/feed/${p.id}`} />
-            <GhostButton type="submit">Message</GhostButton>
+            <GhostButton type="submit">Message company</GhostButton>
           </form>
         )}
         {listingUrl && (
@@ -161,7 +161,7 @@ export default async function PostDetailPage({
               ? "Applied on their site before this closed? You can still log it for execs."
               : "Applied on their site? Log it for execs."}
           </p>
-          <PrimaryButton type="submit">Log that I applied</PrimaryButton>
+          <PrimaryButton type="submit">Log external application</PrimaryButton>
         </form>
       )}
 
@@ -236,9 +236,9 @@ export default async function PostDetailPage({
                 <TextArea name="cover_letter" rows={5} maxLength={4000} />
               </Field>
               <Field label="PDF (if uploading)">
-                <input type="file" name="cover_pdf" accept="application/pdf" />
+                <FileInput name="cover_pdf" accept="application/pdf" />
               </Field>
-              <PrimaryButton type="submit">Apply</PrimaryButton>
+              <PrimaryButton type="submit">Submit application</PrimaryButton>
             </form>
           )}
         </section>
@@ -265,7 +265,7 @@ export default async function PostDetailPage({
           <form action={addComment} className="mt-6 max-w-lg space-y-3">
             <input type="hidden" name="post_id" value={p.id} />
             <TextArea name="body" rows={3} required placeholder="Add a comment" maxLength={4000} />
-            <PrimaryButton type="submit">Comment</PrimaryButton>
+            <PrimaryButton type="submit">Post comment</PrimaryButton>
           </form>
         )}
       </section>

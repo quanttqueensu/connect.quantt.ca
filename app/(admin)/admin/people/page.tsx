@@ -1,6 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { buttonClass } from "@/components/Form";
 
 export default async function PeoplePage() {
   const supabase = await createClient();
@@ -13,11 +14,13 @@ export default async function PeoplePage() {
   return (
     <>
       <PageHeader kicker="Roster" title="People">
-        Club members and execs who have already joined.{" "}
-        <Link href="/admin/invite" className="text-blue-light hover:text-white">
-          Invite someone
-        </Link>
+        Club members and execs who have already joined.
       </PageHeader>
+      <div className="mb-6">
+        <Link href="/admin/invite" className={buttonClass("primary")}>
+          Invite a member
+        </Link>
+      </div>
       <ul>
         {(people ?? []).map((p) => (
           <li key={p.email} className="border-t border-white/10 py-3 text-sm text-white/80">

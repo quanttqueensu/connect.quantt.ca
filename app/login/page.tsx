@@ -28,7 +28,7 @@ export default async function LoginPage({
       {/* A plain link, not <Link>: the route handler redirects off-site. */}
       <a
         href="/auth/quantt/start"
-        className="mt-10 block w-full max-w-sm rounded-md bg-white px-4 py-2.5 text-center text-sm font-semibold text-navy hover:bg-white/90"
+        className="mt-10 inline-flex min-h-11 w-full max-w-sm items-center justify-center rounded border border-white bg-white px-4 py-2.5 text-center text-sm font-semibold leading-5 text-navy transition-colors hover:bg-white/90"
       >
         QUANTT member? Sign in with your Queen&apos;s email
       </a>

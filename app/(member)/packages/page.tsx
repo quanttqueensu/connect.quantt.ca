@@ -1,6 +1,6 @@
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
-import { Field, PrimaryButton, QuietButton, QuietDangerButton, TextArea, TextInput } from "@/components/Form";
+import { Field, FileInput, PrimaryButton, QuietButton, QuietDangerButton, TextArea, TextInput } from "@/components/Form";
 import { createPackage, deletePackage, setDefaultPackage } from "@/lib/actions/packages";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -47,8 +47,8 @@ export default async function PackagesPage({
       <ul className="space-y-4">
         {rows.map((pkg) => (
           <li key={pkg.id} className="border-t border-white/10 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <p className="text-white">
                   {pkg.name}{" "}
                   {pkg.is_default && (
@@ -59,7 +59,7 @@ export default async function PackagesPage({
                 </p>
                 <p className="text-sm text-white/60">{pkg.linkedin_url}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {!pkg.is_default && (
                   <form action={setDefaultPackage}>
                     <input type="hidden" name="id" value={pkg.id} />
@@ -89,19 +89,19 @@ export default async function PackagesPage({
           />
         </Field>
         <Field label="Resume PDF">
-          <input type="file" name="resume" accept="application/pdf" required />
+          <FileInput name="resume" accept="application/pdf" required />
         </Field>
         <Field label="Default cover letter (optional)">
           <TextArea name="cover_letter" rows={5} maxLength={4000} />
         </Field>
         <Field label="Default cover PDF (optional)">
-          <input type="file" name="cover_pdf" accept="application/pdf" />
+          <FileInput name="cover_pdf" accept="application/pdf" />
         </Field>
         <label className="flex items-center gap-2 text-sm text-white/70">
           <input type="checkbox" name="is_default" />
           Make this my default package
         </label>
-        <PrimaryButton type="submit">Save package</PrimaryButton>
+        <PrimaryButton type="submit">Create hiring package</PrimaryButton>
       </form>
     </>
   );

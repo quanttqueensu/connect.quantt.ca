@@ -57,7 +57,7 @@ export default function AdminNav() {
           })}
           <div className="ml-1 flex shrink-0 items-center gap-2 border-l border-white/15 pl-4">
             <Link href="/feed" className={buttonClass("nav")}>
-              Club
+              Member hub
             </Link>
             <form action={logout}>
               <button type="submit" className={buttonClass("nav")}>

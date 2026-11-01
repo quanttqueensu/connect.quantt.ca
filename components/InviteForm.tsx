@@ -54,14 +54,17 @@ export default function InviteForm({
                 type="button"
                 onClick={() => setKind(option.id)}
                 aria-pressed={selected}
-                className={`cursor-pointer border p-4 text-left ${
+                className={`flex h-full cursor-pointer flex-col items-start gap-2 rounded border p-4 text-left transition-colors ${
                   selected
                     ? "border-blue-light bg-white/5"
                     : "border-white/20 hover:border-white/40 hover:bg-white/[0.04]"
                 }`}
               >
-                <p className="font-heading text-base font-bold text-white">{option.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">{option.hint}</p>
+                <span className="font-heading text-base font-bold text-white">{option.title}</span>
+                <span className="text-xs leading-relaxed text-white/60">{option.hint}</span>
+                <span className={`mt-auto pt-2 text-xs font-medium ${selected ? "text-blue-light" : "text-white/50"}`}>
+                  {selected ? "Selected" : "Choose this role"}
+                </span>
               </button>
             );
           })}
