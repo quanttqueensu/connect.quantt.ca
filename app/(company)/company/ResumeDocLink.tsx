@@ -44,7 +44,7 @@ export default function ResumeDocLink({
 
 function UnavailableDoc({ label }: { label: string }) {
   return (
-    <span className="mt-1 mr-3 inline-block text-xs text-white/40">
+    <span className="mt-1 mr-3 inline-block text-xs text-muted">
       This applicant&rsquo;s {label} is unavailable.
     </span>
   );

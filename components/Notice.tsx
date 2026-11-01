@@ -30,7 +30,7 @@ export default function Notice({ message }: { message?: string }) {
   return (
     <p
       role="alert"
-      className="mb-6 rounded border border-blue-light/40 bg-blue-light/10 px-4 py-3 text-sm text-white/80"
+      className="mb-6 rounded border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-ink"
     >
       {text}
     </p>

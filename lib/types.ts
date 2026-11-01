@@ -292,5 +292,5 @@ export function stageLabel(stage: ApplicationStage) {
 }
 
 export function applicationKindLabel(kind: ApplicationKind) {
-  return kind === "in_app" ? "Through the hub" : "Off-platform";
+  return kind === "in_app" ? "Through Connect" : "Off-platform";
 }

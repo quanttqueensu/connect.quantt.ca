@@ -9,7 +9,7 @@ export function Field({
 }) {
   return (
     <label className="block min-w-0 space-y-1.5">
-      <span className="text-[11px] uppercase tracking-wider text-white/60">{label}</span>
+      <span className="text-sm font-medium text-copy">{label}</span>
       {children}
     </label>
   );
@@ -29,7 +29,7 @@ export function FileInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, "ty
     <input
       {...props}
       type="file"
-      className={`block min-h-11 w-full min-w-0 max-w-full rounded p-1 text-sm text-white/70 file:mr-3 file:min-h-8 file:cursor-pointer file:rounded file:border file:border-white/30 file:bg-white/10 file:px-3 file:py-1 file:text-sm file:font-medium file:text-white hover:file:bg-white/15 ${props.className ?? ""}`}
+      className={`block min-h-11 w-full min-w-0 max-w-full rounded p-1 text-sm text-copy file:mr-3 file:min-h-8 file:cursor-pointer file:rounded file:border file:border-line file:bg-surface file:px-3 file:py-1 file:text-sm file:font-medium file:text-copy hover:file:bg-line ${props.className ?? ""}`}
     />
   );
 }
@@ -50,16 +50,17 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "min-h-11 border-blue-light/60 bg-primary px-5 py-2 text-sm text-white shadow-sm shadow-black/20 hover:border-blue-light hover:bg-primary/80",
+    "min-h-11 border-primary bg-primary px-5 py-2.5 text-sm text-white hover:border-primary-hover hover:bg-primary-hover",
   ghost:
-    "min-h-11 border-white/35 bg-white/[0.06] px-4 py-2 text-sm text-white/90 hover:border-white/55 hover:bg-white/10 hover:text-white",
+    "min-h-11 border-line-strong bg-white px-4 py-2.5 text-sm text-copy hover:border-primary hover:bg-surface hover:text-primary",
   danger:
-    "min-h-11 border-red-400/50 bg-red-950/45 px-4 py-2 text-sm text-red-100 hover:border-red-300/70 hover:bg-red-900/50 hover:text-white",
+    "min-h-11 border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 hover:border-red-300 hover:bg-red-100",
   quiet:
-    "min-h-10 border-white/30 bg-white/[0.06] px-3 py-1.5 text-sm text-white/90 hover:border-white/50 hover:bg-white/10 hover:text-white",
+    "min-h-10 border-line bg-white px-3 py-1.5 text-sm text-copy hover:border-primary hover:bg-surface hover:text-primary",
   quietDanger:
-    "min-h-10 border-red-400/45 bg-red-950/35 px-3 py-1.5 text-sm text-red-100 hover:border-red-300/65 hover:bg-red-900/45 hover:text-white",
-  nav: "min-h-9 border-white/30 bg-white/[0.06] px-3 py-1 text-xs text-white/90 hover:border-white/50 hover:bg-white/10 hover:text-white",
+    "min-h-10 border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:border-red-300 hover:bg-red-100",
+  nav:
+    "min-h-9 border-line bg-white px-3 py-1.5 text-xs text-copy hover:border-primary hover:bg-surface hover:text-primary",
 };
 
 export function buttonClass(variant: ButtonVariant = "primary", className?: string) {

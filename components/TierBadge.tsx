@@ -7,7 +7,7 @@ export default function TierBadge({
 }) {
   if (!tier || tier.rank === 0) return null;
   return (
-    <span className="rounded border border-blue-light/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-light">
+    <span className="rounded border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
       {tier.name}
     </span>
   );

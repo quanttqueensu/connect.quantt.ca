@@ -27,14 +27,14 @@ export default async function AdminHome() {
     <>
       <PageHeader kicker="Exec" title="Admin">
         This panel is only for execs. Invite people, approve firms, and post to the club feed.
-        Use Club in the nav to go back to the member hub.
+        Use Member area in the nav to go back to the member area.
       </PageHeader>
       <ul className="grid gap-4 md:grid-cols-2">
         {links.map((l) => (
           <li key={l.href}>
-            <Link href={l.href} className="block border border-white/10 p-5 hover:border-white/20">
-              <p className="font-heading text-lg font-bold text-white">{l.label}</p>
-              <p className="mt-1 text-sm text-white/60">{l.hint}</p>
+            <Link href={l.href} className="group block rounded border border-line p-6 transition-colors hover:border-primary/40 hover:bg-surface">
+              <p className="font-heading text-lg font-semibold text-ink group-hover:text-primary">{l.label}</p>
+              <p className="mt-1 text-sm text-copy">{l.hint}</p>
             </Link>
           </li>
         ))}

@@ -1,74 +1,131 @@
 @import "tailwindcss";
 
+/* Shared with the visual language of quantt.ca: white, charcoal, and QUANTT blue. */
 @theme {
-  --color-navy: #0a1628;
-  --color-navy-mid: #0f1d35;
-  --color-primary: #2452a1;
-  --color-blue-mid: #1e3360;
-  --color-blue-light: #6b8fd4;
-  --color-blue-accent: #c8d6ea;
-  --color-blue-grey: #162a4a;
-  --color-text-light: #8a9fc4;
-  --color-text-dark: #0f1d35;
-  --font-heading: var(--font-merriweather);
-  --font-body: var(--font-inter);
+  --color-navy: #0f2547;
+  --color-primary: #295caa;
+  --color-primary-hover: #214b8b;
+  --color-ink: #101213;
+  --color-copy: #4d5560;
+  --color-muted: #696969;
+  --color-line: #d9dde4;
+  --color-line-strong: #b5bfcc;
+  --color-surface: #f4f5fa;
+  --font-heading: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  --font-body: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
 }
 
-html,
-body {
-  color-scheme: dark;
-  background: #0a1628;
-  color: #c8d6ea;
-}
-
-/* Native option menus need an opaque background on the dark hub. */
-select option,
-select optgroup {
-  background: #0f1d35;
-  color: #fff;
-}
-
-input,
-textarea,
-select {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: white;
-}
-
-::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-
-/* Keep controls aligned with the shared 44px action buttons. Utilities can
-   opt into the 40px size used by inline stage editors. */
 @layer base {
+  html {
+    color-scheme: light;
+    background: white;
+    color: var(--color-ink);
+  }
+
+  body {
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: pretty;
+    letter-spacing: -0.025em;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    background: white;
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-ink);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
   select {
     min-height: 2.75rem;
     min-width: 0;
     max-width: 100%;
   }
+
+  select option,
+  select optgroup {
+    background: white;
+    color: var(--color-ink);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-primary);
+  }
+
+  ::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgb(41 92 170 / 10%);
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: rgb(41 92 170 / 18%);
+  }
 }
 
-/* Mouse/touch focus stays quiet: the border tint is enough feedback. */
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #6b8fd4;
+@layer components {
+  .hub-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid var(--color-line);
+    background: rgb(255 255 255 / 97%);
+    backdrop-filter: blur(12px);
+  }
+
+  .hub-nav-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    padding: 0.75rem 0;
+    color: var(--color-copy);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: color 150ms ease, border-color 150ms ease;
+  }
+
+  .hub-nav-link:hover {
+    color: var(--color-primary);
+  }
+
+  .hub-nav-link[aria-current="page"] {
+    border-bottom-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 }
 
-/* Keyboard focus must always be obvious. A 2px blue-light ring with a 2px
-   offset reads clearly on the navy background and follows each element's own
-   border radius, so it never clashes with the border tint above. */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-summary:focus-visible,
-[role="button"]:focus-visible,
-[tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: 2px solid #6b8fd4;
-  outline-offset: 2px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
 }

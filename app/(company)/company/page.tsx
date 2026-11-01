@@ -24,7 +24,7 @@ export default async function CompanyHome({
     .eq("profile_id", profile.id)
     .maybeSingle();
   if (!cu) {
-    return <p className="text-white/60">This account is not attached to a company.</p>;
+    return <p className="text-copy">This account is not attached to a company.</p>;
   }
   const { data: posts } = await supabase
     .from("posts")
@@ -45,10 +45,10 @@ export default async function CompanyHome({
       </Link>
       <ul className="mt-8">
         {(posts as Post[] | null)?.map((p) => (
-          <li key={p.id} className="border-t border-white/10 py-4">
-            <Link href={`/company/posts/${p.id}`} className="text-white hover:text-blue-light">
+          <li key={p.id} className="border-t border-line py-4">
+            <Link href={`/company/posts/${p.id}`} className="text-ink hover:text-primary">
               {p.title}{" "}
-              <span className="text-xs text-white/60">
+              <span className="text-xs text-copy">
                 {kindLabel(p.kind)} · {p.status}
               </span>
             </Link>
@@ -61,7 +61,7 @@ export default async function CompanyHome({
           </li>
         ))}
       </ul>
-      {!(posts ?? []).length && <p className="mt-8 text-sm text-white/60">No posts yet.</p>}
+      {!(posts ?? []).length && <p className="mt-8 text-sm text-copy">No posts yet.</p>}
     </>
   );
 }

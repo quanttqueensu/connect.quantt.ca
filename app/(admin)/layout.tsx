@@ -10,7 +10,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <>
       <AdminNav />
-      <div className="mx-auto max-w-6xl px-5 py-10">{children}</div>
+      <main className="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">{children}</main>
     </>
   );
 }

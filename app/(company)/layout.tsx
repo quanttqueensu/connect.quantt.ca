@@ -49,7 +49,7 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
     <>
       <HubNav profile={profile} unread={unread} companyCaps={companyCaps} />
       {showGrace && graceUntil && (
-        <div className="border-b border-blue-light/30 bg-blue-light/10 px-5 py-3 text-center text-xs text-white/80">
+        <div className="border-b border-primary/20 bg-primary/5 px-5 py-3 text-center text-xs text-ink">
           Your access is grandfathered until {formatDate(`${graceUntil}T12:00:00`)}. From then, your{" "}
           {assignedName ?? "assigned"} package applies.{" "}
           <Link href="/company/sponsorship" className="underline">
@@ -58,7 +58,7 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
           .
         </div>
       )}
-      <div className="mx-auto max-w-6xl px-5 py-10">{children}</div>
+      <main className="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">{children}</main>
     </>
   );
 }

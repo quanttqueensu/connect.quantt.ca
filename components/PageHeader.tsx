@@ -10,12 +10,12 @@ export default function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-10">
+    <header className="mb-10 border-b border-line pb-8">
       {kicker && (
-        <p className="text-[11px] uppercase tracking-[2px] text-blue-light">{kicker}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">{kicker}</p>
       )}
-      <h1 className="mt-1 font-heading text-3xl font-bold text-white">{title}</h1>
-      {children && <div className="mt-2 text-sm text-white/60">{children}</div>}
+      <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight tracking-[-0.035em] text-ink sm:text-[40px]">{title}</h1>
+      {children && <div className="mt-4 max-w-3xl text-base leading-7 text-copy">{children}</div>}
     </header>
   );
 }

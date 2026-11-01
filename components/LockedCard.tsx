@@ -22,10 +22,10 @@ export default function LockedCard({
   const needed = lowestTierWith(tiers, capability);
 
   return (
-    <section className="rounded border border-white/10 bg-white/[0.02] p-6">
-      <h2 className="font-heading text-lg font-bold text-white/70">{title}</h2>
-      <p className="mt-2 text-sm text-white/60">{description}</p>
-      <p className="mt-4 text-xs uppercase tracking-wider text-blue-light">
+    <section className="rounded border border-line bg-surface p-6">
+      <h2 className="font-heading text-lg font-bold text-copy">{title}</h2>
+      <p className="mt-2 text-sm text-copy">{description}</p>
+      <p className="mt-4 text-xs uppercase tracking-wider text-primary">
         {needed ? `Included from ${needed.name}` : "Not currently available"}
       </p>
       <a

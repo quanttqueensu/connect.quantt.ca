@@ -57,13 +57,13 @@ export default async function CandidateSearchPage({
         description="Your current access does not include searching the member book."
       >
         {graceOnlyCap(assigned, effective, overrides, "candidate_search") && (
-            <p className="mb-6 border border-blue-light/30 bg-blue-light/10 p-4 text-sm text-white/80">
+            <p className="mb-6 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
               Search is still open during grandfathering. It will lock when your {assigned?.name}{" "}
               package takes effect.
             </p>
           )}
         {yearInvalid && (
-          <p role="alert" className="mb-6 text-sm text-white/80">
+          <p role="alert" className="mb-6 text-sm text-ink">
             Grad year must be a whole number between 1900 and 2100.
           </p>
         )}

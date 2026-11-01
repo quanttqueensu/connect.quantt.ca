@@ -35,12 +35,12 @@ export default function TalentList({
 }) {
   const canMessage = can(dmTier, "dm_initiate_any");
   if (!members.length) {
-    return <p className="text-sm text-white/60">{empty}</p>;
+    return <p className="text-sm text-copy">{empty}</p>;
   }
   return (
     <ul>
       {members.map((m) => (
-        <li key={m.id} className="border-t border-white/10 py-5">
+        <li key={m.id} className="border-t border-line py-5">
           <div className="flex gap-4">
             {m.photo_path ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -51,19 +51,19 @@ export default function TalentList({
                 height={56}
                 loading="lazy"
                 decoding="async"
-                className="h-14 w-14 shrink-0 bg-white/5 object-cover"
+                className="h-14 w-14 shrink-0 bg-surface object-cover"
               />
             ) : (
-              <div className="h-14 w-14 shrink-0 bg-white/5" aria-hidden />
+              <div className="h-14 w-14 shrink-0 bg-surface" aria-hidden />
             )}
             <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-              <p className="font-heading text-lg font-bold text-white">{m.full_name}</p>
-              <p className="mt-1 text-sm text-white/50">
+              <p className="font-heading text-lg font-bold text-ink">{m.full_name}</p>
+              <p className="mt-1 text-sm text-muted">
                 {[m.program, m.grad_year, m.package_name].filter(Boolean).join(" · ")}
               </p>
-              {m.bio && <p className="mt-2 line-clamp-3 text-sm text-white/70">{m.bio}</p>}
+              {m.bio && <p className="mt-2 line-clamp-3 text-sm text-copy">{m.bio}</p>}
               {m.interests && (
-                <p className="mt-1 text-xs text-white/45">Interests: {m.interests}</p>
+                <p className="mt-1 text-xs text-muted">Interests: {m.interests}</p>
               )}
               <div className="mt-3 flex flex-wrap items-start gap-2">
                 <a

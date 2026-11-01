@@ -55,20 +55,20 @@ export default async function SponsorshipPage({
   return (
     <>
       <PageHeader kicker="Package" title="Sponsorship">
-        What your firm bought, and what this hub currently unlocks for your contacts. You do not
+        What your firm bought, and what Connect currently unlocks for your contacts. You do not
         see the member feed — that stays with QUANTT members.
       </PageHeader>
       <Notice message={sp.denied} />
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-heading text-2xl font-bold text-white">{display?.name ?? "Unassigned"}</h2>
+        <h2 className="font-heading text-2xl font-bold text-ink">{display?.name ?? "Unassigned"}</h2>
         <TierBadge tier={display} />
       </div>
-      <p className="mt-2 text-sm text-white/60">
+      <p className="mt-2 text-sm text-copy">
         {formatPrice(display?.price_cents ?? null)}
         {display?.blurb ? ` · ${display.blurb}` : ""}
       </p>
       {grace && graceUntil && assigned && effective && assigned.id !== effective.id && (
-        <p className="mt-4 border border-blue-light/30 bg-blue-light/10 p-4 text-sm text-white/80">
+        <p className="mt-4 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
           Until {formatDate(`${graceUntil}T12:00:00`)} you still have {effective.name} access. After
           that, {assigned.name} applies.
         </p>
@@ -83,10 +83,10 @@ export default async function SponsorshipPage({
           const needed = included ? null : lowestTierWith(tiers, key);
           const quota = cap.kind === "quota" ? capValue(access, key) : null;
           return (
-            <li key={cap.key} className="border-t border-white/10 py-4">
-              <p className="text-white">
+            <li key={cap.key} className="border-t border-line py-4">
+              <p className="text-ink">
                 {cap.label}{" "}
-                <span className="text-xs uppercase tracking-wider text-white/50">
+                <span className="text-xs uppercase tracking-wider text-muted">
                   {included
                     ? quota == null
                       ? cap.kind === "quota"
@@ -100,29 +100,29 @@ export default async function SponsorshipPage({
                       : "not included"}
                 </span>
               </p>
-              <p className="mt-1 text-sm text-white/55">{cap.description}</p>
+              <p className="mt-1 text-sm text-muted">{cap.description}</p>
               {!included && needed && (
-                <p className="mt-2 text-xs text-blue-light">Included from {needed.name}.</p>
+                <p className="mt-2 text-xs text-primary">Included from {needed.name}.</p>
               )}
             </li>
           );
         })}
       </ul>
       {access && access.applicant_embargo_hours > 0 && (
-        <p className="mt-8 text-sm text-white/60">
+        <p className="mt-8 text-sm text-copy">
           New applications appear {access.applicant_embargo_hours} hours after they are submitted.
         </p>
       )}
       {access && access.resume_book_embargo_hours > 0 && can(access, "resume_book") && (
-        <p className="mt-3 text-sm text-white/60">
+        <p className="mt-3 text-sm text-copy">
           New resume-book opt-ins appear {access.resume_book_embargo_hours} hours after a member
           opts in.
         </p>
       )}
 
-      <section className="mt-12 border-t border-white/10 pt-8">
-        <h2 className="font-heading text-lg font-bold text-white">Firm profile</h2>
-        <p className="mt-1 text-sm text-white/60">
+      <section className="mt-12 border-t border-line pt-8">
+        <h2 className="font-heading text-lg font-bold text-ink">Firm profile</h2>
+        <p className="mt-1 text-sm text-copy">
           Your logo appears next to posts on the member feed.
         </p>
         <form action={updateCompanyProfile} className="mt-4 grid max-w-xl gap-4">

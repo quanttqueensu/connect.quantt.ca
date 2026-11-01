@@ -25,9 +25,9 @@ export default async function AdminApplicationsPage({
       <Notice message={sp.denied} />
       <ul>
         {(apps as Application[] | null)?.map((a) => (
-          <li key={a.id} className="border-t border-white/10 py-3 text-sm">
-            <span className="text-white">{a.profiles?.full_name}</span>
-            <span className="text-white/60">
+          <li key={a.id} className="border-t border-line py-3 text-sm">
+            <span className="text-ink">{a.profiles?.full_name}</span>
+            <span className="text-copy">
               {" "}
               · {a.kind === "in_app" ? a.posts?.title : a.company_name} · {applicationKindLabel(a.kind)}
             </span>

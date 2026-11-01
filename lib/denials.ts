@@ -19,7 +19,7 @@ const MESSAGES = {
   post_term_fields_required:
     "In-app jobs need a role type, term season, and term year. Add an external listing URL instead if you want to link out.",
   post_job_link_url_required:
-    "A job link needs an external listing URL. Add one, or post it as a job to take applications in the hub.",
+    "A job link needs an external listing URL. Add one, or post it as a job to take applications through Connect.",
   post_close_not_yours:
     "That post could not be closed. It belongs to another firm, or it has been removed.",
   post_close_missing:
@@ -50,9 +50,9 @@ const MESSAGES = {
   application_cover_invalid:
     "That application was not submitted. Keep the cover letter under 4,000 characters, or upload a PDF instead.",
   application_firm_not_accepting:
-    "You cannot apply to this listing in the hub.",
+    "You cannot apply to this listing through Connect.",
   application_not_open:
-    "That posting is not taking hub applications.",
+    "That posting is not taking applications through Connect.",
   application_package_missing:
     "Choose a hiring package, then apply again.",
   application_log_invalid:
@@ -63,9 +63,9 @@ const MESSAGES = {
   // lib/actions/auth.ts
   login_failed: "Could not log in. Check your email and password and try again.",
   login_misconfigured:
-    "This copy of the hub is not connected to the database. Copy .env.example to .env.local and add the Supabase keys, or set them on the host.",
+    "This copy of Connect is not connected to the database. Copy .env.example to .env.local and add the Supabase keys, or set them on the host.",
   login_account_missing:
-    "You're signed in, but this account is not set up in the hub yet. Ask a QUANTT exec to check your invite.",
+    "You're signed in, but this account is not set up in Connect yet. Ask a QUANTT exec to check your invite.",
   login_reset_email_required:
     "Enter your email address, then choose “Forgot your password?”.",
   login_link_expired: "That sign-in link expired. Ask for a new invite, or use “Forgot your password?”.",
@@ -84,11 +84,11 @@ const MESSAGES = {
   join_request_review_race:
     "Another admin reviewed that request first. The firm and its invite were created anyway — check Companies before approving again.",
   join_request_contact_already_registered:
-    "The firm was created and the request approved, but that contact address already has a Hub account, so no invite was sent and their account was not touched. They are not attached to the new firm yet — invite a different contact for the firm, or have them tell an exec which account to link.",
+    "The firm was created and the request approved, but that contact address already has a Connect account, so no invite was sent and their account was not touched. They are not attached to the new firm yet — invite a different contact for the firm, or have them tell an exec which account to link.",
   join_request_review_failed:
     "That request could not be reviewed. Refresh and try again, or contact another exec if it keeps failing.",
   invite_email_already_registered:
-    "That address already has a Hub account, so no invite was sent and nothing about the account was changed. Ask them to log in — if they cannot get in, they can use “Forgot your password?” on the login page. Re-inviting never changes an existing account's role.",
+    "That address already has a Connect account, so no invite was sent and nothing about the account was changed. Ask them to log in — if they cannot get in, they can use “Forgot your password?” on the login page. Re-inviting never changes an existing account's role.",
   invite_failed:
     "That invite could not be sent. Check the details and try again, or contact another exec if it keeps failing.",
   invite_name_email_required: "Name and email are required.",
@@ -101,7 +101,7 @@ const MESSAGES = {
     "That firm's tier could not be changed. The firm may have been removed, or your account may no longer have admin rights.",
   company_status_invalid: "Choose whether this firm is active or inactive.",
   company_access_save_failed:
-    "That firm's hub access could not be saved. The firm may have been removed, or your account may no longer have admin rights.",
+    "That firm's Connect access could not be saved. The firm may have been removed, or your account may no longer have admin rights.",
   company_capability_value_invalid:
     "That job limit isn't a valid whole number. Leave it blank for unlimited, or enter a whole number of slots.",
   admins_only: "You need exec access to do that.",

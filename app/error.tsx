@@ -35,16 +35,16 @@ export default function Error({
 
   return (
     <div className="mx-auto max-w-lg px-5 py-20">
-      <p className="text-xs uppercase tracking-wider text-blue-light">Error</p>
-      <h1 className="mt-2 font-heading text-2xl font-bold text-white">
+      <p className="text-xs uppercase tracking-wider text-primary">Error</p>
+      <h1 className="mt-2 font-heading text-2xl font-bold text-ink">
         This page didn&apos;t load
       </h1>
-      <p className="mt-4 text-sm text-white/60">
+      <p className="mt-4 text-sm text-copy">
         Nothing was saved. Retrying may not help — go back to {home.label} instead. If it keeps
         happening, send a QUANTT exec the reference below.
       </p>
       {error.digest && (
-        <p className="mt-2 text-xs text-white/60">Reference: {error.digest}</p>
+        <p className="mt-2 text-xs text-copy">Reference: {error.digest}</p>
       )}
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <Link href={home.href} className={buttonClass("primary")}>

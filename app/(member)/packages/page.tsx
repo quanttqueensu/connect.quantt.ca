@@ -35,29 +35,29 @@ export default async function PackagesPage({
       </PageHeader>
       <Notice message={sp.denied} />
       {packagesError ? (
-        <p className="border border-white/10 p-6 text-sm text-white/60">
+        <p className="border border-line p-6 text-sm text-copy">
           Hiring packages could not be loaded. Try again.
         </p>
       ) : rows.length === 0 ? (
-        <p className="border border-white/10 p-6 text-sm text-white/60">
+        <p className="border border-line p-6 text-sm text-copy">
           You have no hiring packages yet. Build your first one with the form below — you
           need at least one before you can apply to an in-app job.
         </p>
       ) : null}
       <ul className="space-y-4">
         {rows.map((pkg) => (
-          <li key={pkg.id} className="border-t border-white/10 py-4">
+          <li key={pkg.id} className="border-t border-line py-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 [overflow-wrap:anywhere]">
-                <p className="text-white">
+                <p className="text-ink">
                   {pkg.name}{" "}
                   {pkg.is_default && (
-                    <span className="text-[10px] uppercase tracking-wider text-blue-light">
+                    <span className="text-[10px] uppercase tracking-wider text-primary">
                       Default
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-white/60">{pkg.linkedin_url}</p>
+                <p className="text-sm text-copy">{pkg.linkedin_url}</p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {!pkg.is_default && (
@@ -76,7 +76,7 @@ export default async function PackagesPage({
         ))}
       </ul>
       <form action={createPackage} encType="multipart/form-data" className="mt-10 max-w-lg space-y-4">
-        <h2 className="font-heading text-lg font-bold text-white">New package</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">New package</h2>
         <Field label="Name">
           <TextInput name="name" required placeholder="Quant Research" maxLength={120} />
         </Field>
@@ -97,7 +97,7 @@ export default async function PackagesPage({
         <Field label="Default cover PDF (optional)">
           <FileInput name="cover_pdf" accept="application/pdf" />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-white/70">
+        <label className="flex items-center gap-2 text-sm text-copy">
           <input type="checkbox" name="is_default" />
           Make this my default package
         </label>

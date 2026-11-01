@@ -82,7 +82,7 @@ export default function PostForm({
       {isEvent && (
         <Field label="Starts at (optional)">
           <TextInput name="starts_at" type="datetime-local" />
-          <p className="mt-1 text-xs text-white/60">
+          <p className="mt-1 text-xs text-copy">
             Leave blank if the date is still to be announced.
           </p>
         </Field>
@@ -130,12 +130,12 @@ export default function PostForm({
             value={externalUrl}
             onChange={(e) => setExternalUrl(e.target.value)}
           />
-          <p className="mt-1 text-xs text-white/60">
+          <p className="mt-1 text-xs text-copy">
             {kind === "job" && !allowInAppJob
               ? "In-app applications are not available for this post. Add a full http:// or https:// listing URL."
               : urlRequired
                 ? "A job link points members at a listing elsewhere, so it needs a full http:// or https:// address."
-                : "Leave blank to accept applications in the hub. Add a URL to send members to your own careers page instead."}
+                : "Leave blank to accept applications through Connect. Add a URL to send members to your own careers page instead."}
           </p>
         </Field>
       )}

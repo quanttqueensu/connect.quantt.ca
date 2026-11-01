@@ -23,16 +23,16 @@ export default async function PeoplePage() {
       </div>
       <ul>
         {(people ?? []).map((p) => (
-          <li key={p.email} className="border-t border-white/10 py-3 text-sm text-white/80">
+          <li key={p.email} className="border-t border-line py-3 text-sm text-ink">
             {p.full_name}{" "}
-            <span className="text-white/60">
+            <span className="text-copy">
               {p.email}
               {p.is_admin ? " · admin" : ""}
             </span>
           </li>
         ))}
       </ul>
-      {!(people ?? []).length && <p className="text-sm text-white/60">No members yet.</p>}
+      {!(people ?? []).length && <p className="text-sm text-copy">No members yet.</p>}
     </>
   );
 }

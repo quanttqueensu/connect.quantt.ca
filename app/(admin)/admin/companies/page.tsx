@@ -46,7 +46,7 @@ export default async function CompaniesPage({
   return (
     <>
       <PageHeader kicker="Firms" title="Companies">
-        Assign a sponsorship level to each firm, then grant or revoke hub features for that firm.
+        Assign a sponsorship level to each firm, then grant or revoke Connect features for that firm.
         Company contacts never see the member feed — only their own posts and the products you turn
         on.
       </PageHeader>
@@ -56,9 +56,9 @@ export default async function CompaniesPage({
           Invite a company contact
         </Link>
       </div>
-      <div className="mb-10 border border-white/10 p-5">
-        <p className="text-[11px] uppercase tracking-[2px] text-white/60">Public signup link</p>
-        <p className="mt-2 text-sm text-white/60">
+      <div className="mb-10 border border-line p-5">
+        <p className="text-[11px] uppercase tracking-[2px] text-copy">Public signup link</p>
+        <p className="mt-2 text-sm text-copy">
           Firms can request access here. You approve them under Join requests, or invite a contact
           directly.
         </p>
@@ -77,10 +77,10 @@ export default async function CompaniesPage({
           const overrides = overridesByCompany.get(c.id) ?? [];
           const access = resolveAccess(assigned, effective, overrides);
           return (
-            <article key={c.id} className="border border-white/10 p-5">
+            <article key={c.id} className="border border-line p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h2 className="font-heading text-xl font-bold text-white">{c.name}</h2>
-                <p className="text-xs uppercase tracking-wider text-white/50">
+                <h2 className="font-heading text-xl font-bold text-ink">{c.name}</h2>
+                <p className="text-xs uppercase tracking-wider text-muted">
                   {assigned?.name ?? "unassigned"} · {c.status}
                   {grace && c.tier_grace_until
                     ? ` · grandfathered until ${formatDate(`${c.tier_grace_until}T12:00:00`)}`
@@ -123,22 +123,22 @@ export default async function CompaniesPage({
                   <PrimaryButton type="submit">Save level &amp; status</PrimaryButton>
                 </div>
               </form>
-              <p className="mt-2 text-xs text-white/50">
-                Inactive firms stay off the member directory. Hub products stay off until you set
+              <p className="mt-2 text-xs text-muted">
+                Inactive firms stay off the member directory. Connect features stay off until you set
                 them active again. Changing the level does not clear custom grants below.
               </p>
 
-              <form action={setCompanyAccess} className="mt-6 border-t border-white/10 pt-4">
+              <form action={setCompanyAccess} className="mt-6 border-t border-line pt-4">
                 <input type="hidden" name="company_id" value={c.id} />
-                <p className="text-[11px] uppercase tracking-[2px] text-white/60">
-                  Hub access for this firm
+                <p className="text-[11px] uppercase tracking-[2px] text-copy">
+                  Connect access for this firm
                 </p>
-                <p className="mt-1 text-sm text-white/55">
+                <p className="mt-1 text-sm text-muted">
                   Checkboxes start from {assigned?.name ?? "the assigned level"}. Tick extras or
                   untick features for this sponsor only — they still cannot browse the member feed.
                 </p>
                 {c.status === "inactive" && (
-                  <p className="mt-3 border border-blue-light/30 bg-blue-light/10 p-3 text-sm text-white/80">
+                  <p className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-ink">
                     This firm is inactive, so these products are off for their contacts right now.
                   </p>
                 )}
@@ -151,7 +151,7 @@ export default async function CompaniesPage({
                     const custom = overrideFor(overrides, key);
                     return (
                       <li key={cap.key}>
-                        <label className="flex items-start gap-2 text-sm text-white/80">
+                        <label className="flex items-start gap-2 text-sm text-ink">
                           <input
                             type="checkbox"
                             name={`grant_${cap.key}`}
@@ -159,8 +159,8 @@ export default async function CompaniesPage({
                             className="mt-1 h-4 w-4"
                           />
                           <span>
-                            <span className="text-white">{cap.label}</span>
-                            <span className="ml-2 text-[10px] uppercase tracking-wider text-white/40">
+                            <span className="text-ink">{cap.label}</span>
+                            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted">
                               {custom
                                 ? custom.granted
                                   ? "added for this firm"
@@ -169,7 +169,7 @@ export default async function CompaniesPage({
                                   ? "in package"
                                   : "not in package"}
                             </span>
-                            <span className="mt-0.5 block text-xs text-white/50">
+                            <span className="mt-0.5 block text-xs text-muted">
                               {cap.description}
                             </span>
                           </span>

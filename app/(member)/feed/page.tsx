@@ -112,11 +112,11 @@ export default async function FeedPage({
 
   return (
     <>
-      <PageHeader kicker="Hub" title="Feed">
+      <PageHeader kicker="Connect" title="Feed">
         Jobs, events, connections, and listings from QUANTT and partner firms.
       </PageHeader>
       <Notice message={sp.denied} />
-      <form className="mb-8 grid items-end gap-3 md:grid-cols-5">
+      <form className="mb-4 grid items-end gap-3 rounded border border-line bg-surface p-5 md:grid-cols-5">
         <select
           name="kind"
           aria-label="Post type"
@@ -176,7 +176,7 @@ export default async function FeedPage({
           placeholder="Location"
           className="rounded px-3 py-2 text-sm"
         />
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-white/70">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-copy">
           <input
             type="checkbox"
             name="sponsor"
@@ -195,11 +195,11 @@ export default async function FeedPage({
       </form>
       <div>
         {postsError ? (
-          <p className="text-sm text-white/60">Posts could not be loaded. Try again.</p>
+          <p className="text-sm text-copy">Posts could not be loaded. Try again.</p>
         ) : (
           <>
             {list.length === 0 && (
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-copy">
                 {hasFilters ? "No posts match these filters." : "No posts yet."}
               </p>
             )}
@@ -219,7 +219,7 @@ export default async function FeedPage({
           ) : (
             <span className={buttonClass("quiet", "pointer-events-none opacity-40")}>Newer</span>
           )}
-          <span className="text-white/50">Page {page}</span>
+          <span className="text-muted">Page {page}</span>
           {hasNext ? (
             <Link href={feedHref(sp, page + 1)} className={buttonClass("quiet")}>
               Older
@@ -230,9 +230,9 @@ export default async function FeedPage({
         </nav>
       )}
 
-      <p className="mt-10 text-sm text-white/60">
+      <p className="mt-10 text-sm text-copy">
         Applied off-platform?{" "}
-        <Link href="/applications" className="text-blue-light">
+        <Link href="/applications" className="text-primary">
           Log it
         </Link>
       </p>

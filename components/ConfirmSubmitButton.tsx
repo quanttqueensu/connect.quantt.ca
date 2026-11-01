@@ -67,12 +67,12 @@ export default function ConfirmSubmitButton({
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
-        className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded border border-white/15 bg-navy p-6 text-white backdrop:bg-black/70"
+        className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded border border-line bg-white p-6 text-ink shadow-xl backdrop:bg-navy/45"
       >
-        <h2 id={titleId} className="font-heading text-base text-white">
+        <h2 id={titleId} className="font-heading text-base text-ink">
           Please confirm
         </h2>
-        <p className="mt-3 text-sm text-white/80">{confirmMessage}</p>
+        <p className="mt-3 text-sm text-ink">{confirmMessage}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button type="button" onClick={confirm} className={buttonClass(variant)}>
             {confirmLabel ?? children}

@@ -62,15 +62,15 @@ export default async function ThreadPage({
 
   return (
     <>
-      <h1 className="font-heading text-2xl font-bold text-white">{companyName}</h1>
+      <h1 className="font-heading text-2xl font-bold text-ink">{companyName}</h1>
       <Notice message={sp.denied} />
 
       {olderCount > 0 && (
-        <p className="mt-6 text-sm text-white/60">
+        <p className="mt-6 text-sm text-copy">
           {show < MAX_MESSAGES ? (
             <Link
               href={`/messages/${id}?show=${Math.min(show + PAGE_SIZE, MAX_MESSAGES)}`}
-              className="text-blue-light underline"
+              className="text-primary underline"
             >
               Load older messages
             </Link>
@@ -83,7 +83,7 @@ export default async function ThreadPage({
 
       <ul className="mt-8 space-y-4">
         {messages.length === 0 && (
-          <li className="text-sm text-white/60">
+          <li className="text-sm text-copy">
             No messages yet. Say hello to {companyName}.
           </li>
         )}
@@ -93,17 +93,17 @@ export default async function ThreadPage({
           return (
             <li key={m.id}>
               {newDay && (
-                <p className="my-6 text-center text-[11px] uppercase tracking-wider text-white/45">
+                <p className="my-6 text-center text-[11px] uppercase tracking-wider text-muted">
                   {formatDay(m.created_at)}
                 </p>
               )}
               <div className={mine ? "text-right" : ""}>
-                <p className="text-[11px] text-white/50">
-                  <span className="text-white/70">{sender}</span>
+                <p className="text-[11px] text-muted">
+                  <span className="text-copy">{sender}</span>
                   {" · "}
                   <time dateTime={m.created_at}>{formatTime(m.created_at)}</time>
                 </p>
-                <p className="mt-1 inline-block max-w-full whitespace-pre-wrap rounded border border-white/10 px-4 py-2 text-left text-sm text-white/80 [overflow-wrap:anywhere] sm:max-w-lg">
+                <p className={`mt-2 inline-block max-w-full whitespace-pre-wrap rounded border px-4 py-3 text-left text-sm leading-6 text-ink [overflow-wrap:anywhere] sm:max-w-lg ${mine ? "border-primary/20 bg-primary/5" : "border-line bg-surface"}`}>
                   {m.body}
                 </p>
               </div>

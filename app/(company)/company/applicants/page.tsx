@@ -49,15 +49,15 @@ export default async function ApplicantsPage({
         tier={access}
         tiers={tiers}
         title="Applicant pipeline"
-        description="Your current access does not include seeing who applied in the hub."
+        description="Your current access does not include seeing who applied through Connect."
       >
         {can(access, "read_applicants") && embargo > 0 && (
-          <p className="mb-6 text-sm text-white/60">
+          <p className="mb-6 text-sm text-copy">
             New applications appear after {embargo} hours at your tier.
           </p>
         )}
         {graceOnlyCap(assigned, effective, overrides, "read_applicants") && (
-            <p className="mb-6 border border-blue-light/30 bg-blue-light/10 p-4 text-sm text-white/80">
+            <p className="mb-6 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
               This pipeline is still open during grandfathering. It will lock when your{" "}
               {assigned?.name} package takes effect.
             </p>
@@ -69,9 +69,9 @@ export default async function ApplicantsPage({
         </p>
         <ul>
           {(apps as Application[] | null)?.map((a) => (
-            <li key={a.id} className="border-t border-white/10 py-4">
-              <p className="text-white">{a.profiles?.full_name}</p>
-              <p className="text-sm text-white/60">
+            <li key={a.id} className="border-t border-line py-4">
+              <p className="text-ink">{a.profiles?.full_name}</p>
+              <p className="text-sm text-copy">
                 {a.posts?.title} · {a.stage}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -86,7 +86,7 @@ export default async function ApplicantsPage({
             </li>
           ))}
         </ul>
-        {!(apps ?? []).length && <p className="text-sm text-white/60">No applicants yet.</p>}
+        {!(apps ?? []).length && <p className="text-sm text-copy">No applicants yet.</p>}
       </LockedCard>
     </>
   );

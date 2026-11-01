@@ -27,12 +27,12 @@ export default async function RequestsPage({
       {setup && <ManualInviteBanner email={setup.email} password={setup.password} />}
       <ul>
         {(requests as JoinRequest[] | null)?.map((r) => (
-          <li key={r.id} className="border-t border-white/10 py-5">
-            <p className="text-white">{r.company_name}</p>
-            <p className="text-sm text-white/50">
+          <li key={r.id} className="border-t border-line py-5">
+            <p className="text-ink">{r.company_name}</p>
+            <p className="text-sm text-muted">
               {r.contact_name} · {r.contact_email}
             </p>
-            {r.note && <p className="mt-2 text-sm text-white/60">{r.note}</p>}
+            {r.note && <p className="mt-2 text-sm text-copy">{r.note}</p>}
             <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-end">
               <form action={reviewJoinRequest} className="grid gap-3 sm:flex sm:flex-wrap sm:items-end">
                 <input type="hidden" name="id" value={r.id} />
@@ -62,7 +62,7 @@ export default async function RequestsPage({
           </li>
         ))}
       </ul>
-      {!(requests ?? []).length && <p className="text-sm text-white/60">No pending requests.</p>}
+      {!(requests ?? []).length && <p className="text-sm text-copy">No pending requests.</p>}
     </>
   );
 }

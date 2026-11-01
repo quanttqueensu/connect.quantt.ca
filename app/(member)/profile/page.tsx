@@ -99,14 +99,14 @@ export default async function ProfilePage({
         <PrimaryButton type="submit" className="justify-self-start">Save profile</PrimaryButton>
       </form>
 
-      <h2 className="mt-14 font-heading text-lg font-bold text-white">Custom sections</h2>
+      <h2 className="mt-14 font-heading text-lg font-bold text-ink">Custom sections</h2>
       <ul className="mt-4 space-y-4">
         {sectionRows.map((s) => (
-          <li key={s.id} className="border-t border-white/10 pt-4">
+          <li key={s.id} className="border-t border-line pt-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 [overflow-wrap:anywhere]">
-                <p className="text-sm font-medium text-white">{s.label}</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-white/60">{s.body}</p>
+                <p className="text-sm font-medium text-ink">{s.label}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-copy">{s.body}</p>
               </div>
               <form action={deleteSection} className="shrink-0">
                 <input type="hidden" name="id" value={s.id} />
@@ -127,9 +127,9 @@ export default async function ProfilePage({
         <PrimaryButton type="submit">Add section</PrimaryButton>
       </form>
 
-      <section className="mt-10 border-t border-white/10 pt-8">
-        <h2 className="font-heading text-lg font-bold text-white">Resume book</h2>
-        <p className="mt-2 text-sm text-white/60">
+      <section className="mt-10 border-t border-line pt-8">
+        <h2 className="font-heading text-lg font-bold text-ink">Resume book</h2>
+        <p className="mt-2 text-sm text-copy">
           QUANTT sponsors can browse an opt-in resume book. If you opt
           in, sponsor firms can see your name, program, graduation
           year, and the resume on your default hiring package. The resume book
@@ -137,24 +137,24 @@ export default async function ProfilePage({
           any time.
         </p>
         {defaultPackage ? (
-          <p className="mt-2 text-sm text-white/60">
-            Your default package is <strong className="text-white">{defaultPackage.name}</strong>.
+          <p className="mt-2 text-sm text-copy">
+            Your default package is <strong className="text-ink">{defaultPackage.name}</strong>.
             That is the resume sponsors would see.{" "}
-            <Link href="/packages" className="text-blue-light hover:text-white">
+            <Link href="/packages" className="text-primary hover:text-ink">
               Change it
             </Link>
           </p>
         ) : (
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-copy">
             You have no default hiring package, so there is no resume to show. Opting in exposes
             your name, program, and graduation year only, until you{" "}
-            <Link href="/packages" className="text-blue-light hover:text-white">
+            <Link href="/packages" className="text-primary hover:text-ink">
               create a package
             </Link>{" "}
             and set it as your default.
           </p>
         )}
-        <p className="mt-2 text-sm text-white/80">
+        <p className="mt-2 text-sm text-ink">
           You are currently{" "}
           <strong>{profile.resume_book_opt_in ? "opted in" : "opted out"}</strong>.
         </p>

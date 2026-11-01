@@ -100,13 +100,13 @@ export default async function PostDetailPage({
 
   return (
     <article>
-      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[2px] text-blue-light">
+      <p className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[2px] text-primary">
         {kindLabel(p.kind)}
         <TierBadge tier={one(p.companies?.sponsor_tiers)} />
       </p>
       <Notice message={sp.denied} />
-      <h1 className="mt-2 font-heading text-3xl font-bold text-white">{p.title}</h1>
-      <p className="mt-2 text-sm text-white/55">
+      <h1 className="mt-2 font-heading text-3xl font-bold text-ink">{p.title}</h1>
+      <p className="mt-2 text-sm text-muted">
         {[
           company?.name,
           roleTypeLabel(p.role_type),
@@ -116,20 +116,20 @@ export default async function PostDetailPage({
           .filter(Boolean)
           .join(" · ")}
       </p>
-      <p className="mt-1 text-xs text-white/45">
+      <p className="mt-1 text-xs text-muted">
         Posted <time dateTime={p.created_at}>{formatDate(p.created_at)}</time>
       </p>
       {closed && (
         <p
           role="status"
-          className="mt-6 rounded border border-white/15 bg-white/5 px-4 py-3 text-sm text-white/75"
+          className="mt-6 rounded border border-line bg-surface px-4 py-3 text-sm text-copy"
         >
-          <strong className="text-white">This posting is closed.</strong> It is no longer
+          <strong className="text-ink">This posting is closed.</strong> It is no longer
           accepting applications.
         </p>
       )}
 
-      <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{p.body}</div>
+      <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed text-copy">{p.body}</div>
 
       <div className="mt-8 flex flex-wrap gap-3">
         {p.company_id && (
@@ -156,7 +156,7 @@ export default async function PostDetailPage({
           <input type="hidden" name="post_id" value={p.id} />
           <input type="hidden" name="company_id" value={p.company_id ?? ""} />
           <input type="hidden" name="company_name" value={company?.name ?? "External"} />
-          <p className="text-xs text-white/60">
+          <p className="text-xs text-copy">
             {closed
               ? "Applied on their site before this closed? You can still log it for execs."
               : "Applied on their site? Log it for execs."}
@@ -166,15 +166,15 @@ export default async function PostDetailPage({
       )}
 
       {canLogOffPlatform && existingApp && (
-        <p className="mt-6 text-sm text-blue-light">
+        <p className="mt-6 text-sm text-primary">
           Logged — this is in your applications.
         </p>
       )}
 
       {isPlatformJob(p) && profile?.role === "member" && !inApp && (
-        <section className="mt-10 max-w-lg border-t border-white/10 pt-8">
-          <h2 className="font-heading text-lg font-bold text-white">Apply</h2>
-          <p className="mt-3 text-sm text-white/60">
+        <section className="mt-10 max-w-lg border-t border-line pt-8">
+          <h2 className="font-heading text-lg font-bold text-ink">Apply</h2>
+          <p className="mt-3 text-sm text-copy">
             This posting is closed, so applications are no longer being accepted here.
             {existingApp ? " Your application is still in your applications list." : ""}
           </p>
@@ -185,21 +185,21 @@ export default async function PostDetailPage({
       )}
 
       {inApp && profile?.role === "member" && (
-        <section className="mt-10 max-w-lg border-t border-white/10 pt-8">
-          <h2 className="font-heading text-lg font-bold text-white">Apply</h2>
+        <section className="mt-10 max-w-lg border-t border-line pt-8">
+          <h2 className="font-heading text-lg font-bold text-ink">Apply</h2>
           {existingApp ? (
-            <p className="mt-3 text-sm text-blue-light">Already applied.</p>
+            <p className="mt-3 text-sm text-primary">Already applied.</p>
           ) : !firmAcceptsHubApps ? (
-            <p className="mt-3 text-sm text-white/60">
-              This listing is not taking applications in the hub.
+            <p className="mt-3 text-sm text-copy">
+              This listing is not taking applications through Connect.
             </p>
           ) : packagesQuery.error ? (
-            <p className="mt-3 text-sm text-white/60">
+            <p className="mt-3 text-sm text-copy">
               Hiring packages could not be loaded. Try again.
             </p>
           ) : !packages?.length ? (
             <div className="mt-3">
-              <p className="text-sm text-white/60">
+              <p className="text-sm text-copy">
                 A hiring package bundles your resume, LinkedIn, and an optional cover
                 letter so you can apply in one click. You need one before applying.
               </p>
@@ -244,20 +244,20 @@ export default async function PostDetailPage({
         </section>
       )}
 
-      <section className="mt-12 border-t border-white/10 pt-8">
-        <h2 className="font-heading text-lg font-bold text-white">Comments</h2>
+      <section className="mt-12 border-t border-line pt-8">
+        <h2 className="font-heading text-lg font-bold text-ink">Comments</h2>
         <ul className="mt-4 space-y-4">
           {commentsError ? (
-            <li className="text-sm text-white/60">Comments could not be loaded. Try again.</li>
+            <li className="text-sm text-copy">Comments could not be loaded. Try again.</li>
           ) : (comments as PostComment[] | null)?.length === 0 ? (
-            <li className="text-sm text-white/60">No comments yet.</li>
+            <li className="text-sm text-copy">No comments yet.</li>
           ) : null}
           {(comments as PostComment[] | null)?.map((c) => (
             <li key={c.id} className="text-sm">
-              <span className="text-white/80">
+              <span className="text-ink">
                 {one(c.profiles)?.full_name ?? "Member"}
               </span>
-              <p className="mt-1 text-white/60">{c.body}</p>
+              <p className="mt-1 text-copy">{c.body}</p>
             </li>
           ))}
         </ul>

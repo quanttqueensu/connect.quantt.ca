@@ -48,21 +48,21 @@ export default async function MessagesPage({
       <PageHeader kicker="Inbox" title="Messages" />
       <Notice message={sp.denied} />
       {convosError ? (
-        <p className="text-sm text-white/60">Messages could not be loaded. Try again.</p>
+        <p className="text-sm text-copy">Messages could not be loaded. Try again.</p>
       ) : (
         <>
           <ul>
             {rows.map((c) => (
-              <li key={c.id} className="border-t border-white/10">
+              <li key={c.id} className="border-t border-line">
                 <Link
                   href={`/messages/${c.id}`}
-                  className="block py-4 text-white hover:text-blue-light"
+                  className="block py-4 text-ink hover:text-primary"
                 >
-                  <span className={c.unread ? "font-medium text-white" : undefined}>
+                  <span className={c.unread ? "font-medium text-ink" : undefined}>
                     {c.name}
                   </span>
                   {c.unread && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider text-blue-light">
+                    <span className="ml-2 text-[10px] uppercase tracking-wider text-primary">
                       New
                     </span>
                   )}
@@ -71,7 +71,7 @@ export default async function MessagesPage({
             ))}
           </ul>
           {rows.length === 0 && (
-            <p className="text-sm text-white/60">No threads yet. Message a company from a post.</p>
+            <p className="text-sm text-copy">No threads yet. Message a company from a post.</p>
           )}
         </>
       )}

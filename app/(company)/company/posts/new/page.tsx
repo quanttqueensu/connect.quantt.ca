@@ -56,15 +56,15 @@ export default async function NewCompanyPost({
             tier={access}
             tiers={tiers}
             title="In-app applications"
-            description="Your current access does not include jobs that take applications in the hub. You can still publish a listing with an external URL."
+            description="Your current access does not include jobs that take applications through Connect. You can still publish a listing with an external URL."
           />
         </div>
       )}
       {can(access, "post_in_app_job") && quota != null && (
-        <p className="mb-8 text-sm text-white/60">
+        <p className="mb-8 text-sm text-copy">
           Open in-app jobs: {openInApp ?? 0} / {quota}
           {atQuota
-            ? ". Close one first to take applications in the hub, or publish a listing with an external URL."
+            ? ". Close one first to take applications through Connect, or publish a listing with an external URL."
             : "."}
         </p>
       )}

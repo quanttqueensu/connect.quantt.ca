@@ -26,10 +26,10 @@ export default async function CompanyMessagesPage() {
       <PageHeader kicker="Inbox" title="Messages" />
       <ul>
         {(convos as Conversation[] | null)?.map((c) => (
-          <li key={c.id} className="border-t border-white/10">
+          <li key={c.id} className="border-t border-line">
             <Link
               href={`/company/messages/${c.id}`}
-              className="block py-4 text-white hover:text-blue-light"
+              className="block py-4 text-ink hover:text-primary"
             >
               {c.profiles?.full_name ?? "Member"}
             </Link>
@@ -37,7 +37,7 @@ export default async function CompanyMessagesPage() {
         ))}
       </ul>
       {!(convos ?? []).length && (
-        <p className="text-sm text-white/60">
+        <p className="text-sm text-copy">
           No threads yet. Members can start a conversation from any of your posts.
         </p>
       )}

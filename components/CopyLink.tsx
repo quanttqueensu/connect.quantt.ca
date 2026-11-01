@@ -21,7 +21,7 @@ export default function CopyLink({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <code className="break-all text-sm text-white/70">{value}</code>
+      <code className="break-all text-sm text-copy">{value}</code>
       <QuietButton
         type="button"
         onClick={async () => {
@@ -37,7 +37,7 @@ export default function CopyLink({
       >
         {status === "copied" ? "Copied" : label}
       </QuietButton>
-      <span role="status" className="text-xs text-white/70">
+      <span role="status" className="text-xs text-copy">
         {status === "failed"
           ? "Could not copy. Select and copy the text above."
           : status === "copied"

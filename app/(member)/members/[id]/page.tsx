@@ -60,8 +60,8 @@ export default async function MemberProfilePage({
           <img src={photoUrl} alt="" className="h-20 w-20 object-cover" />
         ) : null}
         <div>
-          <h1 className="font-heading text-3xl font-bold text-white">{m.full_name}</h1>
-          <p className="mt-2 text-sm text-white/50">
+          <h1 className="font-heading text-3xl font-bold text-ink">{m.full_name}</h1>
+          <p className="mt-2 text-sm text-muted">
             {[m.program, m.grad_year].filter(Boolean).join(" · ")}
           </p>
         </div>
@@ -69,12 +69,12 @@ export default async function MemberProfilePage({
       <dl className="mt-8 space-y-4">
         {fields.map((field) => (
           <div key={field.label}>
-            <dt className="text-[11px] uppercase tracking-wider text-white/60">{field.label}</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-sm text-white/75">
+            <dt className="text-[11px] uppercase tracking-wider text-copy">{field.label}</dt>
+            <dd className="mt-1 whitespace-pre-wrap text-sm text-copy">
               {field.kind === "url" && /^https?:\/\//i.test(field.value) ? (
                 <a
                   href={field.value}
-                  className="text-blue-light hover:text-white"
+                  className="text-primary hover:text-ink"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -88,9 +88,9 @@ export default async function MemberProfilePage({
         ))}
       </dl>
       {(sections as ProfileSection[] | null)?.map((s) => (
-        <section key={s.id} className="mt-8 border-t border-white/10 pt-6">
-          <h2 className="text-[11px] uppercase tracking-wider text-white/60">{s.label}</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-white/75">{s.body}</p>
+        <section key={s.id} className="mt-8 border-t border-line pt-6">
+          <h2 className="text-[11px] uppercase tracking-wider text-copy">{s.label}</h2>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{s.body}</p>
         </section>
       ))}
     </article>

@@ -125,7 +125,7 @@ export async function sendMessage(formData: FormData) {
   await notify({
     type: "message",
     to: [],
-    subject: "New message on QUANTT Hub",
+    subject: "New message on Connect by QUANTT",
     body,
   });
   revalidatePath("/messages");

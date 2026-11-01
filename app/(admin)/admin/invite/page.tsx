@@ -43,9 +43,9 @@ export default async function InvitePage({
         sent={Boolean(sent)}
       />
       <section className="mt-14">
-        <h2 className="font-heading text-lg font-bold text-white">Waiting to join</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">Waiting to join</h2>
         {!(pending ?? []).length ? (
-          <p className="mt-3 text-sm text-white/60">No outstanding invites.</p>
+          <p className="mt-3 text-sm text-copy">No outstanding invites.</p>
         ) : (
           <ul className="mt-4">
             {(pending ?? []).map((invite) => {
@@ -62,10 +62,10 @@ export default async function InvitePage({
               return (
                 <li
                   key={invite.email}
-                  className="border-t border-white/10 py-3 text-sm text-white/80"
+                  className="border-t border-line py-3 text-sm text-ink"
                 >
                   {invite.full_name}{" "}
-                  <span className="text-white/60">
+                  <span className="text-copy">
                     {invite.email} · {kindLabel}
                   </span>
                 </li>

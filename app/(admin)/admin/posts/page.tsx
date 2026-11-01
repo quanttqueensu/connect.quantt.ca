@@ -38,11 +38,11 @@ export default async function AdminPostsPage({
           return (
             <li
               key={p.id}
-              className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-start sm:justify-between"
+              className="flex flex-col gap-3 border-t border-line py-4 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0 [overflow-wrap:anywhere]">
-                <p className="text-white">{p.title}</p>
-                <p className="mt-1 text-xs text-white/60">
+                <p className="text-ink">{p.title}</p>
+                <p className="mt-1 text-xs text-copy">
                   {kindLabel(p.kind)} · {company?.name ?? "QUANTT"} · {p.status} ·{" "}
                   {p.published ? "published" : "unpublished"}
                 </p>
@@ -57,7 +57,7 @@ export default async function AdminPostsPage({
           );
         })}
       </ul>
-      {!(posts ?? []).length && <p className="text-sm text-white/60">No posts yet.</p>}
+      {!(posts ?? []).length && <p className="text-sm text-copy">No posts yet.</p>}
     </>
   );
 }

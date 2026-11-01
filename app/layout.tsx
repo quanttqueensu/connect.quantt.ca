@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter, Merriweather } from "next/font/google";
+import { Inter } from "next/font/google";
 import AuthHashCatcher from "@/components/AuthHashCatcher";
 import "./globals.css";
 
@@ -10,17 +10,10 @@ const inter = Inter({
   display: "swap",
 });
 
-const merriweather = Merriweather({
-  subsets: ["latin"],
-  weight: ["700"],
-  variable: "--font-merriweather",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "QUANTT Hub",
+  title: "Connect by QUANTT",
   description:
-    "QUANTT member and sponsor hub — roles, applications, and club posts.",
+    "Connect by QUANTT — member and sponsor access to roles, applications, and club posts.",
   icons: { icon: "/favicon.png" },
 };
 
@@ -30,8 +23,8 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${merriweather.variable}`}>
-      <body className="min-h-screen bg-navy font-body antialiased">
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-screen bg-white font-body antialiased">
         <AuthHashCatcher />
         {children}
       </body>

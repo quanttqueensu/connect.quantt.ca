@@ -26,7 +26,7 @@ export default function LockedAction({
         </svg>
         {label ?? (typeof children === "string" ? children : "Unavailable")}
       </QuietButton>
-      <p className="mt-1.5 max-w-48 text-xs text-white/60">
+      <p className="mt-1.5 max-w-48 text-xs text-copy">
         {needed ? `Requires ${needed.name}.` : "Not included in your current access."}
       </p>
     </div>

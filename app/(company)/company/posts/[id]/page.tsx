@@ -46,9 +46,9 @@ export default async function CompanyPostPage({
 
   return (
     <>
-      <p className="text-[11px] uppercase tracking-wider text-blue-light">{kindLabel(p.kind)}</p>
-      <h1 className="mt-1 font-heading text-3xl font-bold text-white">{p.title}</h1>
-      <p className="mt-4 whitespace-pre-wrap text-sm text-white/70">{p.body}</p>
+      <p className="text-[11px] uppercase tracking-wider text-primary">{kindLabel(p.kind)}</p>
+      <h1 className="mt-1 font-heading text-3xl font-bold text-ink">{p.title}</h1>
+      <p className="mt-4 whitespace-pre-wrap text-sm text-copy">{p.body}</p>
       {p.external_url && isSafeHttpUrl(p.external_url) && (
         <p className="mt-4">
           <a
@@ -70,22 +70,22 @@ export default async function CompanyPostPage({
             title="Applicants"
             description="Your current access does not include seeing who applied to this posting."
           >
-            <h2 className="font-heading text-lg font-bold text-white">Applicants</h2>
+            <h2 className="font-heading text-lg font-bold text-ink">Applicants</h2>
             {graceOnlyCap(assigned, effective, overrides, "read_applicants") && (
-                <p className="mt-3 mb-2 border border-blue-light/30 bg-blue-light/10 p-4 text-sm text-white/80">
+                <p className="mt-3 mb-2 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
                   Applicant access is still open during grandfathering. It will lock when your{" "}
                   {assigned?.name} package takes effect.
                 </p>
               )}
             <ul className="mt-4 space-y-4">
               {(apps as Application[] | null)?.map((a) => (
-                <li key={a.id} className="border-t border-white/10 py-4">
-                  <p className="text-white">{a.profiles?.full_name}</p>
-                  <p className="text-sm text-white/50">
+                <li key={a.id} className="border-t border-line py-4">
+                  <p className="text-ink">{a.profiles?.full_name}</p>
+                  <p className="text-sm text-muted">
                     {a.package_name} · {a.linkedin_url}
                   </p>
                   {a.cover_letter && (
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-white/60">{a.cover_letter}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{a.cover_letter}</p>
                   )}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ResumeDocLink applicationId={a.id} path={a.resume_path} doc="resume" />

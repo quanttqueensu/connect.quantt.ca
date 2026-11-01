@@ -18,7 +18,7 @@ export default function AwaitInviteSession() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-sm text-white/55">{message}</p>
+      <p className="text-sm text-muted">{message}</p>
     </div>
   );
 }

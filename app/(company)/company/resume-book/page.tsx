@@ -57,18 +57,18 @@ export default async function ResumeBookPage({
         description="Your current access does not include the opt-in member resume book."
       >
         {graceOnlyCap(assigned, effective, overrides, "resume_book") && (
-            <p className="mb-6 border border-blue-light/30 bg-blue-light/10 p-4 text-sm text-white/80">
+            <p className="mb-6 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
               You can browse the book during grandfathering. It will lock when your{" "}
               {assigned?.name} package takes effect.
             </p>
           )}
         {delay > 0 && (
-          <p className="mb-6 text-sm text-white/60">
+          <p className="mb-6 text-sm text-copy">
             New opt-ins appear after {delay} hours at your tier.
           </p>
         )}
         {yearInvalid && (
-          <p role="alert" className="mb-6 text-sm text-white/80">
+          <p role="alert" className="mb-6 text-sm text-ink">
             Grad year must be a whole number between 1900 and 2100.
           </p>
         )}

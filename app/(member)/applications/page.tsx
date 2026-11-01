@@ -35,13 +35,13 @@ export default async function ApplicationsPage({
       <PageHeader kicker="Pipeline" title="My applications" />
       <Notice message={sp.denied} />
       {appsError ? (
-        <p className="border border-white/10 p-6 text-sm text-white/60">
+        <p className="border border-line p-6 text-sm text-copy">
           Applications could not be loaded. Try again.
         </p>
       ) : rows.length === 0 ? (
-        <p className="border border-white/10 p-6 text-sm text-white/60">
+        <p className="border border-line p-6 text-sm text-copy">
           Nothing here yet. Apply to an in-app job from the{" "}
-          <Link href="/feed" className="text-blue-light hover:underline">
+          <Link href="/feed" className="text-primary hover:underline">
             feed
           </Link>{" "}
           and it will appear here, or log an application you made elsewhere using the form
@@ -54,16 +54,16 @@ export default async function ApplicationsPage({
           const title =
             a.kind === "in_app" ? (post?.title ?? "Job posting") : a.company_name;
           return (
-            <li key={a.id} className="border-t border-white/10 py-4">
-              <p className="text-white">
+            <li key={a.id} className="border-t border-line py-4">
+              <p className="text-ink">
                 {a.kind === "in_app" && post?.id ? (
-                  <Link href={`/feed/${post.id}`} className="text-white hover:text-blue-light">
+                  <Link href={`/feed/${post.id}`} className="text-ink hover:text-primary">
                     {title}
                   </Link>
                 ) : (
                   title
                 )}{" "}
-                <span className="text-xs text-white/60">
+                <span className="text-xs text-copy">
                   {a.kind === "in_app" && a.package_name
                     ? a.package_name
                     : applicationKindLabel(a.kind)}{" "}
@@ -88,7 +88,7 @@ export default async function ApplicationsPage({
         })}
       </ul>
       <form action={logOffPlatform} className="mt-12 max-w-md space-y-3">
-        <h2 className="font-heading text-lg font-bold text-white">Log an external application</h2>
+        <h2 className="font-heading text-lg font-bold text-ink">Log an external application</h2>
         <Field label="Company name">
           <TextInput name="company_name" required />
         </Field>

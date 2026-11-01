@@ -44,7 +44,7 @@ export default function InviteForm({
     <form action={invitePerson} className="space-y-6">
       <input type="hidden" name="kind" value={kind} />
       <fieldset>
-        <legend className="text-[11px] uppercase tracking-wider text-white/60">Who is this?</legend>
+        <legend className="text-[11px] uppercase tracking-wider text-copy">Who is this?</legend>
         <div className="mt-3 grid gap-2 md:grid-cols-3">
           {KINDS.map((option) => {
             const selected = kind === option.id;
@@ -56,13 +56,13 @@ export default function InviteForm({
                 aria-pressed={selected}
                 className={`flex h-full cursor-pointer flex-col items-start gap-2 rounded border p-4 text-left transition-colors ${
                   selected
-                    ? "border-blue-light bg-white/5"
-                    : "border-white/20 hover:border-white/40 hover:bg-white/[0.04]"
+                    ? "border-primary bg-surface"
+                    : "border-line-strong hover:border-line-strong hover:bg-surface"
                 }`}
               >
-                <span className="font-heading text-base font-bold text-white">{option.title}</span>
-                <span className="text-xs leading-relaxed text-white/60">{option.hint}</span>
-                <span className={`mt-auto pt-2 text-xs font-medium ${selected ? "text-blue-light" : "text-white/50"}`}>
+                <span className="font-heading text-base font-bold text-ink">{option.title}</span>
+                <span className="text-xs leading-relaxed text-copy">{option.hint}</span>
+                <span className={`mt-auto pt-2 text-xs font-medium ${selected ? "text-primary" : "text-muted"}`}>
                   {selected ? "Selected" : "Choose this role"}
                 </span>
               </button>
@@ -72,7 +72,7 @@ export default function InviteForm({
       </fieldset>
 
       {sent && (
-        <p className="text-sm text-blue-light">
+        <p className="text-sm text-primary">
           Invite email sent. They’ll set a password from the link.
         </p>
       )}
@@ -87,8 +87,8 @@ export default function InviteForm({
       </div>
 
       {kind === "company" && (
-        <div className="space-y-4 border border-white/10 p-4">
-          <p className="text-sm text-white/55">Which firm are they joining?</p>
+        <div className="space-y-4 border border-line p-4">
+          <p className="text-sm text-muted">Which firm are they joining?</p>
           <Field label="Existing company">
             <select
               name="company_id"

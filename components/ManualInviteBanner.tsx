@@ -26,20 +26,20 @@ export default function ManualInviteBanner({
   }, []);
 
   return (
-    <div className="mb-8 border border-blue-light/30 p-5">
-      <p className="text-sm text-blue-light">
+    <div className="mb-8 border border-primary/20 p-5">
+      <p className="text-sm text-primary">
         We could not email the invite (sending is rate-limited), so we created a new account for{" "}
-        <span className="text-white">{email}</span> with the temporary password below. Send it to
+        <span className="text-ink">{email}</span> with the temporary password below. Send it to
         them over a channel you trust — they will be asked to set their own password on first
         login.
       </p>
-      <p className="mt-3 text-[11px] uppercase tracking-[2px] text-white/60">
+      <p className="mt-3 text-[11px] uppercase tracking-[2px] text-copy">
         Temporary password — shown once
       </p>
       <div className="mt-2">
         <CopyLink value={password} label="Copy password" />
       </div>
-      <p className="mt-3 text-xs text-white/50">
+      <p className="mt-3 text-xs text-muted">
         Copy it now. Leaving or reloading this page clears it for good; if you lose it, they can
         use “Forgot your password?” on the login page instead.
       </p>
