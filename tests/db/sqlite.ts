@@ -2,15 +2,19 @@
  * A throwaway in-memory SQLite database with the D1 schema, for tests.
  * D1 is SQLite, so node:sqlite runs the same SQL the Worker will.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { resolveCompanyAccess } from "@/lib/db/access";
+import type { D1Database, D1PreparedStatement, D1Result } from "@/lib/db/d1";
 import type { Sql, Viewer } from "@/lib/db/policies";
 
 const root = resolve(__dirname, "../..");
-const SCHEMA = readFileSync(resolve(root, "db/migrations/0001_init.sql"), "utf8");
+const MIGRATIONS = readdirSync(resolve(root, "db/migrations"))
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(resolve(root, "db/migrations", f), "utf8"));
 const SEED = readFileSync(resolve(root, "db/seed.sql"), "utf8");
 
 export const TIER = {
@@ -26,7 +30,7 @@ export type TierKey = keyof typeof TIER;
 
 export function freshDb() {
   const db = new DatabaseSync(":memory:");
-  db.exec(SCHEMA);
+  for (const m of MIGRATIONS) db.exec(m);
   db.exec(SEED);
   return db;
 }
@@ -209,5 +213,41 @@ export function viewer(db: Db, profileId: string, now = NOW): Viewer {
     companyId,
     access: companyId ? loadAccess(db, companyId, now) : null,
     now,
+  };
+}
+
+/** D1's API over node:sqlite, so code written for the Worker runs in tests. */
+export function asD1(db: Db): D1Database {
+  const statement = (query: string, values: unknown[] = []): D1PreparedStatement & { exec(): D1Result } => {
+    const args = values.map((v) => (typeof v === "boolean" ? (v ? 1 : 0) : v === undefined ? null : v)) as Value[];
+    const exec = (): D1Result => {
+      const stmt = db.prepare(query);
+      if (/^\s*(SELECT|WITH)/i.test(query) || /RETURNING/i.test(query)) {
+        return { results: stmt.all(...args) as Record<string, unknown>[], meta: { changes: 0 } };
+      }
+      const r = stmt.run(...args);
+      return { results: [], meta: { changes: Number(r.changes) } };
+    };
+    return {
+      bind: (...v: unknown[]) => statement(query, v),
+      first: async <T>() => (exec().results[0] as T) ?? null,
+      all: async <T>() => exec() as D1Result<T>,
+      run: async () => exec(),
+      exec,
+    };
+  };
+  return {
+    prepare: (q) => statement(q),
+    batch: async (stmts) => {
+      db.exec("BEGIN");
+      try {
+        const out = stmts.map((s) => (s as ReturnType<typeof statement>).exec());
+        db.exec("COMMIT");
+        return out;
+      } catch (e) {
+        db.exec("ROLLBACK");
+        throw e;
+      }
+    },
   };
 }
