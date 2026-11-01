@@ -60,6 +60,7 @@ The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://openn
 2. Build variables (Settings → Build → Variables): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`. These are baked into the browser bundle at build time.
 3. Runtime variables (Settings → Variables and Secrets): the same three, plus the secret `SUPABASE_SERVICE_ROLE_KEY`.
 4. Settings → Domains & Routes → add `connect.quantt.ca` (remove it from the old host first).
+5. PR previews (Settings → Build → Previews): build command `npx opennextjs-cloudflare build`, preview command `npx wrangler preview`. `wrangler preview` needs the `previews` block in `wrangler.jsonc`. Previews get no service bindings, so "Sign in with QUANTT" doesn't work on a preview URL.
 
 Local: `npm run dev` as before; `npm run preview` runs the Worker build locally.
 
