@@ -244,7 +244,7 @@ export function applicationsScope(v: MaybeViewer, a = "ap"): Sql {
 }
 
 /** The firm's half of applications_company_in_app / applications_company_stage. */
-function companyApplicationsSql(v: Viewer, a: string): Sql {
+export function companyApplicationsSql(v: Viewer, a: string): Sql {
   if (!v.companyId || !myCapability(v, "read_applicants")) return NONE;
   return sql(
     `${col(a, "kind")} = 'in_app'
