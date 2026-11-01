@@ -1,3 +1,5 @@
+import SponsorModeBanner from "@/components/SponsorModeBanner";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import type { ReactNode } from "react";
 import HubNav from "@/components/HubNav";
 import { requireCurrentProfile } from "@/lib/auth";
@@ -9,20 +11,16 @@ import Link from "next/link";
 
 export default async function CompanyLayout({ children }: { children: ReactNode }) {
   const profile = await requireCurrentProfile();
-  if (profile.role !== "company_user") redirect("/feed");
 
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const cu = await getCompanyContext();
+  if (!cu && profile.role !== "company_user") redirect(profile.is_admin ? "/admin/sponsor-mode" : "/feed");
 
   let unread = 0;
   let graceUntil: string | null = null;
   let assignedName: string | null = null;
   let companyCaps: string[] = [];
-  if (cu) {
+  if (cu && !cu.preview) {
     // Only the single newest message per conversation, ordered explicitly, so
     // the cost tracks conversations rather than total message volume.
     const { data: convos } = await supabase
@@ -43,11 +41,16 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
     companyCaps = (access?.sponsor_tier_capabilities ?? []).map((c) => c.capability);
   }
 
+  if (cu?.preview) {
+    const { access } = await loadMyCompanyTier(cu.company_id);
+    companyCaps = (access?.sponsor_tier_capabilities ?? []).map((cap) => cap.capability);
+  }
   const showGrace = graceIsOpen(graceUntil);
 
   return (
     <>
-      <HubNav profile={profile} unread={unread} companyCaps={companyCaps} />
+      <HubNav profile={cu?.preview ? { ...profile, role: "company_user", is_admin: false } : profile} unread={unread} companyCaps={companyCaps} />
+      {cu?.preview && <SponsorModeBanner companyName={cu.company.name} />}
       {showGrace && graceUntil && (
         <div className="border-b border-primary/20 bg-primary/5 px-5 py-3 text-center text-xs text-ink">
           Your access is grandfathered until {formatDate(`${graceUntil}T12:00:00`)}. From then, your{" "}

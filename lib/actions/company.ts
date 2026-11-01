@@ -1,5 +1,7 @@
 "use server";
 
+import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
+
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +29,7 @@ function httpUrlOrNull(raw: string | null) {
 
 export async function updateCompanyProfile(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   if (profile.role !== "company_user") throw new Error("Companies only");
   const supabase = await createClient();
   const { data: cu } = await supabase

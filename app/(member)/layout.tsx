@@ -1,3 +1,5 @@
+import SponsorModeBanner from "@/components/SponsorModeBanner";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import type { ReactNode } from "react";
 import HubNav from "@/components/HubNav";
 import { requireCurrentProfile } from "@/lib/auth";
@@ -29,9 +31,12 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     return !c.member_last_read_at || last > c.member_last_read_at;
   }).length;
 
+  const sponsorContext = profile.is_admin ? await getCompanyContext() : null;
+
   return (
     <>
-      <HubNav profile={profile} unread={unread} />
+      <HubNav profile={profile} unread={unread} sponsorMode={sponsorContext?.preview} />
+      {sponsorContext?.preview && <SponsorModeBanner companyName={sponsorContext.company.name} />}
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">{children}</main>
     </>
   );

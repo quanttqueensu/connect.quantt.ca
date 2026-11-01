@@ -1,5 +1,7 @@
 "use server";
 
+import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
@@ -17,6 +19,7 @@ function isUuid(value: string) {
 
 export async function startConversation(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   let companyId = String(formData.get("company_id") ?? "");
   const memberId =
@@ -84,6 +87,7 @@ const MAX_MESSAGE_BODY = 4000;
 
 export async function sendMessage(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   const conversationId = String(formData.get("conversation_id") ?? "");
   const body = String(formData.get("body") ?? "").trim();
@@ -136,6 +140,7 @@ export async function sendMessage(formData: FormData) {
 
 export async function markRead(conversationId: string) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   await markConversationRead(supabase, profile, conversationId);
 }

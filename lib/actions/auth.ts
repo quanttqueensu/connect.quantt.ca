@@ -1,5 +1,7 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { SPONSOR_MODE_COOKIE } from "@/lib/sponsor-mode";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { userNeedsPassword } from "@/lib/auth-session";
@@ -140,6 +142,7 @@ export async function setPassword(formData: FormData) {
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(SPONSOR_MODE_COOKIE);
   revalidatePath("/", "layout");
   redirect("/login");
 }

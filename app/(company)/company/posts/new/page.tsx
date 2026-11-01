@@ -1,8 +1,9 @@
+import { DEMO_POSTS } from "@/lib/sponsor-demo";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import PostForm from "@/components/PostForm";
-import { getCurrentProfile } from "@/lib/auth";
 import { can, capValue, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { PostKind } from "@/lib/types";
@@ -14,24 +15,20 @@ export default async function NewCompanyPost({
   searchParams: Promise<{ denied?: string }>;
 }) {
   const sp = await searchParams;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const cu = await getCompanyContext();
   if (!cu) redirect("/company");
 
   const [{ access }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers(),
+    loadTiers({ demo: cu.preview }),
   ]);
 
   const quota = capValue(access, "post_in_app_job");
   const { count: openInApp } = can(access, "post_in_app_job")
-    ? await supabase
+    ? cu.preview
+      ? { count: DEMO_POSTS.filter((post) => post.kind === "job" && !post.external_url && post.status === "open").length }
+      : await supabase
         .from("posts")
         .select("id", { count: "exact", head: true })
         .eq("company_id", cu.company_id)
@@ -68,7 +65,7 @@ export default async function NewCompanyPost({
             : "."}
         </p>
       )}
-      <PostForm kinds={kinds} redirectTo="/company" allowInAppJob={allowInAppJob} />
+      <PostForm kinds={kinds} redirectTo="/company" allowInAppJob={allowInAppJob} readOnly={cu.preview} />
     </>
   );
 }

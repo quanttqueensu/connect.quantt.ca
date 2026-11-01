@@ -1,9 +1,9 @@
+import { getCompanyContext, loadPreviewTalent } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import TalentList, { type TalentRow } from "@/components/TalentList";
 import { Field, PrimaryButton, TextInput } from "@/components/Form";
-import { getCurrentProfile } from "@/lib/auth";
 import { can, graceOnlyCap, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -15,19 +15,13 @@ export default async function ResumeBookPage({
   searchParams: Promise<{ program?: string; year?: string; denied?: string }>;
 }) {
   const sp = await searchParams;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const cu = await getCompanyContext();
   if (!cu) redirect("/company");
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers(),
+    loadTiers({ demo: cu.preview }),
   ]);
 
   const program = cleanSearchTerm(sp.program);
@@ -35,7 +29,9 @@ export default async function ResumeBookPage({
 
   const { data: members } =
     can(access, "resume_book") && !yearInvalid
-      ? await supabase.rpc("resume_book_list", {
+      ? cu.preview
+        ? { data: await loadPreviewTalent({ capability: "resume_book", program, year }) }
+        : await supabase.rpc("resume_book_list", {
           p_program: program || null,
           p_grad_year: year,
         })
@@ -86,6 +82,7 @@ export default async function ResumeBookPage({
         <TalentList
           members={(members as TalentRow[] | null) ?? []}
           companyId={cu.company_id}
+          readOnly={cu.preview}
           returnTo="/company/resume-book"
           dmTier={can(access, "dm_initiate_any") ? access : null}
           tiers={tiers}

@@ -1,5 +1,7 @@
 "use server";
 
+import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
+
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { assertPdf, PDF_CONTENT_TYPE } from "@/lib/files";
@@ -261,6 +263,7 @@ export async function logOffPlatform(formData: FormData) {
 
 export async function updateApplicationStage(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   const id = String(formData.get("id"));
   const stage = String(formData.get("stage"));

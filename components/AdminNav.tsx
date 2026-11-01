@@ -1,6 +1,7 @@
 "use client";
 
 import ConnectBrand from "@/components/ConnectBrand";
+import SponsorModeToggle from "@/components/SponsorModeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -16,7 +17,7 @@ const LINKS = [
   { href: "/admin/applications", label: "Applications" },
 ];
 
-export default function AdminNav() {
+export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -43,6 +44,7 @@ export default function AdminNav() {
             );
           })}
           <div className="ml-1 flex shrink-0 items-center gap-2 border-l border-line pl-4">
+            {!sponsorMode && <SponsorModeToggle />}
             <Link href="/feed" className={buttonClass("nav")}>
               Member area
             </Link>

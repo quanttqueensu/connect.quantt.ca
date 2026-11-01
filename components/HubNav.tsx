@@ -1,6 +1,7 @@
 "use client";
 
 import ConnectBrand from "@/components/ConnectBrand";
+import SponsorModeToggle from "@/components/SponsorModeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -12,9 +13,10 @@ type Props = {
   unread?: number;
   /** Granted hub products for a company contact. Member nav ignores this. */
   companyCaps?: string[];
+  sponsorMode?: boolean;
 };
 
-export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
+export default function HubNav({ profile, unread = 0, companyCaps, sponsorMode = false }: Props) {
   const pathname = usePathname();
   const isCompany = profile.role === "company_user";
   const caps = new Set(companyCaps ?? []);
@@ -80,6 +82,7 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
               </Link>
             );
           })}
+          {profile.is_admin && !sponsorMode && <SponsorModeToggle />}
           <form action={logout} className="ml-1 shrink-0 border-l border-line pl-4">
             <button type="submit" className={buttonClass("nav")}>
               Log out

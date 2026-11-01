@@ -1,3 +1,4 @@
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -29,25 +30,23 @@ export async function GET(
   const doc = new URL(request.url).searchParams.get("doc") === "cover" ? "cover" : "resume";
 
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "company_user") {
+  if (!profile || (profile.role !== "company_user" && !profile.is_admin)) {
     return new NextResponse("Not found", { status: 404 });
   }
 
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-  if (!cu?.company_id) return new NextResponse("Not found", { status: 404 });
+  const cu = await getCompanyContext();
+  if (!cu?.company_id || cu.preview) return new NextResponse("Not found", { status: 404 });
 
   // RLS already scopes applications to the caller's company; company_id is
   // compared again so a policy change can never silently widen this route.
-  const { data: app } = await supabase
+  const applicationQuery = supabase
     .from("applications")
     .select("id, company_id, resume_path, cover_letter_path")
     .eq("id", id)
-    .maybeSingle();
+    .eq("company_id", cu.company_id);
+
+  const { data: app } = await applicationQuery.maybeSingle();
   if (!app || app.company_id !== cu.company_id) {
     return new NextResponse("Not found", { status: 404 });
   }

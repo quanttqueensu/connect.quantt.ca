@@ -160,9 +160,28 @@ export async function middleware(request: NextRequest) {
     return redirectKeepingSession(redirect, supabaseResponse);
   }
 
+  const sponsorDemo = Boolean(
+    profile?.is_admin && user &&
+    request.cookies.get("connect-sponsor-mode")?.value === `${user.id}:demo`,
+  );
+
+  // Stay in the fictional sponsor area until the admin exits demo mode.
+  // This also prevents direct URLs from showing normal admin/member data
+  // underneath a banner that says the information is fictional.
+  if (
+    sponsorDemo && !isPublic(pathname) &&
+    pathname !== "/company" && !pathname.startsWith("/company/") &&
+    pathname !== "/admin/sponsor-mode"
+  ) {
+    const redirect = request.nextUrl.clone();
+    redirect.pathname = "/company";
+    redirect.search = "";
+    return redirectKeepingSession(redirect, supabaseResponse);
+  }
+
   if (pathname === "/login" && profile && !needsPassword) {
     const redirect = request.nextUrl.clone();
-    redirect.pathname = profile.role === "company_user" ? "/company" : "/feed";
+    redirect.pathname = sponsorDemo || profile.role === "company_user" ? "/company" : "/feed";
     return redirectKeepingSession(redirect, supabaseResponse);
   }
 
@@ -174,7 +193,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/applications") ||
       pathname.startsWith("/profile") ||
       pathname.startsWith("/messages") ||
-      pathname.startsWith("/admin") ||
+      (pathname.startsWith("/admin") && !profile.is_admin) ||
       pathname === "/";
     if (blocked) {
       const redirect = request.nextUrl.clone();
@@ -184,7 +203,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (profile?.role === "member") {
-    if (pathname.startsWith("/company")) {
+    if (pathname.startsWith("/company") && !profile.is_admin) {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/feed";
       return redirectKeepingSession(redirect, supabaseResponse);

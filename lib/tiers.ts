@@ -1,3 +1,4 @@
+import { DEMO_CAPABILITIES, DEMO_COMPANY_ID, DEMO_TIER } from "@/lib/sponsor-demo";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CompanyCapabilityOverride,
@@ -168,7 +169,8 @@ export function formatPrice(cents: number | null) {
   }).format(cents / 100);
 }
 
-export async function loadCapabilities(): Promise<SponsorCapability[]> {
+export async function loadCapabilities(opts: { demo?: boolean } = {}): Promise<SponsorCapability[]> {
+  if (opts.demo) return DEMO_CAPABILITIES;
   const supabase = await createClient();
   const { data } = await supabase
     .from("sponsor_capabilities")
@@ -177,7 +179,8 @@ export async function loadCapabilities(): Promise<SponsorCapability[]> {
   return (data as SponsorCapability[] | null) ?? [];
 }
 
-export async function loadTiers(opts: { includeInactive?: boolean } = {}): Promise<TierWithCaps[]> {
+export async function loadTiers(opts: { includeInactive?: boolean; demo?: boolean } = {}): Promise<TierWithCaps[]> {
+  if (opts.demo) return [DEMO_TIER];
   const supabase = await createClient();
   let query = supabase
     .from("sponsor_tiers")
@@ -189,6 +192,11 @@ export async function loadTiers(opts: { includeInactive?: boolean } = {}): Promi
 }
 
 export async function loadMyCompanyTier(companyId: string) {
+  if (companyId === DEMO_COMPANY_ID) return {
+    assigned: DEMO_TIER, effective: DEMO_TIER, access: DEMO_TIER,
+    overrides: [] as Pick<CompanyCapabilityOverride, "capability" | "granted" | "value">[],
+    graceUntil: null, status: "active",
+  };
   const supabase = await createClient();
   const [{ data: company }, { data: overrideRows }] = await Promise.all([
     supabase

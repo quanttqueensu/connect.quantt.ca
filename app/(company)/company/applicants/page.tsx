@@ -1,8 +1,9 @@
+import { DEMO_APPLICATIONS } from "@/lib/sponsor-demo";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import ResumeDocLink from "../ResumeDocLink";
-import { getCurrentProfile } from "@/lib/auth";
 import { can, graceOnlyCap, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { Application } from "@/lib/types";
@@ -16,27 +17,21 @@ export default async function ApplicantsPage({
   searchParams: Promise<{ denied?: string }>;
 }) {
   const sp = await searchParams;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const cu = await getCompanyContext();
   if (!cu) redirect("/company");
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers(),
+    loadTiers({ demo: cu.preview }),
   ]);
 
-  const { data: apps } = await supabase
+  const { data: apps } = cu.preview ? { data: DEMO_APPLICATIONS } : can(access, "read_applicants") ? await supabase
     .from("applications")
     .select("*, posts(title), profiles(full_name)")
     .eq("kind", "in_app")
     .eq("company_id", cu.company_id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }) : { data: [] };
 
   const embargo = access?.applicant_embargo_hours ?? 0;
 
@@ -62,11 +57,11 @@ export default async function ApplicantsPage({
               {assigned?.name} package takes effect.
             </p>
           )}
-        <p className="mb-6">
+        {!cu.preview && <p className="mb-6">
           <a href="/company/applicants/export" className={buttonClass("ghost")}>
             Download CSV
           </a>
-        </p>
+        </p>}
         <ul>
           {(apps as Application[] | null)?.map((a) => (
             <li key={a.id} className="border-t border-line py-4">

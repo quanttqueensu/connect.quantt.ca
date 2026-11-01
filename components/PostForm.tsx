@@ -9,6 +9,7 @@ export default function PostForm({
   kinds,
   companies,
   allowInAppJob = true,
+  readOnly = false,
 }: {
   kinds: PostKind[];
   companies?: { id: string; name: string }[];
@@ -21,6 +22,7 @@ export default function PostForm({
   redirectTo?: string;
   /** False when the firm cannot take hub applications (capability or quota). */
   allowInAppJob?: boolean;
+  readOnly?: boolean;
 }) {
   const [kind, setKind] = useState<PostKind>(kinds[0] ?? "announcement");
   const [externalUrl, setExternalUrl] = useState("");
@@ -139,7 +141,7 @@ export default function PostForm({
           </p>
         </Field>
       )}
-      <PrimaryButton type="submit">Publish post</PrimaryButton>
+      <PrimaryButton type="submit" disabled={readOnly}>Publish post</PrimaryButton>
     </form>
   );
 }

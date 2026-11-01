@@ -1,14 +1,15 @@
+import { DEMO_APPLICATIONS, DEMO_POSTS } from "@/lib/sponsor-demo";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import { startConversation } from "@/lib/actions/messages";
 import { updateApplicationStage } from "@/lib/actions/applications";
 import ResumeDocLink from "../../ResumeDocLink";
 import LockedAction from "@/components/LockedAction";
 import LockedCard from "@/components/LockedCard";
-import { getCurrentProfile } from "@/lib/auth";
-import { graceOnlyCap, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
+import { can, graceOnlyCap, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformJob, kindLabel, stageLabel, type Application, type Post } from "@/lib/types";
 import { QuietButton, buttonClass } from "@/components/Form";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { isSafeHttpUrl } from "../../talent-query";
 
 const stages = ["submitted", "reviewing", "interviewing", "offer", "closed"] as const;
@@ -19,30 +20,25 @@ export default async function CompanyPostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-  const { data: post } = await supabase.from("posts").select("*").eq("id", id).maybeSingle();
+  const cu = await getCompanyContext();
+  if (!cu) notFound();
+  const { data: post } = cu.preview ? { data: DEMO_POSTS.find((post) => post.id === id) } : await supabase.from("posts").select("*").eq("id", id).maybeSingle();
   if (!cu || !post || post.company_id !== cu.company_id) notFound();
   const p = post as Post;
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers(),
+    loadTiers({ demo: cu.preview }),
   ]);
 
-  const { data: apps } = isPlatformJob(p)
-    ? await supabase
-        .from("applications")
+  const { data: apps } = cu.preview
+    ? { data: DEMO_APPLICATIONS.filter((app) => app.post_id === id) }
+    : isPlatformJob(p) && can(access, "read_applicants")
+      ? await supabase.from("applications")
         .select("*, profiles(id, full_name, program, grad_year, linkedin_url)")
-        .eq("post_id", id)
-        .eq("kind", "in_app")
-    : { data: [] as Application[] };
+        .eq("post_id", id).eq("kind", "in_app").eq("company_id", cu.company_id)
+      : { data: [] as Application[] };
 
   return (
     <>
@@ -102,7 +98,7 @@ export default async function CompanyPostPage({
                           </option>
                         ))}
                       </select>
-                      <QuietButton type="submit">Save stage</QuietButton>
+                      <QuietButton type="submit" disabled={cu.preview}>Save stage</QuietButton>
                     </form>
                     {a.member_id && p.company_id && (
                       <LockedAction
@@ -114,7 +110,7 @@ export default async function CompanyPostPage({
                         <form action={startConversation}>
                           <input type="hidden" name="company_id" value={p.company_id} />
                           <input type="hidden" name="member_id" value={a.member_id} />
-                          <QuietButton type="submit">Message applicant</QuietButton>
+                          <QuietButton type="submit" disabled={cu.preview}>Message applicant</QuietButton>
                         </form>
                       </LockedAction>
                     )}

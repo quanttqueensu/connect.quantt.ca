@@ -1,3 +1,4 @@
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import { getCurrentProfile } from "@/lib/auth";
 import { csvCell } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
@@ -7,29 +8,27 @@ import type { Application } from "@/lib/types";
 
 export async function GET() {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "company_user") {
+  if (!profile || (profile.role !== "company_user" && !profile.is_admin)) {
     return new NextResponse("Not found", { status: 404 });
   }
 
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
-  if (!cu) return new NextResponse("Not found", { status: 404 });
+  const cu = await getCompanyContext();
+  if (!cu || cu.preview) return new NextResponse("Not found", { status: 404 });
 
   const { access } = await loadMyCompanyTier(cu.company_id);
   if (!can(access, "read_applicants")) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const { data: apps } = await supabase
+  const applicantsQuery = supabase
     .from("applications")
     .select("created_at, stage, package_name, linkedin_url, posts(title), profiles(full_name, program, grad_year, email)")
     .eq("kind", "in_app")
     .eq("company_id", cu.company_id)
     .order("created_at", { ascending: false });
+
+  const { data: apps } = await applicantsQuery;
 
   const rows = (apps as Application[] | null) ?? [];
   const header = ["submitted_at", "name", "email", "program", "grad_year", "post", "stage", "package", "linkedin"];

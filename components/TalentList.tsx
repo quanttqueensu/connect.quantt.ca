@@ -25,6 +25,7 @@ export default function TalentList({
   dmTier,
   tiers,
   empty,
+  readOnly = false,
 }: {
   members: TalentRow[];
   companyId: string;
@@ -32,6 +33,7 @@ export default function TalentList({
   dmTier: TierWithCaps | null;
   tiers: TierWithCaps[];
   empty: string;
+  readOnly?: boolean;
 }) {
   const canMessage = can(dmTier, "dm_initiate_any");
   if (!members.length) {
@@ -66,14 +68,14 @@ export default function TalentList({
                 <p className="mt-1 text-xs text-muted">Interests: {m.interests}</p>
               )}
               <div className="mt-3 flex flex-wrap items-start gap-2">
-                <a
+                {readOnly ? <QuietButton type="button" disabled>Sample resume unavailable</QuietButton> : <a
                   href={`/company/talent/${m.id}/resume`}
                   className={buttonClass("quiet")}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   View resume
-                </a>
+                </a>}
                 <ExtLink href={m.linkedin_url} label="LinkedIn" />
                 <ExtLink href={m.github_url} label="GitHub" />
                 <ExtLink href={m.website_url} label="Website" />
@@ -82,7 +84,7 @@ export default function TalentList({
                     <input type="hidden" name="company_id" value={companyId} />
                     <input type="hidden" name="member_id" value={m.id} />
                     <input type="hidden" name="return_to" value={returnTo} />
-                    <QuietButton type="submit">Message member</QuietButton>
+                    <QuietButton type="submit" disabled={readOnly}>Message member</QuietButton>
                   </form>
                 ) : (
                   <LockedAction

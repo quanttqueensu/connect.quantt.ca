@@ -1,3 +1,4 @@
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -11,11 +12,15 @@ export async function GET(
 ) {
   const { memberId } = await params;
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "company_user") {
+  if (!profile || (profile.role !== "company_user" && !profile.is_admin)) {
     return new NextResponse("Not found", { status: 404 });
   }
 
   const supabase = await createClient();
+  const context = profile.is_admin ? await getCompanyContext() : null;
+  if (context?.preview || profile.role !== "company_user") {
+    return new NextResponse("Not found", { status: 404 });
+  }
   const { data: path } = await supabase.rpc("talent_photo_path", { p_member: memberId });
   if (typeof path !== "string" || !path.startsWith(`${memberId}/`)) {
     return new NextResponse("Not found", { status: 404 });

@@ -1,9 +1,9 @@
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import TierBadge from "@/components/TierBadge";
 import { Field, PrimaryButton, TextArea, TextInput } from "@/components/Form";
 import { updateCompanyProfile } from "@/lib/actions/company";
-import { getCurrentProfile } from "@/lib/auth";
 import {
   can,
   capValue,
@@ -27,22 +27,16 @@ export default async function SponsorshipPage({
   searchParams: Promise<{ denied?: string }>;
 }) {
   const sp = await searchParams;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: cu } = await supabase
-    .from("company_users")
-    .select("company_id")
-    .eq("profile_id", profile.id)
-    .maybeSingle();
+  const cu = await getCompanyContext();
   if (!cu) redirect("/company");
 
   const [{ assigned, effective, access, overrides, graceUntil }, capabilities, tiers, { data: company }] =
     await Promise.all([
       loadMyCompanyTier(cu.company_id),
-      loadCapabilities(),
-      loadTiers(),
-      supabase
+      loadCapabilities({ demo: cu.preview }),
+      loadTiers({ demo: cu.preview }),
+      cu.preview ? { data: cu.company } : supabase
         .from("companies")
         .select("website, logo_url, description")
         .eq("id", cu.company_id)
@@ -152,7 +146,7 @@ export default async function SponsorshipPage({
               maxLength={500}
             />
           </Field>
-          <PrimaryButton type="submit">Save profile</PrimaryButton>
+          <PrimaryButton type="submit" disabled={cu.preview}>Save profile</PrimaryButton>
         </form>
       </section>
     </>

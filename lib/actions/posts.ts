@@ -1,5 +1,7 @@
 "use server";
 
+import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
@@ -15,6 +17,7 @@ const TERM_SEASONS: TermSeason[] = ["fall", "winter", "summer"];
 
 export async function createPost(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   const kind = String(formData.get("kind")) as PostKind;
   const postFormPath =
@@ -163,6 +166,7 @@ export async function addComment(formData: FormData) {
 
 export async function closePost(formData: FormData) {
   const profile = await requireProfile();
+  await assertSponsorWriteAllowed(profile);
   const supabase = await createClient();
   const id = String(formData.get("id"));
 
