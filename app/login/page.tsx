@@ -16,16 +16,16 @@ export default async function LoginPage({
   return (
     <PublicShell>
       <div className="grid w-full overflow-hidden rounded border border-line bg-white lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="flex flex-col bg-navy p-8 sm:p-12">
+        <div className="flex flex-col bg-navy p-6 sm:p-8 lg:p-12">
           <Image
             src="/images/logos/quantt-icon.png"
             alt=""
             width={56}
             height={56}
-            className="h-12 w-12"
+            className="hidden h-12 w-12 lg:block"
             priority
           />
-          <div className="mt-8 lg:mt-40">
+          <div className="lg:mt-40">
             <h1 className="font-heading text-3xl font-semibold tracking-[-0.035em] text-white sm:text-[40px]">
               Connect{" "}
               <span className="mt-2 block text-base font-normal tracking-normal text-white/80">by QUANTT</span>

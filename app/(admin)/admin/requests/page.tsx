@@ -32,7 +32,7 @@ export default async function RequestsPage({
       {setup && <ManualInviteBanner email={setup.email} password={setup.password} />}
       <ul>
         {(requests as QueueRequest[] | null)?.slice(0, pageSize).map((r) => (
-          <li key={r.id} className="border-t border-line py-5">
+          <li key={r.id} className="min-w-0 border-t border-line py-5 [overflow-wrap:anywhere]">
             <p className="text-ink">{r.company_name}</p>
             <p className="text-sm text-muted">
               {r.contact_name} · {r.contact_email}

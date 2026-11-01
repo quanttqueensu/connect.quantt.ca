@@ -99,7 +99,7 @@ export default async function ProfilePage({
         <PrimaryButton type="submit" className="justify-self-start">Save profile</PrimaryButton>
       </form>
 
-      <section id="documents" className="mt-10 max-w-xl border-t border-line pt-8">
+      <section id="documents" className="mt-10 max-w-xl scroll-mt-40 border-t border-line pt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Application documents</h2>
         <p className="mt-2 text-sm text-copy">
           Your resume and cover letter are used automatically when you apply through Connect.
