@@ -17,5 +17,9 @@
   "observability": { "enabled": true },
   // Every hub page makes several Supabase calls one after another. Smart Placement lets Cloudflare run the
   // Worker next to the Supabase region instead of next to the visitor, so each of those calls is short.
-  "placement": { "mode": "smart" }
+  "placement": { "mode": "smart" },
+  // PR previews: the non-production deploy command is `npx wrangler preview`, which refuses to run without this
+  // block. Empty on purpose: previews get no service bindings (the AUTH binding), so "Sign in with QUANTT"
+  // won't work on a preview URL; Supabase sign-in does.
+  "previews": {}
 }
