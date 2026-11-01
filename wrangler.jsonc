@@ -3,7 +3,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "quantt-connect",
-  "main": ".open-next/worker.js",
+  // worker.js wraps OpenNext's .open-next/worker.js and adds the Supabase keep-alive cron.
+  "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
@@ -18,8 +19,6 @@
   // Every hub page makes several Supabase calls one after another. Smart Placement lets Cloudflare run the
   // Worker next to the Supabase region instead of next to the visitor, so each of those calls is short.
   "placement": { "mode": "smart" },
-  // PR previews: the non-production deploy command is `npx wrangler preview`, which refuses to run without this
-  // block. Empty on purpose: previews get no service bindings (the AUTH binding), so "Sign in with QUANTT"
-  // won't work on a preview URL; Supabase sign-in does.
-  "previews": {}
+  // Supabase keep-alive (worker.js `scheduled`): 12:00 UTC every third day, well inside the ~7-day pause window.
+  "triggers": { "crons": ["0 12 */3 * *"] }
 }
