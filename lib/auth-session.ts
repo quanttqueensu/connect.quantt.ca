@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
  * Invited users must set a password before using the app.
  * `invited_at` is never cleared after updateUser({ password }), so do not use it.
  */
-export function userNeedsPassword(user: User | null | undefined) {
+export function userNeedsPassword(user: Pick<User, "app_metadata"> | null | undefined) {
   return user?.app_metadata?.must_set_password === true;
 }
 

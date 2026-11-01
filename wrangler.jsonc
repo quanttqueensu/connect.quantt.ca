@@ -14,5 +14,8 @@
   ],
   // Supabase keys and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README); keep them on deploy.
   "keep_vars": true,
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Every hub page makes several Supabase calls one after another. Smart Placement lets Cloudflare run the
+  // Worker next to the Supabase region instead of next to the visitor, so each of those calls is short.
+  "placement": { "mode": "smart" }
 }
