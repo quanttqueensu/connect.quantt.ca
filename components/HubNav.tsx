@@ -48,9 +48,9 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-navy/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <Link href={isCompany ? "/company" : "/feed"} className="flex items-center gap-2">
+    <nav aria-label="Hub navigation" className="sticky top-0 z-50 border-b border-white/10 bg-navy/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+        <Link href={isCompany ? "/company" : "/feed"} className="flex shrink-0 items-center gap-2 self-start">
           <Image
             src="/images/logos/quantt-icon.png"
             alt=""
@@ -64,7 +64,10 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
             <span className="ml-1.5 font-normal tracking-wide text-white/60">Hub</span>
           </span>
         </Link>
-        <div className="flex max-w-[70%] items-center gap-4 overflow-x-auto md:max-w-none">
+        <div
+          className="flex min-w-0 max-w-full items-center gap-4 overflow-x-auto p-1"
+          onFocus={(event) => event.target.scrollIntoView({ block: "nearest", inline: "nearest" })}
+        >
           {links.map((link) => {
             const active =
               link.href === "/company"
@@ -75,13 +78,17 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative text-[11px] uppercase tracking-[1px] ${
+                aria-current={active ? "page" : undefined}
+                className={`relative shrink-0 whitespace-nowrap py-2 text-[11px] uppercase tracking-[1px] ${
                   active ? "text-white" : "text-white/55 hover:text-white/80"
                 }`}
               >
                 {link.label}
                 {showBadge && (
-                  <span className="absolute -right-2 -top-1 h-1.5 w-1.5 rounded-full bg-blue-light" />
+                  <>
+                    <span aria-hidden="true" className="absolute -right-2 top-1 h-1.5 w-1.5 rounded-full bg-blue-light" />
+                    <span className="sr-only"> ({unread} unread conversations)</span>
+                  </>
                 )}
               </Link>
             );

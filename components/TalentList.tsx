@@ -49,12 +49,14 @@ export default function TalentList({
                 alt=""
                 width={56}
                 height={56}
+                loading="lazy"
+                decoding="async"
                 className="h-14 w-14 shrink-0 bg-white/5 object-cover"
               />
             ) : (
               <div className="h-14 w-14 shrink-0 bg-white/5" aria-hidden />
             )}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
               <p className="font-heading text-lg font-bold text-white">{m.full_name}</p>
               <p className="mt-1 text-sm text-white/50">
                 {[m.program, m.grad_year, m.package_name].filter(Boolean).join(" · ")}

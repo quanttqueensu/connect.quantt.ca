@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { createClient } from "@/lib/supabase/server";
+import { markConversationRead } from "@/lib/message-read";
 import { denyRedirect } from "./deny";
 
 const UUID_RE =
@@ -136,27 +137,7 @@ export async function sendMessage(formData: FormData) {
 export async function markRead(conversationId: string) {
   const profile = await requireProfile();
   const supabase = await createClient();
-  const col =
-    profile.role === "company_user" ? "company_last_read_at" : "member_last_read_at";
-  const q = supabase
-    .from("conversations")
-    .update({ [col]: new Date().toISOString() })
-    .eq("id", conversationId)
-    .select("id");
-  const { data, error } =
-    profile.role === "company_user"
-      ? await q
-      : await q.eq("member_id", profile.id);
-  if (error) throw new Error("Could not update conversation");
-  // Deliberately NOT a denyRedirect: markRead is invoked from after() while a
-  // page renders, where redirect() has no request to unwind. A refused read
-  // marker is cosmetic — the thread render itself is already RLS-scoped — so
-  // it is logged for the server operator instead of shown to the user.
-  if (!data?.length) {
-    console.warn(
-      `markRead: conversation ${conversationId} refused for profile ${profile.id}`,
-    );
-  }
+  await markConversationRead(supabase, profile, conversationId);
 }
 
 function conversationReturnPath(formData: FormData, role: string) {

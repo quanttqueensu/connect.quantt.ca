@@ -72,10 +72,11 @@ export default async function MembersPage({
         <input
           type="search"
           name="q"
+          aria-label="Search members by name or program"
           defaultValue={q}
           placeholder="Search by name or program"
           maxLength={80}
-          className="w-full border border-white/10 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/40"
+          className="min-w-0 w-full border border-white/10 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/40"
         />
         <PrimaryButton type="submit">Search</PrimaryButton>
       </form>
@@ -96,14 +97,14 @@ export default async function MembersPage({
             <Link
               key={m.id}
               href={`/members/${m.id}`}
-              className="border border-white/10 p-5 hover:border-white/20"
+              className="min-w-0 border border-white/10 p-5 hover:border-white/20"
             >
               <div className="flex gap-4">
                 {m.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.photoUrl} alt="" className="h-12 w-12 object-cover" />
+                  <img src={m.photoUrl} alt="" width={48} height={48} loading="lazy" decoding="async" className="h-12 w-12 shrink-0 object-cover" />
                 ) : null}
-                <div>
+                <div className="min-w-0 [overflow-wrap:anywhere]">
                   <p className="font-heading text-lg font-bold text-white">{m.full_name}</p>
                   <p className="mt-1 text-sm text-white/50">
                     {[m.program, m.grad_year].filter(Boolean).join(" · ")}

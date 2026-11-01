@@ -77,15 +77,17 @@ export default async function FeedPage({
     }
   }
 
-  const { data: posts, error: postsError } = await query;
+  const [{ data: posts, error: postsError }, { data: companies }] = await Promise.all([
+    query,
+    supabase
+      .from("companies")
+      .select("id, name")
+      .eq("status", "active")
+      .order("name"),
+  ]);
   if (postsError) {
     console.error("feed: posts query failed", postsError.message, postsError.code);
   }
-  const { data: companies } = await supabase
-    .from("companies")
-    .select("id, name")
-    .eq("status", "active")
-    .order("name");
 
   const fetched = (posts ?? []) as unknown as Post[];
   const hasNext = fetched.length > PAGE_SIZE;

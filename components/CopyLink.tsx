@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QuietButton } from "@/components/Form";
 
 export default function CopyLink({
@@ -10,7 +10,14 @@ export default function CopyLink({
   value: string;
   label?: string;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -18,13 +25,25 @@ export default function CopyLink({
       <QuietButton
         type="button"
         onClick={async () => {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 2000);
+          if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
+          try {
+            await navigator.clipboard.writeText(value);
+            setStatus("copied");
+            timeoutRef.current = setTimeout(() => setStatus("idle"), 2000);
+          } catch {
+            setStatus("failed");
+          }
         }}
       >
-        {copied ? "Copied" : label}
+        {status === "copied" ? "Copied" : label}
       </QuietButton>
+      <span role="status" className="text-xs text-white/70">
+        {status === "failed"
+          ? "Could not copy. Select and copy the text above."
+          : status === "copied"
+            ? "Copied to clipboard."
+            : ""}
+      </span>
     </div>
   );
 }

@@ -24,17 +24,19 @@ export default async function ProfilePage({
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   const supabase = await createClient();
-  const { data: sections } = await supabase
-    .from("profile_sections")
-    .select("*")
-    .eq("member_id", profile.id)
-    .order("sort_order");
-  const { data: defaultPackage } = await supabase
-    .from("hiring_packages")
-    .select("id, name")
-    .eq("member_id", profile.id)
-    .eq("is_default", true)
-    .maybeSingle<Pick<HiringPackage, "id" | "name">>();
+  const [{ data: sections }, { data: defaultPackage }] = await Promise.all([
+    supabase
+      .from("profile_sections")
+      .select("*")
+      .eq("member_id", profile.id)
+      .order("sort_order"),
+    supabase
+      .from("hiring_packages")
+      .select("id, name")
+      .eq("member_id", profile.id)
+      .eq("is_default", true)
+      .maybeSingle<Pick<HiringPackage, "id" | "name">>(),
+  ]);
 
   const photoUrl = profile.photo_path ? `/members/${profile.id}/photo` : null;
   const sectionRows = (sections as ProfileSection[] | null) ?? [];
@@ -55,10 +57,12 @@ export default async function ProfilePage({
           className="mb-6 h-24 w-24 object-cover"
         />
       )}
-      <form action={uploadPhoto} encType="multipart/form-data" className="mb-8 flex items-end gap-3">
-        <Field label="Photo">
-          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" />
-        </Field>
+      <form action={uploadPhoto} encType="multipart/form-data" className="mb-8 flex flex-wrap items-end gap-3">
+        <div className="min-w-0 max-w-full">
+          <Field label="Photo">
+            <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" className="max-w-full" />
+          </Field>
+        </div>
         <PrimaryButton type="submit">Upload photo</PrimaryButton>
       </form>
       <form action={updateProfile} className="grid max-w-xl gap-4">

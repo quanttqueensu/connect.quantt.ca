@@ -65,7 +65,9 @@ Local: `npm run dev` as before; `npm run preview` runs the Worker build locally.
 
 ## Tests
 
-The suite is a **row-level-security harness**: each test signs in as a real
+Run `npm run test:unit` for the database-free tests (also run in CI).
+
+The `tests/rls/` suite is a **row-level-security harness**: each test signs in as a real
 member / company / admin and asserts what Postgres will and will not let them
 touch. It talks to a real database, so there is no mocking and no way to run it
 without one.
@@ -107,10 +109,11 @@ is off; expect them to run serially.
 | `npm run lint` | ESLint, including type-aware `no-floating-promises` — takes a minute or two |
 | `npm run typecheck` | `tsc --noEmit` over app code |
 | `npm run typecheck:tests` | `tsc --noEmit` over `tests/` |
+| `npm run test:unit` | Database-free regression tests |
 | `npm test` | RLS suite — needs a local Supabase and `.env.test` (see above) |
 | `npm run db:reset` | Reapply migrations + seed to the local database |
 
-CI (`.github/workflows/ci.yml`) runs lint, `typecheck:tests` and build on every
+CI (`.github/workflows/ci.yml`) runs lint, `typecheck:tests`, unit tests and build on every
 push and pull request. `npm test` is **not** in that path — it needs the live
 database described above — and is available as a manual `workflow_dispatch`
 run instead.

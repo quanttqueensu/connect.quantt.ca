@@ -45,6 +45,9 @@ jobs:
       - name: Typecheck tests
         run: npm run typecheck:tests
 
+      - name: Unit tests
+        run: npm run test:unit
+
       - name: Build
         # `next build` typechecks the application code as part of the build,
         # which is why there is no separate `npm run typecheck` step here.

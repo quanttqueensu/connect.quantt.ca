@@ -11,6 +11,7 @@
     "lint": "eslint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run --exclude 'tests/rls/**'",
     "test:watch": "vitest",
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "db:reset": "supabase db reset"

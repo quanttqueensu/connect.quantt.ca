@@ -16,8 +16,16 @@
 
 html,
 body {
+  color-scheme: dark;
   background: #0a1628;
   color: #c8d6ea;
+}
+
+/* Native option menus need an opaque background on the dark hub. */
+select option,
+select optgroup {
+  background: #0f1d35;
+  color: #fff;
 }
 
 input,

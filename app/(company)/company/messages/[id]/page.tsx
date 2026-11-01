@@ -1,5 +1,6 @@
 import Notice from "@/components/Notice";
-import { markRead, sendMessage } from "@/lib/actions/messages";
+import { sendMessage } from "@/lib/actions/messages";
+import { markConversationRead } from "@/lib/message-read";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Conversation, Message } from "@/lib/types";
@@ -36,14 +37,12 @@ export default async function CompanyThreadPage({
     .eq("company_id", cu?.company_id ?? "")
     .maybeSingle();
   if (!convo) notFound();
-  after(() => {
-    void markRead(id);
-  });
+  after(() => markConversationRead(supabase, profile, id));
 
   // Newest N only, so a long thread stays a bounded query and render.
   const requested = Number(sp.show);
   const show = Math.min(
-    Number.isFinite(requested) && requested > PAGE_SIZE ? requested : PAGE_SIZE,
+    Number.isInteger(requested) && requested > PAGE_SIZE ? requested : PAGE_SIZE,
     MAX_MESSAGES,
   );
   const { data: rows, count } = await supabase
@@ -72,12 +71,16 @@ export default async function CompanyThreadPage({
 
       {olderCount > 0 && (
         <p className="mt-6 text-sm text-white/60">
-          <Link
-            href={`/company/messages/${id}?show=${Math.min(show + PAGE_SIZE, MAX_MESSAGES)}`}
-            className="text-blue-light underline"
-          >
-            Load older messages
-          </Link>{" "}
+          {show < MAX_MESSAGES ? (
+            <Link
+              href={`/company/messages/${id}?show=${Math.min(show + PAGE_SIZE, MAX_MESSAGES)}`}
+              className="text-blue-light underline"
+            >
+              Load older messages
+            </Link>
+          ) : (
+            <span>Showing the latest {MAX_MESSAGES} messages</span>
+          )}{" "}
           ({olderCount} older)
         </p>
       )}
@@ -103,7 +106,7 @@ export default async function CompanyThreadPage({
                   {" · "}
                   <time dateTime={m.created_at}>{formatTime(m.created_at)}</time>
                 </p>
-                <p className="mt-1 inline-block max-w-lg whitespace-pre-wrap rounded border border-white/10 px-4 py-2 text-left text-sm text-white/80">
+                <p className="mt-1 inline-block max-w-full whitespace-pre-wrap rounded border border-white/10 px-4 py-2 text-left text-sm text-white/80 [overflow-wrap:anywhere] sm:max-w-lg">
                   {m.body}
                 </p>
               </div>
