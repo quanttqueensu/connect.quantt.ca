@@ -78,7 +78,7 @@ export default async function CompanyPostPage({
                 <li key={a.id} className="border-t border-line py-4">
                   <p className="text-ink">{a.profiles?.full_name}</p>
                   <p className="text-sm text-muted">
-                    {a.package_name} · {a.linkedin_url}
+                    {a.linkedin_url}
                   </p>
                   {a.cover_letter && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{a.cover_letter}</p>

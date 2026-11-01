@@ -38,6 +38,11 @@ const MESSAGES = {
     "That post could not be published. Check the details and try again, or ask a QUANTT exec.",
 
   // lib/actions/applications.ts
+  application_document_invalid: "That document could not be used. Upload a PDF under 5 MB, or replace the saved file in your profile.",
+  application_documents_unavailable: "Your profile documents could not be loaded. Try again.",
+  application_resume_required: "Add a resume to your profile or upload one for this application.",
+  profile_document_invalid: "Upload a PDF under 5 MB for your resume or cover letter.",
+  profile_document_save_failed: "Your document could not be saved. Try again.",
   application_duplicate: "You've already applied to that job.",
   application_log_duplicate:
     "You've already logged an application to that posting.",
@@ -46,7 +51,7 @@ const MESSAGES = {
   stage_invalid: "That is not a valid application stage.",
   application_update_failed: "That application could not be updated.",
   application_package_path_invalid:
-    "That hiring package could not be used. Recreate it from Hiring packages, then apply again.",
+    "Your saved documents could not be used. Upload them again in your profile, then apply again.",
   application_cover_invalid:
     "That application was not submitted. Keep the cover letter under 4,000 characters, or upload a PDF instead.",
   application_firm_not_accepting:
@@ -54,7 +59,7 @@ const MESSAGES = {
   application_not_open:
     "That posting is not taking applications through Connect.",
   application_package_missing:
-    "Choose a hiring package, then apply again.",
+    "Add a resume to your profile or upload one for this application, then apply again.",
   application_log_invalid:
     "That off-platform application was not logged. Add a company name and try again.",
   application_submit_failed:

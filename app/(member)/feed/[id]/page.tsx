@@ -10,7 +10,7 @@ import {
   one,
   roleTypeLabel,
   termLabel,
-  type HiringPackage,
+  type MemberDocuments,
   type Post,
   type PostComment,
 } from "@/lib/types";
@@ -51,18 +51,11 @@ export default async function PostDetailPage({
     console.error("feed/[id]: comments query failed", commentsError.message);
   }
 
-  const packagesQuery =
+  const documentsQuery =
     profile?.role === "member"
-      ? await supabase
-          .from("hiring_packages")
-          .select("*")
-          .eq("member_id", profile.id)
-          .order("is_default", { ascending: false })
-      : { data: [] as HiringPackage[], error: null };
-  const packages = packagesQuery.data;
-  if (packagesQuery.error) {
-    console.error("feed/[id]: packages query failed", packagesQuery.error.message);
-  }
+      ? await supabase.from("member_documents").select("*").eq("member_id", profile.id).maybeSingle<MemberDocuments>()
+      : { data: null, error: null };
+  const documents = documentsQuery.data;
 
   const { data: existingApp } = profile
     ? await supabase
@@ -84,7 +77,6 @@ export default async function PostDetailPage({
     (p.kind === "job" || p.kind === "job_link");
   const inApp = isInAppJob(p);
   const closed = p.status === "closed";
-  const defaultPkg = (packages ?? []).find((x) => x.is_default) ?? packages?.[0];
 
   let firmAcceptsHubApps = true;
   if (inApp && p.company_id) {
@@ -193,51 +185,35 @@ export default async function PostDetailPage({
             <p className="mt-3 text-sm text-copy">
               This listing is not taking applications through Connect.
             </p>
-          ) : packagesQuery.error ? (
-            <p className="mt-3 text-sm text-copy">
-              Hiring packages could not be loaded. Try again.
-            </p>
-          ) : !packages?.length ? (
-            <div className="mt-3">
-              <p className="text-sm text-copy">
-                A hiring package bundles your resume, LinkedIn, and an optional cover
-                letter so you can apply in one click. You need one before applying.
-              </p>
-              <Link href="/packages" className={buttonClass("primary", "mt-4")}>
-                Create a hiring package
-              </Link>
-            </div>
+          ) : documentsQuery.error ? (
+            <p className="mt-3 text-sm text-copy">Your profile documents could not be loaded. Try again.</p>
           ) : (
             <form action={applyToJob} encType="multipart/form-data" className="mt-4 space-y-4">
               <input type="hidden" name="post_id" value={p.id} />
-              <Field label="Hiring package">
-                <select
-                  name="package_id"
-                  defaultValue={defaultPkg?.id}
-                  className="w-full rounded px-3 py-2 text-sm"
-                >
-                  {(packages as HiringPackage[]).map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>
-                      {pkg.name}
-                      {pkg.is_default ? " (default)" : ""}
-                    </option>
-                  ))}
-                </select>
+              <p className="text-sm text-copy">
+                {documents?.resume_path
+                  ? "Your profile resume will be used automatically."
+                  : "Upload a resume below to apply."}{" "}
+                {documents?.cover_letter_path || documents?.cover_letter
+                  ? "Your saved cover letter will also be included."
+                  : "A cover letter is optional."}{" "}
+                <Link href="/profile#documents" className="text-primary hover:text-ink">Manage profile documents</Link>
+              </p>
+              <Field label={documents?.resume_path ? "Replace resume for this application (optional)" : "Resume PDF"}>
+                <FileInput name="resume" accept="application/pdf" required={!documents?.resume_path} />
               </Field>
-              <Field label="Cover letter">
-                <select name="cover_mode" defaultValue="default" className="w-full rounded px-3 py-2 text-sm">
-                  <option value="default">Use package default</option>
-                  <option value="write">Write a new letter</option>
-                  <option value="upload">Upload a PDF</option>
-                  <option value="none">None</option>
-                </select>
-              </Field>
-              <Field label="New letter (if writing)">
-                <TextArea name="cover_letter" rows={5} maxLength={4000} />
-              </Field>
-              <Field label="PDF (if uploading)">
+              <Field label="Cover letter PDF for this application (optional)">
                 <FileInput name="cover_pdf" accept="application/pdf" />
               </Field>
+              {documents?.cover_letter_path || documents?.cover_letter ? (
+                <label className="flex items-center gap-2 text-sm text-copy">
+                  <input type="checkbox" name="omit_cover" />
+                  Apply without a cover letter
+                </label>
+              ) : null}
+              <p className="text-xs text-muted">
+                PDFs under 5 MB each. Files uploaded here are used only for this application.
+              </p>
               <PrimaryButton type="submit">Submit application</PrimaryButton>
             </form>
           )}

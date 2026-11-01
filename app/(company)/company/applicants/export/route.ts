@@ -23,7 +23,7 @@ export async function GET() {
 
   const applicantsQuery = supabase
     .from("applications")
-    .select("created_at, stage, package_name, linkedin_url, posts(title), profiles(full_name, program, grad_year, email)")
+    .select("created_at, stage, linkedin_url, posts(title), profiles(full_name, program, grad_year, email)")
     .eq("kind", "in_app")
     .eq("company_id", cu.company_id)
     .order("created_at", { ascending: false });
@@ -31,7 +31,7 @@ export async function GET() {
   const { data: apps } = await applicantsQuery;
 
   const rows = (apps as Application[] | null) ?? [];
-  const header = ["submitted_at", "name", "email", "program", "grad_year", "post", "stage", "package", "linkedin"];
+  const header = ["submitted_at", "name", "email", "program", "grad_year", "post", "stage", "linkedin"];
   const lines = [header.join(",")];
   for (const a of rows) {
     const cells = [
@@ -42,7 +42,6 @@ export async function GET() {
       a.profiles?.grad_year ?? "",
       a.posts?.title ?? "",
       a.stage,
-      a.package_name ?? "",
       a.linkedin_url ?? "",
     ].map(csvCell);
     lines.push(cells.join(","));

@@ -105,6 +105,15 @@ export type ProfileSection = {
   sort_order: number;
 };
 
+export type MemberDocuments = {
+  member_id: string;
+  resume_path: string | null;
+  cover_letter_path: string | null;
+  /** Preserved from existing text cover letters. New letters are uploaded PDFs. */
+  cover_letter: string | null;
+  updated_at: string;
+};
+
 export type HiringPackage = {
   id: string;
   member_id: string;

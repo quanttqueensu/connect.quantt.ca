@@ -8,11 +8,12 @@ import {
   setResumeBookOptIn,
   updateProfile,
   uploadPhoto,
+  saveProfileDocument,
+  removeProfileDocument,
 } from "@/lib/actions/profile";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { HiringPackage, ProfileSection } from "@/lib/types";
-import Link from "next/link";
+import type { MemberDocuments, ProfileSection } from "@/lib/types";
 import { redirect } from "next/navigation";
 
 export default async function ProfilePage({
@@ -24,18 +25,17 @@ export default async function ProfilePage({
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   const supabase = await createClient();
-  const [{ data: sections }, { data: defaultPackage }] = await Promise.all([
+  const [{ data: sections }, { data: documents, error: documentsError }] = await Promise.all([
     supabase
       .from("profile_sections")
       .select("*")
       .eq("member_id", profile.id)
       .order("sort_order"),
     supabase
-      .from("hiring_packages")
-      .select("id, name")
+      .from("member_documents")
+      .select("*")
       .eq("member_id", profile.id)
-      .eq("is_default", true)
-      .maybeSingle<Pick<HiringPackage, "id" | "name">>(),
+      .maybeSingle<MemberDocuments>(),
   ]);
 
   const photoUrl = profile.photo_path ? `/members/${profile.id}/photo` : null;
@@ -46,7 +46,7 @@ export default async function ProfilePage({
   return (
     <>
       <PageHeader kicker="You" title="Profile">
-        Visible to other members. Resumes live on hiring packages, not here.
+        Manage your member profile and the documents you use to apply.
       </PageHeader>
       <Notice message={sp.denied} />
       {photoUrl && (
@@ -99,6 +99,48 @@ export default async function ProfilePage({
         <PrimaryButton type="submit" className="justify-self-start">Save profile</PrimaryButton>
       </form>
 
+      <section id="documents" className="mt-10 max-w-xl border-t border-line pt-8">
+        <h2 className="font-heading text-lg font-bold text-ink">Application documents</h2>
+        <p className="mt-2 text-sm text-copy">
+          Your resume and cover letter are used automatically when you apply through Connect.
+          You can upload a different file for any application. Each file must be a PDF under 5 MB.
+          These documents are private; sponsors can see your resume if you opt in to the resume book.
+        </p>
+        {documentsError ? (
+          <p role="alert" className="mt-4 text-sm text-copy">Your documents could not be loaded. Try again.</p>
+        ) : (
+          <div className="mt-6 space-y-6">
+            {(["resume", "cover"] as const).map((kind) => {
+              const label = kind === "resume" ? "Resume" : "Cover letter";
+              const path = kind === "resume" ? documents?.resume_path : documents?.cover_letter_path;
+              const hasText = kind === "cover" && documents?.cover_letter;
+              return (
+                <div key={kind}>
+                  <h3 className="text-sm font-medium text-ink">{label}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-copy">
+                    {path ? (
+                      <a href={`/profile/documents/${kind}`} className="text-primary hover:text-ink">View saved {label.toLowerCase()}</a>
+                    ) : <p>{hasText ? "Saved cover letter" : `No ${label.toLowerCase()} uploaded.`}</p>}
+                    {(path || hasText) && (
+                      <form action={removeProfileDocument.bind(null, kind)}>
+                        <QuietDangerButton type="submit">Remove {label.toLowerCase()}</QuietDangerButton>
+                      </form>
+                    )}
+                  </div>
+                  {hasText && !path ? <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{documents?.cover_letter}</p> : null}
+                  <form action={saveProfileDocument.bind(null, kind)} encType="multipart/form-data" className="mt-3 flex flex-wrap items-end gap-3">
+                    <Field label={`${path || hasText ? "Replace" : "Upload"} ${label.toLowerCase()}`}>
+                      <FileInput name="document" accept="application/pdf" required />
+                    </Field>
+                    <PrimaryButton type="submit">Save {label.toLowerCase()}</PrimaryButton>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <h2 className="mt-14 font-heading text-lg font-bold text-ink">Custom sections</h2>
       <ul className="mt-4 space-y-4">
         {sectionRows.map((s) => (
@@ -132,27 +174,12 @@ export default async function ProfilePage({
         <p className="mt-2 text-sm text-copy">
           QUANTT sponsors can browse an opt-in resume book. If you opt
           in, sponsor firms can see your name, program, graduation
-          year, and the resume on your default hiring package. The resume book
+          year, and the resume saved in your profile. The resume book
           does not include your applications or messages. You can withdraw at
           any time.
         </p>
-        {defaultPackage ? (
-          <p className="mt-2 text-sm text-copy">
-            Your default package is <strong className="text-ink">{defaultPackage.name}</strong>.
-            That is the resume sponsors would see.{" "}
-            <Link href="/packages" className="text-primary hover:text-ink">
-              Change it
-            </Link>
-          </p>
-        ) : (
-          <p className="mt-2 text-sm text-copy">
-            You have no default hiring package, so there is no resume to show. Opting in exposes
-            your name, program, and graduation year only, until you{" "}
-            <Link href="/packages" className="text-primary hover:text-ink">
-              create a package
-            </Link>{" "}
-            and set it as your default.
-          </p>
+        {!documents?.resume_path && !documentsError && (
+          <p className="mt-2 text-sm text-copy">Upload a resume above to appear in the resume book.</p>
         )}
         <p className="mt-2 text-sm text-ink">
           You are currently{" "}

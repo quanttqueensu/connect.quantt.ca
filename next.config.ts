@@ -109,6 +109,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Two PDFs of up to 5 MB plus multipart overhead.
+    serverActions: { bodySizeLimit: "11mb" },
+  },
   // Cloudflare Workers has no Next image optimiser; the images are small local logos.
   images: {
     unoptimized: true,

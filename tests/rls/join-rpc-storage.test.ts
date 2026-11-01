@@ -6,7 +6,7 @@ import {
   resetDb,
   seedCompany,
   seedCompanyUser,
-  seedDefaultPackage,
+  seedProfileDocuments,
   seedInAppJob,
   seedMember,
 } from "../helpers/db";
@@ -158,7 +158,7 @@ describe("service-role RPCs and helper leaks", () => {
     const firm = await seedCompany("None Co", { tierKey: "none" });
     await seedCompanyUser("none@firm.dev", firm);
     const memberId = await seedMember("opted@club.dev");
-    await seedDefaultPackage("opted@club.dev", memberId);
+    await seedProfileDocuments("opted@club.dev", memberId);
     const member = await asUser("opted@club.dev");
     await member.from("profiles").update({ resume_book_opt_in: true }).eq("id", memberId);
 

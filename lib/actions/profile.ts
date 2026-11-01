@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import {
+  assertPdf,
+  PDF_CONTENT_TYPE,
   imageContentType,
   imageExtension,
   imageKind,
   MAX_IMAGE_BYTES,
 } from "@/lib/files";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { denyRedirect } from "./deny";
 
@@ -219,4 +222,64 @@ function overLimit(v: string | null, max: number) {
 function emptyToNull(v: FormDataEntryValue | null) {
   const s = String(v ?? "").trim();
   return s.length ? s : null;
+}
+
+/** Each form updates one document so simultaneous uploads cannot overwrite its sibling. */
+export async function saveProfileDocument(kind: "resume" | "cover", formData: FormData) {
+  const profile = await requireProfile();
+  if (profile.role !== "member") throw new Error("Members only");
+  if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
+  const file = formData.get("document");
+  if (!(file instanceof File) || file.size === 0) {
+    denyRedirect("/profile", "profile_document_invalid");
+  }
+  try {
+    await assertPdf(file, kind === "resume" ? "Resume" : "Cover letter");
+  } catch {
+    denyRedirect("/profile", "profile_document_invalid");
+  }
+  const supabase = await createClient();
+  // Keep the established owner-scoped storage format. Unique keys prevent an
+  // upload from changing a file while an application is taking its snapshot.
+  const path = `${profile.id}/packages/${crypto.randomUUID()}/${kind}.pdf`;
+  const { error: uploadError } = await supabase.storage.from("resumes").upload(path, file, {
+    contentType: PDF_CONTENT_TYPE,
+  });
+  if (uploadError) denyRedirect("/profile", "profile_document_save_failed");
+  const column = kind === "resume" ? "resume_path" : "cover_letter_path";
+  const { data, error } = await supabase.from("member_documents").upsert({
+    member_id: profile.id,
+    [column]: path,
+    ...(kind === "cover" ? { cover_letter: null } : {}),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "member_id" }).select("member_id");
+  if (error || !data?.length) {
+    // Only the new, unreferenced object is safe to remove. Legacy packages and
+    // in-flight applications may still reference earlier document versions.
+    const { error: cleanupError } = await createAdminClient().storage.from("resumes").remove([path]);
+    if (cleanupError) console.warn("profile: document upload cleanup failed", cleanupError.message);
+    denyRedirect("/profile", "profile_document_save_failed");
+  }
+  revalidatePath("/profile");
+  revalidatePath("/feed/[id]", "page");
+  revalidatePath("/company/resume-book");
+  revalidatePath("/company/search");
+}
+
+export async function removeProfileDocument(kind: "resume" | "cover") {
+  const profile = await requireProfile();
+  if (profile.role !== "member") throw new Error("Members only");
+  if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
+  const supabase = await createClient();
+  const column = kind === "resume" ? "resume_path" : "cover_letter_path";
+  const { data, error } = await supabase.from("member_documents").update({
+    [column]: null,
+    ...(kind === "cover" ? { cover_letter: null } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq("member_id", profile.id).select("member_id");
+  if (error || !data?.length) denyRedirect("/profile", "profile_document_save_failed");
+  revalidatePath("/profile");
+  revalidatePath("/feed/[id]", "page");
+  revalidatePath("/company/resume-book");
+  revalidatePath("/company/search");
 }

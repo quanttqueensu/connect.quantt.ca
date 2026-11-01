@@ -175,7 +175,7 @@ describe("memberPhotoSrc", () => {
 describe("file-related denial codes", () => {
   it("maps apply/package file failures to copy, not driver text", () => {
     expect(DENIAL_MESSAGES.application_not_open).toMatch(/not taking applications through Connect/i);
-    expect(DENIAL_MESSAGES.application_package_missing).toMatch(/hiring package/i);
+    expect(DENIAL_MESSAGES.application_resume_required).toMatch(/resume/i);
     expect(DENIAL_MESSAGES.package_file_invalid).toMatch(/PDF/i);
     expect(DENIAL_MESSAGES.application_submit_failed).toMatch(/could not be submitted/i);
   });

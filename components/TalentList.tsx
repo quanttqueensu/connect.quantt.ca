@@ -61,7 +61,7 @@ export default function TalentList({
             <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
               <p className="font-heading text-lg font-bold text-ink">{m.full_name}</p>
               <p className="mt-1 text-sm text-muted">
-                {[m.program, m.grad_year, m.package_name].filter(Boolean).join(" · ")}
+                {[m.program, m.grad_year].filter(Boolean).join(" · ")}
               </p>
               {m.bio && <p className="mt-2 line-clamp-3 text-sm text-copy">{m.bio}</p>}
               {m.interests && (

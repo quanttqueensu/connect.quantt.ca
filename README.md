@@ -1,6 +1,6 @@
 # QUANTT Hub (Sponsor Connection)
 
-Invite-only hub for QUANTT members and companies. Members see a global feed and apply to in-app jobs with hiring packages. Companies see only their own posts and applicants.
+Invite-only hub for QUANTT members and companies. Members see a global feed and apply to in-app jobs using their profile resume and optional cover letter. Companies see only their own posts and applicants.
 
 The public brochure site remains [quantt-website](https://github.com). This app is Quantt-branded (navy, Inter, Merriweather) but is a separate product.
 
@@ -137,7 +137,7 @@ run instead.
 
 ## Rules (v1)
 
-- Apply + hiring package only on **in-app jobs** (`kind = job`, no `external_url`).
+- Apply with profile documents (or application-specific PDF uploads) only on **in-app jobs** (`kind = job`, no `external_url`).
 - Posts can have comments. Comments are not applications.
 - External job links: “Open listing”, optional off-platform log.
 - Member feed is global. Companies see **only their own posts**.
@@ -152,7 +152,7 @@ run instead.
 | Who | Paths |
 | --- | --- |
 | Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/callback`, `/auth/set-password` |
-| Member | `/feed`, `/packages`, `/applications`, `/profile`, `/members`, `/messages` |
+| Member | `/feed`, `/applications`, `/profile`, `/members`, `/messages` |
 | Company | `/company`, `/company/posts/new`, `/company/applicants`, `/company/messages` |
 | Admin | `/admin` panel (invite, people, companies, requests, posts, applications). Admins are also members and use the member app separately. |
 
@@ -169,3 +169,9 @@ The Content-Security-Policy ships as **`Content-Security-Policy-Report-Only`**
 because the App Router emits inline hydration scripts, so an enforcing policy
 needs per-request nonces threaded through the middleware. The header comment in
 `next.config.ts` has the steps for promoting it to enforcing.
+
+### Profile application documents
+
+Members manage a resume and optional cover letter in `/profile#documents`. In-app applications use those documents automatically; either PDF can be replaced for a single application without changing the profile. Submitted files are immutable snapshots. `/packages` redirects to the profile.
+
+Apply migration `20261101045550_profile_documents.sql` with this app change. It creates the owner-only `member_documents` table, imports each member’s previous default (or newest) package, and points resume-book/search RPCs at the profile resume. Historical packages and application snapshots are preserved.

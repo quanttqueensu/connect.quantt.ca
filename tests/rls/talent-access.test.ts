@@ -10,11 +10,9 @@ import {
 async function memberWithBook(email: string) {
   const memberId = await seedMember(email);
   const member = await asUser(email);
-  const { error: pkgErr } = await member.from("hiring_packages").insert({
-    name: "Default",
-    linkedin_url: "https://linkedin.com/in/test",
+  const { error: pkgErr } = await member.from("member_documents").insert({
+    member_id: memberId,
     resume_path: `${memberId}/packages/x/resume.pdf`,
-    is_default: true,
   });
   if (pkgErr) throw new Error(pkgErr.message);
   const { error: optErr } = await member

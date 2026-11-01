@@ -64,9 +64,7 @@ export default async function ApplicationsPage({
                   title
                 )}{" "}
                 <span className="text-xs text-copy">
-                  {a.kind === "in_app" && a.package_name
-                    ? a.package_name
-                    : applicationKindLabel(a.kind)}{" "}
+                  {applicationKindLabel(a.kind)}{" "}
                   · {stageLabel(a.stage)}
                 </span>
               </p>

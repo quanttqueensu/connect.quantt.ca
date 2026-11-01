@@ -5,6 +5,7 @@ import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { assertPdf, PDF_CONTENT_TYPE } from "@/lib/files";
+import { isPackagePdfPath } from "@/lib/storage-paths";
 import { notify } from "@/lib/notify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -35,8 +36,8 @@ async function removeSnapshots(
 
 /**
  * Service-role copy bypasses storage RLS. Path prefix is checked again, and
- * the source bytes are re-validated, so a member who overwrote their package
- * object via the Storage API after createPackage cannot snapshot HTML/EXE
+ * the source bytes are re-validated, so a member who overwrote their profile
+ * object via the Storage API after uploading cannot snapshot HTML/EXE
  * into an application the recruiter will download.
  */
 async function snapshotOwnedPdf(
@@ -46,8 +47,8 @@ async function snapshotOwnedPdf(
   memberId: string,
   label: string,
 ) {
-  if (!sourcePath.startsWith(`${memberId}/`)) {
-    denyRedirect("/applications", "application_package_path_invalid");
+  if (!isPackagePdfPath(sourcePath, memberId)) {
+    denyRedirect("/applications", "application_document_invalid");
   }
   const { data, error } = await admin.storage.from("resumes").download(sourcePath);
   if (error || !data) throw new Error(error?.message ?? `${label} could not be read`);
@@ -71,7 +72,6 @@ export async function applyToJob(formData: FormData) {
   if (profile.role !== "member") throw new Error("Members only");
   const supabase = await createClient();
   const postId = String(formData.get("post_id"));
-  const packageId = String(formData.get("package_id"));
 
   const feedPath = `/feed/${encodeURIComponent(postId)}`;
   const { data: post, error: postErr } = await supabase
@@ -82,89 +82,62 @@ export async function applyToJob(formData: FormData) {
   if (postErr || !post) denyRedirect("/feed", "application_not_open");
   if (!isInAppJob(post as Post)) denyRedirect(feedPath, "application_not_open");
 
-  const { data: pack, error: packErr } = await supabase
-    .from("hiring_packages")
+  const { data: documents, error: documentsError } = await supabase
+    .from("member_documents")
     .select("*")
-    .eq("id", packageId)
     .eq("member_id", profile.id)
-    .single();
-  if (packErr || !pack) denyRedirect(feedPath, "application_package_missing");
-  if (
-    typeof pack.resume_path !== "string" ||
-    !pack.resume_path.startsWith(`${profile.id}/`) ||
-    (pack.cover_letter_path &&
-      (typeof pack.cover_letter_path !== "string" ||
-        !pack.cover_letter_path.startsWith(`${profile.id}/`)))
-  ) {
-    // Service-role copy below bypasses storage RLS. The DB trigger in 0005 is
-    // the real control; this check still has to exist so a deploy that ships
-    // app code before the migration cannot copy another member's file.
-    denyRedirect("/applications", "application_package_path_invalid");
-  }
+    .maybeSingle();
+  if (documentsError) denyRedirect(feedPath, "application_documents_unavailable");
 
-  const coverMode = String(formData.get("cover_mode") ?? "default");
-  let coverLetter = pack.cover_letter as string | null;
-  let coverPath: string | null = null;
+  const resumeEntry = formData.get("resume");
+  const coverEntry = formData.get("cover_pdf");
+  const resumeFile = resumeEntry instanceof File && resumeEntry.size > 0 ? resumeEntry : null;
+  const coverFile = coverEntry instanceof File && coverEntry.size > 0 ? coverEntry : null;
+  const omitCover = formData.get("omit_cover") === "on";
+  const resumeSource = resumeFile ? null : documents?.resume_path;
+  const coverSource = omitCover || coverFile ? null : documents?.cover_letter_path;
+  if (!resumeFile && !resumeSource) denyRedirect(feedPath, "application_resume_required");
+  if ((resumeSource && !isPackagePdfPath(resumeSource, profile.id)) ||
+      (coverSource && !isPackagePdfPath(coverSource, profile.id))) {
+    denyRedirect(feedPath, "application_document_invalid");
+  }
+  // Validate both overrides before any snapshot is written.
+  try {
+    if (resumeFile) await assertPdf(resumeFile, "Resume");
+    if (coverFile && !omitCover) await assertPdf(coverFile, "Cover letter");
+  } catch {
+    denyRedirect(feedPath, "application_document_invalid");
+  }
+  const coverLetter = omitCover || coverFile || coverSource ? null : documents?.cover_letter ?? null;
+  if (coverLetter && coverLetter.length > MAX_COVER_LETTER) {
+    denyRedirect(feedPath, "application_cover_invalid");
+  }
   const appId = crypto.randomUUID();
   const admin = createAdminClient();
-  // Every snapshot object this invocation has created, so a failure after the
-  // copies can undo them instead of leaking orphans into the resumes bucket.
   const snapshots: string[] = [];
-
-  if (coverMode === "none") {
-    coverLetter = null;
-  } else if (coverMode === "write") {
-    coverLetter = String(formData.get("cover_letter") ?? "").trim() || null;
-    if (coverLetter && coverLetter.length > MAX_COVER_LETTER) {
-      denyRedirect("/applications", "application_cover_invalid");
-    }
-  } else if (coverMode === "upload") {
-    const file = formData.get("cover_pdf") as File | null;
-    if (!file || file.size === 0) denyRedirect(feedPath, "application_cover_invalid");
-    try {
-      await assertPdf(file, "Cover letter");
-    } catch {
-      denyRedirect(feedPath, "application_cover_invalid");
-    }
-    coverPath = `snapshots/${appId}/cover.pdf`;
-    const { error } = await admin.storage.from("resumes").upload(coverPath, file, {
-      contentType: PDF_CONTENT_TYPE,
-    });
-    if (error) {
-      await removeSnapshots(admin, appId, snapshots);
-      denyRedirect(feedPath, "application_cover_invalid");
-    }
-    snapshots.push(coverPath);
-    coverLetter = null;
-  }
-
   const snapResume = `snapshots/${appId}/resume.pdf`;
+  const snapCover = !omitCover && (coverFile || coverSource) ? `snapshots/${appId}/cover.pdf` : null;
+
   try {
-    await snapshotOwnedPdf(admin, pack.resume_path, snapResume, profile.id, "Resume");
+    for (const [file, source, destination, label] of [
+      [resumeFile, resumeSource, snapResume, "Resume"],
+      [omitCover ? null : coverFile, coverSource, snapCover, "Cover letter"],
+    ] as const) {
+      if (!destination) continue;
+      if (file) {
+        const { error } = await admin.storage.from("resumes").upload(destination, file, {
+          contentType: PDF_CONTENT_TYPE,
+        });
+        if (error) throw new Error(error.message);
+      } else {
+        await snapshotOwnedPdf(admin, source!, destination, profile.id, label);
+      }
+      snapshots.push(destination);
+    }
   } catch (e) {
     await removeSnapshots(admin, appId, snapshots);
     if (isNextRedirect(e)) throw e;
-    denyRedirect(feedPath, "application_package_path_invalid");
-  }
-  snapshots.push(snapResume);
-
-  let snapCover = coverPath;
-  if (coverMode === "default" && pack.cover_letter_path) {
-    snapCover = `snapshots/${appId}/cover.pdf`;
-    try {
-      await snapshotOwnedPdf(
-        admin,
-        pack.cover_letter_path,
-        snapCover,
-        profile.id,
-        "Cover letter file",
-      );
-    } catch (e) {
-      await removeSnapshots(admin, appId, snapshots);
-      if (isNextRedirect(e)) throw e;
-      denyRedirect(feedPath, "application_package_path_invalid");
-    }
-    snapshots.push(snapCover);
+    denyRedirect(feedPath, "application_document_invalid");
   }
 
   const { error } = await supabase.from("applications").insert({
@@ -173,9 +146,7 @@ export async function applyToJob(formData: FormData) {
     kind: "in_app",
     post_id: postId,
     company_id: post.company_id,
-    package_id: pack.id,
-    package_name: pack.name,
-    linkedin_url: pack.linkedin_url,
+    linkedin_url: profile.linkedin_url,
     resume_path: snapResume,
     cover_letter: coverLetter,
     cover_letter_path: snapCover,

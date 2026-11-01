@@ -96,6 +96,15 @@ export async function seedDefaultPackage(email: string, memberId: string): Promi
   if (error) throw new Error(`seedDefaultPackage: ${error.message}`);
 }
 
+export async function seedProfileDocuments(email: string, memberId: string): Promise<void> {
+  const member = await asUser(email);
+  const { error } = await member.from("member_documents").insert({
+    member_id: memberId,
+    resume_path: `${memberId}/packages/x/resume.pdf`,
+  });
+  if (error) throw new Error(`seedProfileDocuments: ${error.message}`);
+}
+
 export async function seedInAppJob(
   authorId: string,
   companyId: string,
