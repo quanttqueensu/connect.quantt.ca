@@ -3,7 +3,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "quantt-connect",
-  "main": ".open-next/worker.js",
+  // worker.js wraps OpenNext's .open-next/worker.js and adds the Supabase keep-alive cron.
+  "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
@@ -14,5 +15,10 @@
   ],
   // Supabase keys and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README); keep them on deploy.
   "keep_vars": true,
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Every hub page makes several Supabase calls one after another. Smart Placement lets Cloudflare run the
+  // Worker next to the Supabase region instead of next to the visitor, so each of those calls is short.
+  "placement": { "mode": "smart" },
+  // Supabase keep-alive (worker.js `scheduled`): 12:00 UTC every third day, well inside the ~7-day pause window.
+  "triggers": { "crons": ["0 12 */3 * *"] }
 }

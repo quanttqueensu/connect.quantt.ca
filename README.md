@@ -60,6 +60,8 @@ The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://openn
 2. Build variables (Settings → Build → Variables): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`. These are baked into the browser bundle at build time.
 3. Runtime variables (Settings → Variables and Secrets): the same three, plus the secret `SUPABASE_SERVICE_ROLE_KEY`.
 4. Settings → Domains & Routes → add `connect.quantt.ca` (remove it from the old host first).
+5. PR preview builds are off (Settings → Builds → Previews Base). `wrangler preview` never ran the OpenNext build there, so every PR showed a failed check.
+6. Supabase keep-alive: the cron in `wrangler.jsonc` runs `scheduled` in `worker.js` every third day with one small database read, because Supabase pauses a free project after a week without activity and the hub then hangs.
 
 Local: `npm run dev` as before; `npm run preview` runs the Worker build locally.
 
