@@ -1,22 +1,12 @@
 /**
  * Hand-maintained mirrors of the database schema. There are NO generated
- * Supabase types in this repo, and ~30 call sites cast query results straight
+ * database types in this repo, and ~30 call sites cast query results straight
  * to these shapes with `as`, which means TypeScript never checks them against
  * the real columns — every drift here is a silent wrong-data bug.
  *
- * These types mirror, table by table:
- *   supabase/migrations/0001_init.sql   — every table below
- *   supabase/migrations/0004_resume_book_opt_in.sql — profiles.resume_book_*
- *   supabase/migrations/0005_consent_and_package_path_guards.sql — constraints
- *     only (no new columns)
- *   supabase/migrations/0006_snapshot_path_and_photo_writes.sql — tighter
- *     applications_guard() snapshot prefix; photos write policies (no new columns)
- *   supabase/migrations/0007_sponsor_tiers.sql — sponsor_* tables
- *   supabase/migrations/0008_company_tiers.sql — companies.sponsor_tier_id, grace
- *   supabase/migrations/0009_tier_policies.sql — capability-gated RLS (no new columns)
- *   supabase/migrations/0010_tier_enforcement_fixes.sql — no new columns
- *   supabase/migrations/0011_resume_book_search_and_dm.sql — resume_book_embargo_hours
- *   supabase/migrations/0012_company_access_overrides.sql — company_capability_overrides
+ * These types mirror the D1 schema in db/migrations/*.sql (0001_init.sql has
+ * every table). Booleans are 0/1 in D1 but come back as true/false through
+ * lib/db/schema.ts, so they stay `boolean` here.
  *
  * If you add, rename, retype, or change the nullability of a column in a
  * migration, update the matching type in this file in the same commit.

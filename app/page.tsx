@@ -1,21 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { currentSession } from "@/lib/supabase/server";
 
-export default function Home() {
-  useEffect(() => {
-    if (window.location.hash.includes("access_token")) return;
-
-    const supabase = createClient();
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      window.location.replace(user ? "/feed" : "/login");
-    });
-  }, []);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-sm text-muted">Loading…</p>
-    </div>
-  );
+/** The middleware already sends both cases on; this is the fallback. */
+export default async function Home() {
+  const session = await currentSession();
+  if (!session) redirect("/login");
+  redirect(session.role === "company_user" ? "/company" : "/feed");
 }

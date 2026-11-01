@@ -1,6 +1,7 @@
-import { createServerClient } from "@supabase/ssr";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse, type NextRequest } from "next/server";
-import { shouldForwardToAuthCallback, userNeedsPassword } from "@/lib/auth-session";
+import { readSession, SESSION_COOKIE, type SessionProfile } from "@/lib/cf-auth/sessions";
+import type { D1Database } from "@/lib/db/d1";
 
 /**
  * Routes reachable without a session.
@@ -13,12 +14,9 @@ import { shouldForwardToAuthCallback, userNeedsPassword } from "@/lib/auth-sessi
  *  - `/`, `/for-companies` — public brochure pages.
  *  - `/login`              — the sign-in form itself.
  *  - `/join`               — public sponsor access-request form.
- *  - `/auth/callback`      — lands the invite/recovery link. The tokens arrive
- *                            in the URL hash and are exchanged client-side, so
- *                            there is no session yet when this route loads.
- *  - `/auth/set-password`  — an invited user may land here before the client
- *                            has finished establishing the session; the page
- *                            renders <AwaitInviteSession /> in that window.
+ *  - `/files`              — signed file links (resumes, photos). The link's
+ *                            own signature is the permission, checked by the
+ *                            route (app/files/[...path]/route.ts).
  *  - `/auth/quantt/start`, `/auth/quantt/callback` — "Sign in with QUANTT" for
  *                            club members: there is no session until the
  *                            callback redeems auth.quantt.ca's code
@@ -29,8 +27,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/for-companies",
   "/join",
-  "/auth/callback",
-  "/auth/set-password",
+  "/files",
   "/auth/quantt/start",
   "/auth/quantt/callback",
 ];
@@ -39,129 +36,41 @@ function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function redirectKeepingSession(url: URL, supabaseResponse: NextResponse) {
-  const res = NextResponse.redirect(url);
-  supabaseResponse.cookies.getAll().forEach((c) => res.cookies.set(c));
-  return res;
+async function sessionProfile(request: NextRequest): Promise<SessionProfile | null> {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  const { env } = getCloudflareContext();
+  const db = (env as unknown as { DB?: D1Database }).DB;
+  if (!db) return null;
+  return readSession(db, token);
 }
 
-/**
- * Does the request carry a Supabase session cookie at all? @supabase/ssr names
- * them `sb-<project-ref>-auth-token`, split into `.0`, `.1`… when large.
- */
-function hasSessionCookie(request: NextRequest) {
-  return request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+function go(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  return NextResponse.redirect(url);
 }
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    // Fail closed in production: without these the rest of this function
-    // cannot authenticate, and returning next() would make every route public.
-    if (process.env.NODE_ENV === "production") {
-      return new NextResponse("Service unavailable", { status: 503 });
-    }
-    return supabaseResponse;
-  }
-
-  // Signed-out fast path. With no session cookie there is nothing to verify, so
-  // skip the Supabase round trips that used to run on every request, including
-  // the public pages. Tokens in the query string still go to /auth/callback.
-  if (
-    !hasSessionCookie(request) &&
-    !shouldForwardToAuthCallback(request.nextUrl.pathname, request.nextUrl.search, "")
-  ) {
-    const { pathname } = request.nextUrl;
-    // `/` only ever sends a signed-out visitor on to /login, after loading its
-    // own JS and asking Supabase. Do it here instead. The browser keeps any
-    // #access_token hash across the redirect, and AuthHashCatcher on /login
-    // forwards it to /auth/callback as before.
-    if (pathname === "/" || !isPublic(pathname)) {
-      const redirect = request.nextUrl.clone();
-      redirect.pathname = "/login";
-      return NextResponse.redirect(redirect);
-    }
-    return supabaseResponse;
-  }
-
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options),
-        );
-      },
-    },
-  });
-
-  // getClaims() verifies the access token locally against the project's
-  // published signing keys (cached), instead of a round trip to Supabase Auth
-  // on every request like getUser(). It still refreshes an expired session.
-  // With a legacy symmetric JWT secret it falls back to getUser() by itself.
-  // Pages keep calling getUser() (lib/auth.ts), so a removed account is still
-  // turned away there.
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const claims = claimsData?.claims;
-  const user = claims ? { id: claims.sub, app_metadata: claims.app_metadata ?? {} } : null;
-
-  // The token's app_metadata is a copy from when it was issued, so a fresh
-  // "must set password" flag is confirmed with Supabase before acting on it.
-  let needsPassword = false;
-  if (user && userNeedsPassword(user)) {
-    const { data } = await supabase.auth.getUser();
-    needsPassword = userNeedsPassword(data.user);
-  }
-
   const { pathname } = request.nextUrl;
+  // One D1 read when there is a session cookie, none otherwise.
+  const profile = await sessionProfile(request);
 
-  // Query-string tokens (PKCE `code`, OTP `token_hash`) must reach /auth/callback
-  // even if Site URL is `/`, `/login`, or `/for-companies`. Do this before the
-  // logged-in /login → /feed bounce, which would otherwise depend on client JS.
-  if (shouldForwardToAuthCallback(pathname, request.nextUrl.search, "")) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/auth/callback";
-    return redirectKeepingSession(redirect, supabaseResponse);
+  if (!profile) {
+    // `/` only ever sends a signed-out visitor on to /login.
+    if (pathname === "/" || !isPublic(pathname)) {
+      const res = go(request, "/login");
+      // A cookie that no longer matches a session (expired, signed out
+      // elsewhere, account removed) is dropped so the fast path applies next time.
+      if (request.cookies.get(SESSION_COOKIE)) res.cookies.delete(SESSION_COOKIE);
+      return res;
+    }
+    return NextResponse.next();
   }
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("role, is_admin").eq("id", user.id).maybeSingle()
-    : { data: null };
-
-  if (user && needsPassword && !pathname.startsWith("/auth/")) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/auth/set-password";
-    return redirectKeepingSession(redirect, supabaseResponse);
-  }
-
-  if (!user && !isPublic(pathname)) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/login";
-    return redirectKeepingSession(redirect, supabaseResponse);
-  }
-
-  if (
-    user &&
-    !profile &&
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/auth/")
-  ) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/login";
-    redirect.searchParams.set("error", "login_account_missing");
-    return redirectKeepingSession(redirect, supabaseResponse);
-  }
-
+  const user = { id: profile.id };
   const sponsorDemo = Boolean(
-    profile?.is_admin && user &&
+    profile.is_admin &&
     request.cookies.get("connect-sponsor-mode")?.value === `${user.id}:demo`,
   );
 
@@ -176,16 +85,16 @@ export async function middleware(request: NextRequest) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/company";
     redirect.search = "";
-    return redirectKeepingSession(redirect, supabaseResponse);
+    return NextResponse.redirect(redirect);
   }
 
-  if (pathname === "/login" && profile && !needsPassword) {
+  if (pathname === "/login") {
     const redirect = request.nextUrl.clone();
     redirect.pathname = sponsorDemo || profile.role === "company_user" ? "/company" : "/feed";
-    return redirectKeepingSession(redirect, supabaseResponse);
+    return NextResponse.redirect(redirect);
   }
 
-  if (profile?.role === "company_user") {
+  if (profile.role === "company_user") {
     const blocked =
       pathname.startsWith("/feed") ||
       pathname.startsWith("/members") ||
@@ -198,29 +107,29 @@ export async function middleware(request: NextRequest) {
     if (blocked) {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/company";
-      return redirectKeepingSession(redirect, supabaseResponse);
+      return NextResponse.redirect(redirect);
     }
   }
 
-  if (profile?.role === "member") {
+  if (profile.role === "member") {
     if (pathname.startsWith("/company") && !profile.is_admin) {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/feed";
-      return redirectKeepingSession(redirect, supabaseResponse);
+      return NextResponse.redirect(redirect);
     }
     if (pathname.startsWith("/admin") && !profile.is_admin) {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/feed";
-      return redirectKeepingSession(redirect, supabaseResponse);
+      return NextResponse.redirect(redirect);
     }
     if (pathname === "/") {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/feed";
-      return redirectKeepingSession(redirect, supabaseResponse);
+      return NextResponse.redirect(redirect);
     }
   }
 
-  return supabaseResponse;
+  return NextResponse.next();
 }
 
 export const config = {

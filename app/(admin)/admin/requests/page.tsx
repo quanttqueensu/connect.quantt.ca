@@ -1,9 +1,8 @@
 import Link from "next/link";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
-import ManualInviteBanner from "@/components/ManualInviteBanner";
 import { DangerButton, PrimaryButton } from "@/components/Form";
-import { readManualInvite, reviewJoinRequest } from "@/lib/actions/admin";
+import { reviewJoinRequest } from "@/lib/actions/admin";
 import { loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { JoinRequest } from "@/lib/types";
@@ -13,12 +12,11 @@ type QueueRequest = Pick<JoinRequest, "id" | "company_name" | "contact_name" | "
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ manual?: string; denied?: string; page?: string }>;
+  searchParams: Promise<{ denied?: string; page?: string }>;
 }) {
-  const { manual, denied, page: rawPage } = await searchParams;
+  const { denied, page: rawPage } = await searchParams;
   const page = Math.min(10000, Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1));
   const pageSize = 25;
-  const setup = manual ? await readManualInvite() : null;
   const supabase = await createClient();
   const [{ data: requests, error: requestsError }, tiers] = await Promise.all([
     supabase.from("company_join_request_queue").select("*").eq("status", "pending").order("created_at").order("id").range((page - 1) * pageSize, page * pageSize),
@@ -29,7 +27,6 @@ export default async function RequestsPage({
     <>
       <PageHeader kicker="Queue" title="Join requests" />
       <Notice message={denied} />
-      {setup && <ManualInviteBanner email={setup.email} password={setup.password} />}
       <ul>
         {(requests as QueueRequest[] | null)?.slice(0, pageSize).map((r) => (
           <li key={r.id} className="min-w-0 border-t border-line py-5 [overflow-wrap:anywhere]">

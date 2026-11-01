@@ -1,8 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import InviteForm from "@/components/InviteForm";
-import ManualInviteBanner from "@/components/ManualInviteBanner";
 import Notice from "@/components/Notice";
-import { readManualInvite } from "@/lib/actions/admin";
 import { loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { Company } from "@/lib/types";
@@ -10,10 +8,9 @@ import type { Company } from "@/lib/types";
 export default async function InvitePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; denied?: string; manual?: string; kind?: string }>;
+  searchParams: Promise<{ sent?: string; denied?: string; unsent?: string; kind?: string }>;
 }) {
-  const { sent, denied, manual, kind } = await searchParams;
-  const setup = manual ? await readManualInvite() : null;
+  const { sent, denied, unsent, kind } = await searchParams;
   const supabase = await createClient();
   const [{ data: companies }, { data: pending }, tiers] = await Promise.all([
     supabase.from("companies").select("id, name").eq("status", "active").order("name"),
@@ -31,11 +28,16 @@ export default async function InvitePage({
   return (
     <>
       <PageHeader kicker="Access" title="Invite someone">
-        Pick whether they’re a club member, an exec admin, or a company contact. We’ll email a
-        password link when we can; otherwise you’ll get a temporary password to share.
+        Pick whether they’re a club member, an exec admin, or a company contact. We’ll email them
+        to say they can sign in at connect.quantt.ca with that address.
       </PageHeader>
-      {setup && <ManualInviteBanner email={setup.email} password={setup.password} />}
       <Notice message={denied} />
+      {unsent && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
+          The invite is saved, but the email didn’t send. Tell them to sign in at
+          connect.quantt.ca/login with the address you entered; they’ll get a code there.
+        </p>
+      )}
       <InviteForm
         companies={(companies as Pick<Company, "id" | "name">[] | null) ?? []}
         tiers={tiers.map((t) => ({ id: t.id, name: t.name }))}

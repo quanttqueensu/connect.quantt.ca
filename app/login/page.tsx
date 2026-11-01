@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { login, requestPasswordReset } from "@/lib/actions/auth";
+import { cookies } from "next/headers";
+import { requestCode, restartLogin, verifyCode } from "@/lib/actions/auth";
 import { Field, GhostButton, PrimaryButton, TextInput } from "@/components/Form";
 import PublicShell from "@/components/PublicShell";
 import LoginPanel from "@/components/LoginPanel";
@@ -9,10 +10,12 @@ import { DENIAL_MESSAGES } from "@/lib/denials";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; reset?: string }>;
+  searchParams: Promise<{ error?: string; step?: string }>;
 }) {
-  const { error, reset } = await searchParams;
+  const { error, step } = await searchParams;
   const errorText = error ? DENIAL_MESSAGES[error] : undefined;
+  const pendingEmail = (await cookies()).get("connect_login_email")?.value;
+  const codeStep = step === "code" && Boolean(pendingEmail);
   return (
     <PublicShell>
       <div className="grid w-full overflow-hidden rounded border border-line bg-white lg:grid-cols-[0.9fr_1.1fr]">
@@ -36,32 +39,42 @@ export default async function LoginPage({
           </div>
         </div>
         <LoginPanel>
-          <form action={login} className="mt-6 w-full space-y-5">
-            {errorText && <p className="text-sm text-red-700">{errorText}</p>}
-            {reset && (
-              <p className="text-sm text-primary">
-                If that address has an account, a reset link is on its way. Check your inbox — the
-                link opens a page where you set a new password.
+          {codeStep ? (
+            <form action={verifyCode} className="mt-6 w-full space-y-5">
+              {errorText && <p className="text-sm text-red-700">{errorText}</p>}
+              <p className="text-sm text-copy">
+                If <span className="font-medium text-ink">{pendingEmail}</span> has an account, a
+                six-digit code is on its way. It works for 10 minutes.
               </p>
-            )}
-            <Field label="Email">
-              <TextInput name="email" type="email" required autoComplete="email" />
-            </Field>
-            <Field label="Password">
-              <TextInput name="password" type="password" required autoComplete="current-password" />
-            </Field>
-            <PrimaryButton type="submit" className="w-full">
-              Log in
-            </PrimaryButton>
-            {/*
-              Reuses the email field above. formNoValidate skips the required
-              password, which a reset obviously does not need; the action checks
-              the email itself.
-            */}
-            <GhostButton type="submit" formAction={requestPasswordReset} formNoValidate className="w-full">
-              Forgot your password?
-            </GhostButton>
-          </form>
+              <Field label="Code">
+                <TextInput
+                  name="code"
+                  inputMode="numeric"
+                  pattern="[0-9 ]{6,7}"
+                  maxLength={7}
+                  required
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </Field>
+              <PrimaryButton type="submit" className="w-full">
+                Log in
+              </PrimaryButton>
+              <GhostButton type="submit" formAction={restartLogin} formNoValidate className="w-full">
+                Use a different email
+              </GhostButton>
+            </form>
+          ) : (
+            <form action={requestCode} className="mt-6 w-full space-y-5">
+              {errorText && <p className="text-sm text-red-700">{errorText}</p>}
+              <Field label="Email">
+                <TextInput name="email" type="email" required autoComplete="email" />
+              </Field>
+              <PrimaryButton type="submit" className="w-full">
+                Email me a sign-in code
+              </PrimaryButton>
+            </form>
+          )}
           <p className="mt-8 border-t border-line pt-6 text-sm text-copy">
             Hiring for your firm?{" "}
             <Link href="/join" className="font-medium text-primary hover:underline">

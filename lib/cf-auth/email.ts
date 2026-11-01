@@ -33,3 +33,40 @@ export async function sendLoginCodeEmail(env: EmailEnv, to: string, code: string
   });
   if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
 }
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+export function inviteEmail(name: string, loginUrl: string) {
+  const subject = "You're invited to QUANTT Connect";
+  const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
+  const text = [
+    greeting,
+    "",
+    "You've been invited to QUANTT Connect.",
+    `To sign in, go to ${loginUrl} and enter this email address. We'll email you a one-time code; there's no password to set.`,
+  ].join("\n");
+  const html = `<p>${escapeHtml(greeting)}</p>
+<p>You've been invited to QUANTT Connect.</p>
+<p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and enter this email address. We'll email you a one-time code; there's no password to set.</p>`;
+  return { subject, text, html };
+}
+
+/** The invite notice. The invite itself is the invites row; this only tells them. */
+export async function sendInviteEmail(
+  env: EmailEnv,
+  to: string,
+  name: string,
+  loginUrl: string,
+  fetchImpl: typeof fetch = fetch,
+) {
+  if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+  const { subject, text, html } = inviteEmail(name, loginUrl);
+  const res = await fetchImpl("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM, to: [to], subject, text, html }),
+  });
+  if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
+}

@@ -4,14 +4,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
-  # The RLS suite needs a live database, so it is not part of the automatic
-  # run. Trigger it by hand from the Actions tab (see the `rls-tests` job).
   workflow_dispatch:
-    inputs:
-      run_rls_tests:
-        description: "Also run the RLS suite (needs Supabase secrets configured)"
-        type: boolean
-        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -52,64 +45,3 @@ jobs:
         # `next build` typechecks the application code as part of the build,
         # which is why there is no separate `npm run typecheck` step here.
         run: npm run build
-        env:
-          # The build reads these to derive the CSP connect-src/img-src origin.
-          # Placeholders are fine: nothing is contacted at build time, and the
-          # config falls back to `https:` if they are absent or unparseable.
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
-
-  # ---------------------------------------------------------------------------
-  # NOT part of the required checks, on purpose.
-  #
-  # `npm test` is the RLS suite (tests/rls/*). Every test talks to a real
-  # Postgres with the migrations and policies applied, and truncates between
-  # files. To run it, a job needs:
-  #
-  #   * the Supabase CLI and Docker, with `supabase start` having brought up a
-  #     local stack (`npm run db:reset` applies migrations + seed), and
-  #   * a `.env.test` file with NEXT_PUBLIC_SUPABASE_URL,
-  #     NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY pointing at
-  #     that stack — vitest loads it via dotenv (see vitest.config.ts).
-  #
-  # Until that is wired up it would fail on every push, so it is manual-only
-  # and `continue-on-error`. Make it a required check once it is green.
-  # ---------------------------------------------------------------------------
-  rls-tests:
-    name: RLS tests (manual, non-blocking)
-    if: github.event_name == 'workflow_dispatch' && inputs.run_rls_tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Start local Supabase
-        run: supabase start
-
-      - name: Write .env.test
-        run: |
-          {
-            echo "NEXT_PUBLIC_SUPABASE_URL=$(supabase status -o env | sed -n 's/^API_URL=//p' | tr -d '\"')"
-            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(supabase status -o env | sed -n 's/^ANON_KEY=//p' | tr -d '\"')"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '\"')"
-          } > .env.test
-
-      - name: Reset database (migrations + seed)
-        run: npm run db:reset
-
-      - name: Run RLS suite
-        run: npm test

@@ -1,4 +1,4 @@
-/** Canonical site URL for auth redirects: NEXT_PUBLIC_SITE_URL (https://connect.quantt.ca on Cloudflare), else the host's own. */
+/** Canonical site URL for links in emails and redirects: NEXT_PUBLIC_SITE_URL (https://connect.quantt.ca on Cloudflare), else the host's own. */
 export function siteUrl() {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (explicit) return explicit;
@@ -9,6 +9,3 @@ export function siteUrl() {
   return "http://localhost:3000";
 }
 
-export function authCallbackUrl(next = "/auth/set-password") {
-  return `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
-}

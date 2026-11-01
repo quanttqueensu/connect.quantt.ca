@@ -1,148 +1,87 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { SPONSOR_MODE_COOKIE } from "@/lib/sponsor-mode";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { userNeedsPassword } from "@/lib/auth-session";
-import { authCallbackUrl } from "@/lib/site-url";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
-async function homeForUser(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return "/login?error=login_failed";
-  if (userNeedsPassword(user)) return "/auth/set-password";
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile) return "/login?error=login_account_missing";
-  return profile.role === "company_user" ? "/company" : "/feed";
-}
-
-export async function login(formData: FormData) {
-  if (!isSupabaseConfigured()) {
-    redirect("/login?error=login_misconfigured");
-  }
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    // Opaque code: /login used to render ?error= text, so a crafted link or a
-    // raw GoTrue message (including user-enumeration variants) could appear in
-    // the hub's own chrome. One code, one lookup, nothing from the driver.
-    redirect("/login?error=login_failed");
-  }
-  const dest = await homeForUser(supabase);
-  revalidatePath("/", "layout");
-  redirect(dest);
-}
+import { sendLoginCodeEmail } from "@/lib/cf-auth/email";
+import { requestLoginCode, verifyLoginCode } from "@/lib/cf-auth/login-codes";
+import { createSession, endSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/cf-auth/sessions";
+import { looksLikeEmail, normalizeEmail } from "@/lib/cf-auth/tokens";
+import { hubEnv } from "@/lib/hub/env";
+import { SPONSOR_MODE_COOKIE } from "@/lib/sponsor-mode";
+import { siteUrl } from "@/lib/site-url";
 
 /**
- * Self-serve password reset.
+ * Sign-in by emailed code (lib/cf-auth/login-codes.ts).
  *
- * The outcome never depends on whether the address has an account: a failure
- * from GoTrue (unknown address, send rate limit) leads to exactly the same
- * redirect as a success, so /login cannot be used to test whether someone is
- * a member. This is also the supported way back in for a locked-out user --
- * before it existed, the only recovery was an admin re-invite, which is what
- * made that path dangerous.
+ * Step 1 takes an email and sends a code; step 2 takes the code. Between the
+ * two the email sits in a short-lived HttpOnly cookie rather than the URL.
+ * The page answers the same way whether or not the email has an account, so
+ * /login cannot be used to find out who is a member or a sponsor.
  */
-export async function requestPasswordReset(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) {
-    redirect("/login?error=login_reset_email_required");
-  }
+const LOGIN_EMAIL_COOKIE = "connect_login_email";
+const LOGIN_EMAIL_MINUTES = 15;
 
+function secure() {
+  return siteUrl().startsWith("https://");
+}
+
+export async function requestCode(formData: FormData) {
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  if (!looksLikeEmail(email)) redirect("/login?error=login_email_required");
+
+  const env = await hubEnv();
   try {
-    const supabase = await createClient();
-    // The recovery link lands on /auth/callback, which verifies the recovery
-    // token and forwards to /auth/set-password.
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: authCallbackUrl(),
-    });
-  } catch {
-    // Same answer either way -- see above.
+    await requestLoginCode(env.DB, email, (to, code) => sendLoginCodeEmail(env, to, code));
+  } catch (e) {
+    // Same answer either way; the log says what went wrong (usually Resend).
+    console.error("login code not sent", e);
   }
-  redirect("/login?reset=1");
+  (await cookies()).set(LOGIN_EMAIL_COOKIE, email, {
+    httpOnly: true,
+    secure: secure(),
+    sameSite: "lax",
+    path: "/login",
+    maxAge: LOGIN_EMAIL_MINUTES * 60,
+  });
+  redirect("/login?step=code");
 }
 
-export async function markMustSetPassword() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-  if (user.app_metadata?.must_set_password === false) return;
+export async function verifyCode(formData: FormData) {
+  const jar = await cookies();
+  const email = jar.get(LOGIN_EMAIL_COOKIE)?.value;
+  if (!email) redirect("/login?error=login_code_expired");
 
-  const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(user.id, {
-    app_metadata: {
-      ...(user.app_metadata ?? {}),
-      must_set_password: true,
-    },
-  });
-  if (error) throw new Error(error.message);
-}
-
-export async function setPassword(formData: FormData) {
-  const password = String(formData.get("password") ?? "");
-  const confirm = String(formData.get("confirm") ?? "");
-
-  if (password.length < 8) {
-    redirect("/auth/set-password?error=password_too_short");
-  }
-  if (password !== confirm) {
-    redirect("/auth/set-password?error=password_mismatch");
+  const env = await hubEnv();
+  const result = await verifyLoginCode(env.DB, email, String(formData.get("code") ?? ""));
+  if (!result.ok) {
+    if (result.code === "login_account_missing") {
+      jar.delete({ name: LOGIN_EMAIL_COOKIE, path: "/login" });
+      redirect("/login?error=login_account_missing");
+    }
+    redirect("/login?step=code&error=login_code_invalid");
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login?error=login_link_expired");
-  }
-
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) {
-    redirect("/auth/set-password?error=password_save_failed");
-  }
-
-  const admin = createAdminClient();
-  const { error: metaErr } = await admin.auth.admin.updateUserById(user.id, {
-    app_metadata: {
-      ...(user.app_metadata ?? {}),
-      must_set_password: false,
-    },
-  });
-  if (metaErr) {
-    redirect("/auth/set-password?error=password_save_failed");
-  }
-  await supabase.auth.refreshSession();
+  const { token } = await createSession(env.DB, result.profileId);
+  jar.set(SESSION_COOKIE, token, sessionCookieOptions(secure()));
+  jar.delete({ name: LOGIN_EMAIL_COOKIE, path: "/login" });
   revalidatePath("/", "layout");
+  redirect(result.role === "company_user" ? "/company" : "/feed");
+}
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile) redirect("/login?error=login_account_missing");
-  redirect(profile.role === "company_user" ? "/company" : "/feed");
+/** "Use a different email" on the code step. */
+export async function restartLogin() {
+  (await cookies()).delete({ name: LOGIN_EMAIL_COOKIE, path: "/login" });
+  redirect("/login");
 }
 
 export async function logout() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  (await cookies()).delete(SPONSOR_MODE_COOKIE);
+  const jar = await cookies();
+  const env = await hubEnv();
+  await endSession(env.DB, jar.get(SESSION_COOKIE)?.value);
+  jar.delete(SESSION_COOKIE);
+  jar.delete(SPONSOR_MODE_COOKIE);
   revalidatePath("/", "layout");
   redirect("/login");
 }

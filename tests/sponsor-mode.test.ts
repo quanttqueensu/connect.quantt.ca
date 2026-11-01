@@ -33,13 +33,11 @@ vi.mock("next/server", async (importOriginal) => ({
   ...await importOriginal<typeof import("next/server")>(), after: state.after,
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => { throw new Error("Preview used privileged storage"); } }));
-vi.mock("@supabase/ssr", () => ({ createServerClient: () => ({
-  auth: { getClaims: async () => ({ data: { claims: { sub: state.profile?.id, app_metadata: {} } } }) },
-  from: () => {
-    const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: state.profile }) };
-    return query;
-  },
-}) }));
+vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: { DB: {} } }) }));
+vi.mock("@/lib/cf-auth/sessions", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/cf-auth/sessions")>(),
+  readSession: async () => state.profile && { ...state.profile, email: "admin@queensu.ca", company_id: null },
+}));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
   from: (table: string) => {
     state.read(table);
@@ -126,11 +124,9 @@ describe("admin sponsor demo isolation", () => {
   });
 
   it("keeps admin/member URLs out of active demo mode and rejects non-admin entry", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
-    try {
+    {
       const request = (path: string) => new NextRequest(`https://example.com${path}`, {
-        headers: { cookie: `sb-demo-auth-token=stub; connect-sponsor-mode=${state.cookie}` },
+        headers: { cookie: `connect_session=stub; connect-sponsor-mode=${state.cookie}` },
       });
       for (const path of ["/admin/companies", "/feed", "/members", "/messages/private-id"]) {
         expect((await middleware(request(path))).headers.get("location")).toBe("https://example.com/company");
@@ -138,8 +134,6 @@ describe("admin sponsor demo isolation", () => {
       expect((await middleware(request("/company"))).status).toBe(200);
       state.profile!.is_admin = false;
       expect((await middleware(request("/company"))).headers.get("location")).toBe("https://example.com/feed");
-    } finally {
-      vi.unstubAllEnvs();
     }
   });
 

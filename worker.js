@@ -1,10 +1,8 @@
 // The Worker's entry point: OpenNext's generated handler, plus a cron job.
 //
-// Supabase pauses a free project after about a week with no database activity,
-// and then every sign-in check on connect.quantt.ca hangs until someone clicks
-// Restore in the Supabase dashboard (this happened 2026-11-01). The cron in
-// wrangler.jsonc runs `scheduled` every few days and makes one small database
-// read, which counts as activity.
+// The cron in wrangler.jsonc runs `scheduled` once a day to delete expired
+// sessions, sign-in codes and join-form admission rows from D1. (It used to
+// keep the free Supabase project from pausing.)
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
@@ -14,20 +12,20 @@ const worker = {
   fetch: handler.fetch,
 
   async scheduled(_controller, env, ctx) {
-    const url = env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-      console.error("keep-alive: Supabase URL or anon key is not set");
+    if (!env.DB) {
+      console.error("cleanup: the DB binding is missing");
       return;
     }
-    // A plain PostgREST read reaches Postgres even when row-level security
-    // returns no rows, which is all the pause timer looks at.
+    const now = new Date().toISOString();
+    const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
     ctx.waitUntil(
-      fetch(`${url}/rest/v1/sponsor_tiers?select=id&limit=1`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-      }).then(
-        (res) => console.log(`keep-alive: Supabase answered ${res.status}`),
-        (err) => console.error("keep-alive: Supabase request failed", err),
+      env.DB.batch([
+        env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(now),
+        env.DB.prepare("DELETE FROM login_codes WHERE expires_at <= ?").bind(dayAgo),
+        env.DB.prepare("DELETE FROM join_admission WHERE expires_at <= ?").bind(now),
+      ]).then(
+        () => console.log("cleanup: expired rows removed"),
+        (err) => console.error("cleanup failed", err),
       ),
     );
   },

@@ -8,6 +8,7 @@ vi.mock("next/headers", () => ({
 vi.mock("next/navigation", () => ({ redirect: (url: string) => { throw new Error(url); } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ rpc: state.rpc }) }));
+vi.mock("@/lib/hub/env", () => ({ hubEnv: async () => ({ FILES_SIGNING_KEY: "test-only-signing-secret" }) }));
 import { submitCompanyRequest } from "../lib/actions/admin";
 
 function form(email = "pat@example.com") {
@@ -18,7 +19,6 @@ function form(email = "pat@example.com") {
 
 describe("public join action", () => {
   beforeEach(() => {
-    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-only-service-secret");
     state.rpc.mockReset().mockResolvedValue({ data: null, error: null });
     state.source = "192.0.2.1";
   });

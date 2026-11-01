@@ -73,7 +73,7 @@ export default function InviteForm({
 
       {sent && (
         <p className="text-sm text-primary">
-          Invite email sent. They’ll set a password from the link.
+          Invite email sent. They sign in at connect.quantt.ca with that address.
         </p>
       )}
 

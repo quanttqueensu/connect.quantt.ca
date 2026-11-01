@@ -42,7 +42,7 @@ export default function LoginPanel({ children }: { children: ReactNode }) {
             Sign in with your Queen&apos;s email
           </a>
           <p className="mt-6 border-t border-line pt-5 text-xs text-muted">
-            Or use your Connect email and password
+            Or get a sign-in code by email
           </p>
         </div>
       )}
