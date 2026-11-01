@@ -6,18 +6,13 @@ import {
   seedCompany,
   seedCompanyUser,
   seedMember,
+  seedProfileDocuments,
 } from "../helpers/db";
 
 async function memberWithBook(email: string) {
   const memberId = await seedMember(email);
   const member = await asUser(email);
-  const { error: pkgErr } = await member.from("hiring_packages").insert({
-    name: "Default",
-    linkedin_url: "https://linkedin.com/in/test",
-    resume_path: `${memberId}/packages/x/resume.pdf`,
-    is_default: true,
-  });
-  if (pkgErr) throw new Error(pkgErr.message);
+  await seedProfileDocuments(email, memberId);
   const { error: optErr } = await member
     .from("profiles")
     .update({ resume_book_opt_in: true })

@@ -20,7 +20,7 @@ export default async function RequestsPage({
   const pageSize = 25;
   const setup = manual ? await readManualInvite() : null;
   const supabase = await createClient();
-  const [{ data: requests }, tiers] = await Promise.all([
+  const [{ data: requests, error: requestsError }, tiers] = await Promise.all([
     supabase.from("company_join_request_queue").select("*").eq("status", "pending").order("created_at").order("id").range((page - 1) * pageSize, page * pageSize),
     loadTiers(),
   ]);
@@ -67,11 +67,13 @@ export default async function RequestsPage({
           </li>
         ))}
       </ul>
-      <nav className="mt-6 flex gap-6 text-sm" aria-label="Request pages">
+      {!requestsError && <nav className="mt-6 flex gap-6 text-sm" aria-label="Request pages">
         {page > 1 && <Link href={`/admin/requests?page=${page - 1}`}>Previous</Link>}
         {(requests ?? []).length > pageSize && <Link href={`/admin/requests?page=${page + 1}`}>Next</Link>}
-      </nav>
-      {!(requests ?? []).length && <p className="text-sm text-copy">No pending requests.</p>}
+      </nav>}
+      {requestsError ? (
+        <p role="alert" className="text-sm text-copy">Join requests could not be loaded. Try again.</p>
+      ) : !(requests ?? []).length && <p className="text-sm text-copy">No pending requests.</p>}
     </>
   );
 }

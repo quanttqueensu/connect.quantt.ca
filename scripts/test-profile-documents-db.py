@@ -6,11 +6,13 @@ Uses the repository's Auth/Storage SQL fixture, not Supabase HTTP services.
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 from urllib.parse import urlsplit, urlunsplit
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+PSQL = shutil.which("psql") or "/opt/homebrew/bin/psql"
 admin = sys.argv[1] if len(sys.argv) == 2 else ""
 parsed = urlsplit(admin)
 if parsed.scheme not in ("postgres", "postgresql") or parsed.hostname not in ("127.0.0.1", "localhost", "::1") or parsed.query:
@@ -21,7 +23,7 @@ checks = 0
 
 
 def run(sql, url=None, success=True):
-    result = subprocess.run(["/opt/homebrew/bin/psql", "-XqAt", "-v", "ON_ERROR_STOP=1", url or db],
+    result = subprocess.run([PSQL, "-XqAt", "-v", "ON_ERROR_STOP=1", url or db],
                             input=sql, text=True, capture_output=True,
                             env={**os.environ, "PGCONNECT_TIMEOUT": "5"})
     if success and result.returncode:

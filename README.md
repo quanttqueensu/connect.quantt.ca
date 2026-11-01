@@ -14,7 +14,7 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
 ## Setup
 
 1. Create a Supabase project. Turn **off** public signups (Authentication → Providers → Email: disable sign-ups; invites still work).
-2. Run `supabase/migrations/0001_init.sql` in the SQL editor, then `supabase/seed.sql`.
+2. Apply every SQL file in `supabase/migrations/` in filename order, then `supabase/seed.sql`. Applying only `0001_init.sql` leaves required tables, RPCs, and access policies missing.
 3. Copy `.env.example` to `.env.local` and fill in:
 
 ```
@@ -216,3 +216,12 @@ needs per-request nonces threaded through the middleware. The header comment in
 Members manage a resume and optional cover letter in `/profile#documents`. In-app applications use those documents automatically; either PDF can be replaced for a single application without changing the profile. Submitted files are immutable snapshots. `/packages` redirects to the profile.
 
 Apply migration `20261101045550_profile_documents.sql` with this app change. It creates the owner-only `member_documents` table, imports each member’s previous default (or newest) package, and points resume-book/search RPCs at the profile resume. Historical packages and application snapshots are preserved.
+
+### Migration checklist for this release
+
+If the hosted database already has migrations through `0015_rls_invariants.sql`, apply these two files in order before deploying the updated app:
+
+1. `20261101040104_security_boundary_fixes.sql` — canonical document paths, service-only access requests, the admin queue view, and atomic posting quotas.
+2. `20261101045550_profile_documents.sql` — private profile documents, legacy document import, and updated talent RPCs.
+
+If the database is older, apply any missing earlier migrations first, in filename order. Company feature overrides depend on `0012_company_access_overrides.sql`; sponsor demo mode needs no additional schema. Check the target project's migration history before running SQL: the timestamped migrations are not intended to be reapplied. This checklist does not confirm the hosted database's current state.
