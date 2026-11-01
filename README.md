@@ -80,6 +80,22 @@ The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://openn
 
 Local: `npm run dev` as before; `npm run preview` runs the Worker build locally.
 
+## Moving to Cloudflare D1 (in progress)
+
+The hub is moving off Supabase to Cloudflare D1 (database) and R2 (files).
+Until the switch-over, the live site still runs on Supabase, so any schema
+change in `supabase/migrations/` also needs the same change in the D1 side:
+
+- `db/migrations/`: the D1 (SQLite) schema. `0001_init.sql` is the final
+  state of every Supabase migration up to `20261101045550_profile_documents.sql`.
+- `db/seed.sql`: the sponsor tiers and capabilities for a fresh database.
+- `lib/db/access.ts`: what a firm can do (packages, grace, overrides,
+  embargoes), replacing the `company_*` and `my_*` SQL functions.
+- `lib/db/policies.ts`: the RLS policies as query scopes and write checks.
+  Each function names the policy it replaces.
+- `tests/db/`: runs the schema and the policies on in-memory SQLite
+  (`node:sqlite`), part of `npm run test:unit`.
+
 ## Tests
 
 Run `npm run test:unit` for the database-free tests (also run in CI).
