@@ -45,8 +45,17 @@ function redirectKeepingSession(url: URL, supabaseResponse: NextResponse) {
   return res;
 }
 
+/**
+ * Does the request carry a Supabase session cookie at all? @supabase/ssr names
+ * them `sb-<project-ref>-auth-token`, split into `.0`, `.1`… when large.
+ */
+function hasSessionCookie(request: NextRequest) {
+  return request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -55,6 +64,26 @@ export async function middleware(request: NextRequest) {
     // cannot authenticate, and returning next() would make every route public.
     if (process.env.NODE_ENV === "production") {
       return new NextResponse("Service unavailable", { status: 503 });
+    }
+    return supabaseResponse;
+  }
+
+  // Signed-out fast path. With no session cookie there is nothing to verify, so
+  // skip the Supabase round trips that used to run on every request, including
+  // the public pages. Tokens in the query string still go to /auth/callback.
+  if (
+    !hasSessionCookie(request) &&
+    !shouldForwardToAuthCallback(request.nextUrl.pathname, request.nextUrl.search, "")
+  ) {
+    const { pathname } = request.nextUrl;
+    // `/` only ever sends a signed-out visitor on to /login, after loading its
+    // own JS and asking Supabase. Do it here instead. The browser keeps any
+    // #access_token hash across the redirect, and AuthHashCatcher on /login
+    // forwards it to /auth/callback as before.
+    if (pathname === "/" || !isPublic(pathname)) {
+      const redirect = request.nextUrl.clone();
+      redirect.pathname = "/login";
+      return NextResponse.redirect(redirect);
     }
     return supabaseResponse;
   }
@@ -74,9 +103,23 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the access token locally against the project's
+  // published signing keys (cached), instead of a round trip to Supabase Auth
+  // on every request like getUser(). It still refreshes an expired session.
+  // With a legacy symmetric JWT secret it falls back to getUser() by itself.
+  // Pages keep calling getUser() (lib/auth.ts), so a removed account is still
+  // turned away there.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const user = claims ? { id: claims.sub, app_metadata: claims.app_metadata ?? {} } : null;
+
+  // The token's app_metadata is a copy from when it was issued, so a fresh
+  // "must set password" flag is confirmed with Supabase before acting on it.
+  let needsPassword = false;
+  if (user && userNeedsPassword(user)) {
+    const { data } = await supabase.auth.getUser();
+    needsPassword = userNeedsPassword(data.user);
+  }
 
   const { pathname } = request.nextUrl;
 
@@ -93,7 +136,7 @@ export async function middleware(request: NextRequest) {
     ? await supabase.from("profiles").select("role, is_admin").eq("id", user.id).maybeSingle()
     : { data: null };
 
-  if (user && userNeedsPassword(user) && !pathname.startsWith("/auth/")) {
+  if (user && needsPassword && !pathname.startsWith("/auth/")) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/auth/set-password";
     return redirectKeepingSession(redirect, supabaseResponse);
@@ -117,7 +160,7 @@ export async function middleware(request: NextRequest) {
     return redirectKeepingSession(redirect, supabaseResponse);
   }
 
-  if (pathname === "/login" && profile && !userNeedsPassword(user)) {
+  if (pathname === "/login" && profile && !needsPassword) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = profile.role === "company_user" ? "/company" : "/feed";
     return redirectKeepingSession(redirect, supabaseResponse);
