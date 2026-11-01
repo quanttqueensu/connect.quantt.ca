@@ -1,17 +1,16 @@
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import CopyLink from "@/components/CopyLink";
-import { Field, GhostButton, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
+import CompanyCapabilityControl from "@/components/CompanyCapabilityControl";
+import { Field, GhostButton, PrimaryButton, buttonClass } from "@/components/Form";
 import { resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
 import {
-  can,
-  capValue,
   graceIsOpen,
   liveCan,
   loadCapabilities,
   loadTiers,
   overrideFor,
-  resolveAccess,
+  packageValue,
   type CapabilityKey,
 } from "@/lib/tiers";
 import { siteUrl } from "@/lib/site-url";
@@ -46,14 +45,16 @@ export default async function CompaniesPage({
   return (
     <>
       <PageHeader kicker="Firms" title="Companies">
-        Assign a sponsorship level to each firm, then grant or revoke Connect features for that firm.
-        Company contacts never see the member feed — only their own posts and the products you turn
-        on.
+        Assign a sponsor tier, then customize features for individual companies.
+        Company overrides take priority over tier defaults and stay in place when the tier changes.
       </PageHeader>
       <Notice message={sp.denied} />
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-3">
         <Link href="/admin/invite?kind=company" className={buttonClass("primary")}>
           Invite a company contact
+        </Link>
+        <Link href="/admin/tiers" className={buttonClass("ghost")}>
+          Edit tier defaults
         </Link>
       </div>
       <div className="mb-10 border border-line p-5">
@@ -75,9 +76,8 @@ export default async function CompaniesPage({
               ? (tiers.find((t) => t.id === c.grace_tier_id) ?? assigned)
               : assigned;
           const overrides = overridesByCompany.get(c.id) ?? [];
-          const access = resolveAccess(assigned, effective, overrides);
           return (
-            <article key={c.id} className="border border-line p-5">
+            <article key={c.id} id={`company-${c.id}`} className="scroll-mt-6 border border-line p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <h2 className="font-heading text-xl font-bold text-ink">{c.name}</h2>
                 <p className="text-xs uppercase tracking-wider text-muted">
@@ -131,11 +131,12 @@ export default async function CompaniesPage({
               <form action={setCompanyAccess} className="mt-6 border-t border-line pt-4">
                 <input type="hidden" name="company_id" value={c.id} />
                 <p className="text-[11px] uppercase tracking-[2px] text-copy">
-                  Connect access for this firm
+                  Company feature overrides
                 </p>
                 <p className="mt-1 text-sm text-muted">
-                  Checkboxes start from {assigned?.name ?? "the assigned level"}. Tick extras or
-                  untick features for this sponsor only — they still cannot browse the member feed.
+                  Follow tier uses {assigned?.name ?? "the assigned tier"} defaults and any current
+                  grandfathered access. Enable or disable a feature to keep an exception for {c.name}
+                  only. Other companies on this tier are unaffected.
                 </p>
                 {c.status === "inactive" && (
                   <p className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-ink">
@@ -145,60 +146,30 @@ export default async function CompaniesPage({
                 <ul className="mt-4 space-y-3">
                   {capabilities.map((cap) => {
                     const key = cap.key as CapabilityKey;
-                    const granted = can(access, key);
-                    const value = capValue(access, key);
-                    const onPackage = liveCan(assigned, effective, key);
                     const custom = overrideFor(overrides, key);
+                    const inherited = liveCan(assigned, effective, key);
+                    const inheritedValue = packageValue(assigned, effective, key);
                     return (
-                      <li key={cap.key}>
-                        <label className="flex items-start gap-2 text-sm text-ink">
-                          <input
-                            type="checkbox"
-                            name={`grant_${cap.key}`}
-                            defaultChecked={granted}
-                            className="mt-1 h-4 w-4"
-                          />
-                          <span>
-                            <span className="text-ink">{cap.label}</span>
-                            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted">
-                              {custom
-                                ? custom.granted
-                                  ? "added for this firm"
-                                  : "removed for this firm"
-                                : onPackage
-                                  ? "in package"
-                                  : "not in package"}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-muted">
-                              {cap.description}
-                            </span>
-                          </span>
-                        </label>
-                        {cap.kind === "quota" && (
-                          <div className="ml-6 mt-2">
-                            <Field label="Open in-app jobs (blank = unlimited)">
-                              <TextInput
-                                name={`value_${cap.key}`}
-                                inputMode="numeric"
-                                defaultValue={value == null ? "" : String(value)}
-                                placeholder="unlimited"
-                              />
-                            </Field>
-                          </div>
-                        )}
-                      </li>
+                      <CompanyCapabilityControl
+                        key={`${cap.key}:${custom?.granted ?? "inherit"}:${custom?.value}:${inherited}:${inheritedValue}`}
+                        capability={cap}
+                        companyName={c.name}
+                        inherited={inherited}
+                        inheritedValue={inheritedValue}
+                        override={custom}
+                      />
                     );
                   })}
                 </ul>
                 <div className="mt-4">
-                  <PrimaryButton type="submit">Save access</PrimaryButton>
+                  <PrimaryButton type="submit">Save company overrides</PrimaryButton>
                 </div>
               </form>
 
               {overrides.length > 0 && (
                 <form action={resetCompanyAccess} className="mt-3">
                   <input type="hidden" name="company_id" value={c.id} />
-                  <GhostButton type="submit">Reset to package</GhostButton>
+                  <GhostButton type="submit">Reset all features to tier defaults</GhostButton>
                 </form>
               )}
             </article>

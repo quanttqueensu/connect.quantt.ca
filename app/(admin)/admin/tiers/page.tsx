@@ -1,4 +1,5 @@
 import Notice from "@/components/Notice";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
 import { Field, GhostButton, PrimaryButton, TextArea, TextInput } from "@/components/Form";
@@ -84,11 +85,16 @@ export default async function AdminTiersPage({
   return (
     <>
       <PageHeader kicker="Packages" title="Sponsor tiers">
-        Reprice a package, rename it, or grant and revoke Connect functionality. Ticking a
-        capability here is what firms actually get — including the resume book, candidate
-        search, and messaging opted-in members.
+        Edit the default features, pricing, and delays shared by companies on each tier.
+        Company-specific feature overrides take priority over these defaults.
       </PageHeader>
       <Notice message={sp.denied} />
+      <p className="mb-8 text-sm text-copy">
+        To change access for just one sponsor, use{" "}
+        <Link href="/admin/companies" className="text-primary underline">
+          company feature overrides
+        </Link>.
+      </p>
 
       {warnings.length > 0 && (
         <div className="mb-8 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
@@ -216,7 +222,10 @@ export default async function AdminTiersPage({
 
               <form action={saveTierCapabilities} className="mt-6 border-t border-line pt-4">
                 <input type="hidden" name="tier_id" value={tier.id} />
-                <p className="text-[11px] uppercase tracking-[2px] text-copy">Functionality</p>
+                <p className="text-[11px] uppercase tracking-[2px] text-copy">Tier default features</p>
+                <p className="mt-2 text-xs text-muted">
+                  Applies to companies following this tier. Explicit company overrides stay in place.
+                </p>
                 <ul className="mt-3 space-y-3">
                   {capabilities.map((cap) => {
                     const granted = can(tier, cap.key as CapabilityKey);

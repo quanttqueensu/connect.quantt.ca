@@ -104,6 +104,8 @@ const MESSAGES = {
     "That firm's Connect access could not be saved. The firm may have been removed, or your account may no longer have admin rights.",
   company_capability_value_invalid:
     "That job limit isn't a valid whole number. Leave it blank for unlimited, or enter a whole number of slots.",
+  company_capability_mode_invalid:
+    "Choose Follow tier, Enable for this company, or Disable for this company for each feature. Refresh the page if the feature list has changed.",
   admins_only: "You need exec access to do that.",
 
   // lib/actions/tiers.ts

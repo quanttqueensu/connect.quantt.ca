@@ -8,13 +8,6 @@ import { notify } from "@/lib/notify";
 import { authCallbackUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import {
-  graceIsOpen,
-  liveCan,
-  loadTiers,
-  packageValue,
-  type CapabilityKey,
-} from "@/lib/tiers";
 import { denyRedirect } from "./deny";
 
 const MANUAL_INVITE_COOKIE = "hub_manual_invite";
@@ -516,7 +509,7 @@ function revalidateCompanyAccess() {
   revalidatePath("/admin/companies");
   revalidatePath("/admin/tiers");
   revalidatePath("/feed");
-  revalidatePath("/company");
+  revalidatePath("/company", "layout");
   revalidatePath("/company/sponsorship");
   revalidatePath("/company/resume-book");
   revalidatePath("/company/search");
@@ -570,10 +563,10 @@ export async function setCompanyAccess(formData: FormData) {
   const supabase = await createClient();
   const companyId = String(formData.get("company_id"));
 
-  const [{ data: company }, { data: caps }, { data: current }, tiers] = await Promise.all([
+  const [companyResult, capsResult, currentResult] = await Promise.all([
     supabase
       .from("companies")
-      .select("id, sponsor_tier_id, grace_tier_id, tier_grace_until")
+      .select("id")
       .eq("id", companyId)
       .maybeSingle(),
     supabase.from("sponsor_capabilities").select("key, kind"),
@@ -581,35 +574,41 @@ export async function setCompanyAccess(formData: FormData) {
       .from("company_capability_overrides")
       .select("capability, granted, value")
       .eq("company_id", companyId),
-    loadTiers({ includeInactive: true }),
   ]);
-  if (!company) denyRedirect("/admin/companies", "company_access_save_failed");
-
-  const assigned = tiers.find((t) => t.id === company.sponsor_tier_id) ?? null;
-  const graceOpen = graceIsOpen(company.tier_grace_until as string | null);
-  const effective =
-    graceOpen && company.grace_tier_id
-      ? (tiers.find((t) => t.id === company.grace_tier_id) ?? assigned)
-      : assigned;
+  if (
+    companyResult.error ||
+    capsResult.error ||
+    currentResult.error ||
+    !companyResult.data ||
+    !capsResult.data?.length
+  ) {
+    denyRedirect("/admin/companies", "company_access_save_failed");
+  }
+  const caps = capsResult.data;
+  const current = currentResult.data;
 
   const next: { capability: string; granted: boolean; value: number | null }[] = [];
-  for (const cap of caps ?? []) {
-    const granted = formData.get(`grant_${cap.key}`) === "on";
+  for (const cap of caps) {
+    const mode = formData.get(`access_${cap.key}`);
+    if (mode !== "inherit" && mode !== "grant" && mode !== "revoke") {
+      denyRedirect("/admin/companies", "company_capability_mode_invalid");
+    }
+    // Only inheritance removes an override. Explicit grants/revocations stay
+    // pinned even when they currently agree with the tier's defaults.
+    if (mode === "inherit") continue;
+    const granted = mode === "grant";
     let value: number | null = null;
     if (granted && cap.kind === "quota") {
       const raw = String(formData.get(`value_${cap.key}`) ?? "").trim();
       if (raw) {
         const n = Number(raw);
-        if (!Number.isInteger(n) || n < 0) {
+        if (!Number.isInteger(n) || n < 0 || n > 2147483647) {
           denyRedirect("/admin/companies", "company_capability_value_invalid");
         }
         value = n;
       }
     }
-    const pkgGranted = liveCan(assigned, effective, cap.key as CapabilityKey);
-    const pkgValue = packageValue(assigned, effective, cap.key as CapabilityKey);
-    const matchesPackage = granted === pkgGranted && (!granted || value === pkgValue);
-    if (!matchesPackage) next.push({ capability: cap.key, granted, value: granted ? value : null });
+    next.push({ capability: cap.key, granted, value });
   }
 
   const currentMap = new Map(

@@ -40,7 +40,7 @@ function revalidateTiers() {
   revalidatePath("/admin/tiers");
   revalidatePath("/admin/companies");
   revalidatePath("/feed");
-  revalidatePath("/company");
+  revalidatePath("/company", "layout");
   revalidatePath("/company/sponsorship");
   revalidatePath("/company/resume-book");
   revalidatePath("/company/search");

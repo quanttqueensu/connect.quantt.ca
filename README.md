@@ -52,6 +52,21 @@ Club members can skip invites and passwords: **Sign in with your Queen's email**
 
 If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://localhost:3000` with `npm run preview`), list that origin in `CONNECT_ORIGINS` on `quantt-auth`.
 
+## Sponsor tiers and company overrides
+
+Use **Admin → Sponsor tiers** to edit the features shared by a tier. Use
+**Admin → Companies → Company feature overrides** for exceptions:
+
+- **Follow tier** inherits the assigned tier and any current grandfathered access.
+- **Enable for this company** grants the feature only to that company, with its own job limit when applicable (blank means unlimited).
+- **Disable for this company** blocks the feature for that company.
+
+Explicit overrides take priority and survive later tier edits or reassignment.
+Choose **Follow tier** to reset one feature, or **Reset all features to tier defaults**
+to clear all of a company's exceptions. Inactive companies keep their saved settings
+but have no feature access until reactivated. This uses the existing
+`0012_company_access_overrides.sql` schema; no new migration is needed.
+
 ## Hosting: Cloudflare Workers
 
 The hub runs as the Worker `quantt-connect`, built with [OpenNext](https://opennext.js.org/cloudflare) (`wrangler.jsonc`, `open-next.config.ts`).
