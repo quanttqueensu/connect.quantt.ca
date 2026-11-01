@@ -28,10 +28,10 @@ export const TIER = {
 
 export type TierKey = keyof typeof TIER;
 
-export function freshDb() {
+export function freshDb(opts: { seed?: boolean } = {}) {
   const db = new DatabaseSync(":memory:");
   for (const m of MIGRATIONS) db.exec(m);
-  db.exec(SEED);
+  if (opts.seed !== false) db.exec(SEED);
   return db;
 }
 

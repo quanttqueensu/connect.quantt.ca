@@ -14,7 +14,8 @@
     "test:unit": "vitest run --exclude 'tests/rls/**'",
     "test:watch": "vitest",
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "import:supabase": "node scripts/import-supabase.mjs"
   },
   "engines": {
     "node": ">=22.20.0 <23"

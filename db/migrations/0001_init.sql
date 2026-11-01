@@ -257,14 +257,10 @@ CREATE TABLE applications (
   created_at text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   CONSTRAINT in_app_needs_post CHECK (kind <> 'in_app' OR post_id IS NOT NULL),
-  CONSTRAINT off_platform_needs_name CHECK (kind <> 'off_platform' OR company_name IS NOT NULL),
-  CONSTRAINT in_app_snapshot_paths CHECK (
-    kind <> 'in_app' OR (
-      resume_path IN ('snapshots/' || id || '/resume.pdf', 'snapshots/' || id || '/cover.pdf')
-      AND (cover_letter_path IS NULL
-        OR cover_letter_path IN ('snapshots/' || id || '/resume.pdf', 'snapshots/' || id || '/cover.pdf'))
-    )
-  )
+  CONSTRAINT off_platform_needs_name CHECK (kind <> 'off_platform' OR company_name IS NOT NULL)
+  -- New in-app applications must point at snapshots/<id>/ (applicationInsert
+  -- in lib/db/policies.ts). Not a CHECK here: rows from before Supabase
+  -- migration 0006 keep their older paths.
 );
 
 CREATE INDEX applications_company_id_idx ON applications (company_id);

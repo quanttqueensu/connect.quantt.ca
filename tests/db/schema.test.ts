@@ -77,18 +77,14 @@ describe("D1 schema", () => {
     expect(row.updated_at).not.toBe(NOW.toISOString());
   });
 
-  it("requires in-app applications to point at their own snapshot", () => {
+  it("requires a post for in-app and a firm name for off-platform applications", () => {
     const db = freshDb();
     const member = addMember(db);
     const firm = addCompany(db, "partner");
     const post = addPost(db, firm.companyId, firm.userId);
-    const id = uuid();
+    void post;
     expect(() =>
-      run(
-        db,
-        `INSERT INTO applications (id, member_id, kind, post_id, resume_path) VALUES (?, ?, 'in_app', ?, ?)`,
-        id, member, post, `${member}/packages/x/resume.pdf`,
-      ),
+      run(db, `INSERT INTO applications (id, member_id, kind) VALUES (?, ?, 'in_app')`, uuid(), member),
     ).toThrow(/CHECK/);
     expect(() =>
       run(db, `INSERT INTO applications (id, member_id, kind) VALUES (?, ?, 'off_platform')`, uuid(), member),
