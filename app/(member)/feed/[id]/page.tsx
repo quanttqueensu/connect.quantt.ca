@@ -188,7 +188,7 @@ export default async function PostDetailPage({
           ) : documentsQuery.error ? (
             <p className="mt-3 text-sm text-copy">Your profile documents could not be loaded. Try again.</p>
           ) : (
-            <form action={applyToJob} encType="multipart/form-data" className="mt-4 space-y-4">
+            <form action={applyToJob} className="mt-4 space-y-4">
               <input type="hidden" name="post_id" value={p.id} />
               <p className="text-sm text-copy">
                 {documents?.resume_path

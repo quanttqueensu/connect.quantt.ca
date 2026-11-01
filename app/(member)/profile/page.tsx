@@ -57,7 +57,7 @@ export default async function ProfilePage({
           className="mb-6 h-24 w-24 object-cover"
         />
       )}
-      <form action={uploadPhoto} encType="multipart/form-data" className="mb-8 flex flex-wrap items-end gap-3">
+      <form action={uploadPhoto} className="mb-8 flex flex-wrap items-end gap-3">
         <div className="min-w-0 max-w-full">
           <Field label="Photo">
             <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
@@ -128,7 +128,7 @@ export default async function ProfilePage({
                     )}
                   </div>
                   {hasText && !path ? <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{documents?.cover_letter}</p> : null}
-                  <form action={saveProfileDocument.bind(null, kind)} encType="multipart/form-data" className="mt-3 flex flex-wrap items-end gap-3">
+                  <form action={saveProfileDocument.bind(null, kind)} className="mt-3 flex flex-wrap items-end gap-3">
                     <Field label={`${path || hasText ? "Replace" : "Upload"} ${label.toLowerCase()}`}>
                       <FileInput name="document" accept="application/pdf" required />
                     </Field>
