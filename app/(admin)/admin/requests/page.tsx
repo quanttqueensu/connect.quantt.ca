@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import ManualInviteBanner from "@/components/ManualInviteBanner";
@@ -7,16 +8,20 @@ import { loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { JoinRequest } from "@/lib/types";
 
+type QueueRequest = Pick<JoinRequest, "id" | "company_name" | "contact_name" | "contact_email" | "note">;
+
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ manual?: string; denied?: string }>;
+  searchParams: Promise<{ manual?: string; denied?: string; page?: string }>;
 }) {
-  const { manual, denied } = await searchParams;
+  const { manual, denied, page: rawPage } = await searchParams;
+  const page = Math.min(10000, Math.max(1, Number.parseInt(rawPage ?? "1", 10) || 1));
+  const pageSize = 25;
   const setup = manual ? await readManualInvite() : null;
   const supabase = await createClient();
   const [{ data: requests }, tiers] = await Promise.all([
-    supabase.from("company_join_requests").select("*").eq("status", "pending").order("created_at"),
+    supabase.from("company_join_request_queue").select("*").eq("status", "pending").order("created_at").order("id").range((page - 1) * pageSize, page * pageSize),
     loadTiers(),
   ]);
 
@@ -26,7 +31,7 @@ export default async function RequestsPage({
       <Notice message={denied} />
       {setup && <ManualInviteBanner email={setup.email} password={setup.password} />}
       <ul>
-        {(requests as JoinRequest[] | null)?.map((r) => (
+        {(requests as QueueRequest[] | null)?.slice(0, pageSize).map((r) => (
           <li key={r.id} className="border-t border-line py-5">
             <p className="text-ink">{r.company_name}</p>
             <p className="text-sm text-muted">
@@ -62,6 +67,10 @@ export default async function RequestsPage({
           </li>
         ))}
       </ul>
+      <nav className="mt-6 flex gap-6 text-sm" aria-label="Request pages">
+        {page > 1 && <Link href={`/admin/requests?page=${page - 1}`}>Previous</Link>}
+        {(requests ?? []).length > pageSize && <Link href={`/admin/requests?page=${page + 1}`}>Next</Link>}
+      </nav>
       {!(requests ?? []).length && <p className="text-sm text-copy">No pending requests.</p>}
     </>
   );

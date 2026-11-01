@@ -1,3 +1,4 @@
+import { isPhotoPath } from "@/lib/storage-paths";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -28,7 +29,7 @@ export async function GET(
     .eq("role", "member")
     .maybeSingle();
   const path = member?.photo_path;
-  if (typeof path !== "string" || !path.startsWith(`${id}/`)) {
+  if (!isPhotoPath(path, id)) {
     return new NextResponse("Not found", { status: 404 });
   }
 

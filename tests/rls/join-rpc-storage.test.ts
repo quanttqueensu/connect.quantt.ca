@@ -72,7 +72,7 @@ describe("join requests are not an auth bypass", () => {
     await resetDb();
   });
 
-  it("anon can insert a pending request and cannot set approved or company_id", async () => {
+  it("direct public inserts are denied, including pending requests", async () => {
     const firm = await seedCompany("Acme Capital", { tierKey: "partner" });
     const ok = await asAnon().from("company_join_requests").insert({
       company_name: "New Co",
@@ -80,7 +80,7 @@ describe("join requests are not an auth bypass", () => {
       contact_email: "pat@new.co",
       status: "pending",
     });
-    expect(ok.error).toBeNull();
+    expect(ok.error).toBeTruthy();
 
     const approved = await asAnon().from("company_join_requests").insert({
       company_name: "New Co 2",
@@ -98,6 +98,18 @@ describe("join requests are not an auth bypass", () => {
       company_id: firm,
     });
     expect(linked.error).toBeTruthy();
+
+    await seedMember("member@test.dev");
+    const member = await asUser("member@test.dev");
+    const direct = await member.from("company_join_requests").insert({
+      company_name: "New Co", contact_name: "Pat", contact_email: "pat@new.co",
+    });
+    expect(direct.error).toBeTruthy();
+    const rpc = await member.rpc("submit_join_request", {
+      p_company_name: "New Co", p_website: null, p_contact_name: "Pat",
+      p_contact_email: "pat@new.co", p_note: null, p_source: "a".repeat(64),
+    });
+    expect(rpc.error).toBeTruthy();
 
     const { data } = await asAnon().from("company_join_requests").select("id");
     expect(data ?? []).toHaveLength(0);

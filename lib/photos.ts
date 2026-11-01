@@ -1,3 +1,4 @@
+import { isPhotoPath } from "@/lib/storage-paths";
 import { createClient } from "@/lib/supabase/server";
 import { memberPhotoSrc } from "@/lib/files";
 
@@ -13,7 +14,7 @@ export const PHOTO_SIGNED_URL_TTL_SECONDS = 120;
 
 /** Short-lived photo URL for a path the caller can already SELECT. */
 export async function signedPhotoUrl(path: string | null | undefined) {
-  if (!path) return null;
+  if (!path || !isPhotoPath(path, path.split("/")[0])) return null;
   const supabase = await createClient();
   const { data } = await supabase.storage
     .from("photos")

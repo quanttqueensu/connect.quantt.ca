@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { createHmac } from "node:crypto";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { notify } from "@/lib/notify";
 import { authCallbackUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -208,7 +208,7 @@ async function sendAuthInvite(
 async function insertJoinRequest(formData: FormData) {
   const companyName = String(formData.get("company_name") ?? "").trim();
   const contactName = String(formData.get("contact_name") ?? "").trim();
-  const contactEmail = String(formData.get("contact_email") ?? "").trim();
+  const contactEmail = String(formData.get("contact_email") ?? "").trim().toLowerCase();
   const website = httpUrlOrNull(formData.get("website"));
   const note = emptyToNull(formData.get("note"));
 
@@ -224,22 +224,22 @@ async function insertJoinRequest(formData: FormData) {
     throw new Error("invalid join request");
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("company_join_requests").insert({
-    company_name: companyName,
-    website,
-    contact_name: contactName,
-    contact_email: contactEmail,
-    note,
-    status: "pending",
+  // Cloudflare supplies this header at the edge. No IP header is trusted as
+  // the sole control: the RPC also enforces a global budget and queue ceiling.
+  // Other hosting environments share the conservative "unknown" bucket.
+  const ip = (await headers()).get("cf-connecting-ip")?.slice(0, 64) || "unknown";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("Missing server configuration");
+  const source = createHmac("sha256", key).update(`join:${ip}`).digest("hex");
+  const { error } = await createAdminClient().rpc("submit_join_request", {
+    p_company_name: companyName,
+    p_website: website,
+    p_contact_name: contactName,
+    p_contact_email: contactEmail,
+    p_note: note,
+    p_source: source,
   });
   if (error) throw new Error(error.message);
-  await notify({
-    type: "join_request",
-    to: [],
-    subject: "Company access request",
-    body: companyName,
-  });
 }
 
 export async function submitCompanyRequest(formData: FormData) {
@@ -247,12 +247,8 @@ export async function submitCompanyRequest(formData: FormData) {
     await insertJoinRequest(formData);
   } catch (e) {
     if (isControlFlowError(e)) throw e;
-    // /join is public and unauthenticated. The pending-email unique index means
-    // a duplicate submission comes back as a 23505 naming the constraint, so
-    // echoing the driver text would confirm whether an address has already
-    // requested access (email enumeration) and disclose schema besides. One
-    // opaque code for every failure, distinguishing nothing — and the page
-    // looks the code up rather than rendering ?error= text.
+    // Only invalid input or infrastructure failure reaches this branch. The
+    // RPC gives new, duplicate and throttled valid submissions the same result.
     redirect("/join?error=join_request_failed");
   }
   redirect("/join?sent=1");

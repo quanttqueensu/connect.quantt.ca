@@ -7,3 +7,15 @@ export function isPackagePdfPath(path: unknown, memberId: string): path is strin
     path.startsWith(`${memberId}/packages/`) &&
     /^[A-Za-z0-9_-]+\/(resume|cover)\.pdf$/.test(path.slice(memberId.length + 10));
 }
+
+export function isPhotoPath(path: unknown, memberId: string): path is string {
+  return memberId.length === 36 && UUID.test(memberId) && typeof path === "string" && !/[^\x21-\x7e]/.test(path) &&
+    path.startsWith(`${memberId}/`) &&
+    /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(path.slice(memberId.length + 1));
+}
+
+export function isSnapshotPath(path: unknown, applicationId: string): path is string {
+  return applicationId.length === 36 && UUID.test(applicationId) &&
+    (path === `snapshots/${applicationId}/resume.pdf` ||
+      path === `snapshots/${applicationId}/cover.pdf`);
+}

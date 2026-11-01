@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { assertPdf, PDF_CONTENT_TYPE } from "@/lib/files";
+import { isPackagePdfPath } from "@/lib/storage-paths";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { denyRedirect } from "./deny";
@@ -23,7 +24,7 @@ const MAX_COVER = 4000;
  */
 async function removePackageObjects(memberId: string, packageId: string, paths: (string | null)[]) {
   const prefix = `${memberId}/packages/${packageId}/`;
-  const own = paths.filter((p): p is string => typeof p === "string" && p.startsWith(prefix));
+  const own = paths.filter((p): p is string => isPackagePdfPath(p, memberId) && p.startsWith(prefix));
   if (!own.length) return;
   const { error } = await createAdminClient().storage.from("resumes").remove(own);
   if (error) {

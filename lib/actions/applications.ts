@@ -5,7 +5,7 @@ import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { assertPdf, PDF_CONTENT_TYPE } from "@/lib/files";
-import { isPackagePdfPath } from "@/lib/storage-paths";
+import { isPackagePdfPath, isSnapshotPath } from "@/lib/storage-paths";
 import { notify } from "@/lib/notify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +26,7 @@ async function removeSnapshots(
   paths: string[],
 ) {
   const prefix = `snapshots/${appId}/`;
-  const own = paths.filter((p) => p.startsWith(prefix));
+  const own = paths.filter((p) => isSnapshotPath(p, appId));
   if (!own.length) return;
   const { error } = await admin.storage.from("resumes").remove(own);
   if (error) {
@@ -35,7 +35,7 @@ async function removeSnapshots(
 }
 
 /**
- * Service-role copy bypasses storage RLS. Path prefix is checked again, and
+ * Service-role copy bypasses storage RLS. The canonical owner path is checked again, and
  * the source bytes are re-validated, so a member who overwrote their profile
  * object via the Storage API after uploading cannot snapshot HTML/EXE
  * into an application the recruiter will download.

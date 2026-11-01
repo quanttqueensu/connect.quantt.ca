@@ -1,4 +1,5 @@
 import { getCompanyContext } from "@/lib/sponsor-mode";
+import { isSnapshotPath } from "@/lib/storage-paths";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +57,7 @@ export async function GET(
   // `{member_id}/...` path is a live file they can overwrite after the fact,
   // and a `snapshots/{other_application_id}/...` path is someone else's
   // document -- the service role would happily sign either one.
-  if (typeof path !== "string" || !path.startsWith(`snapshots/${id}/`)) {
+  if (!isSnapshotPath(path, id)) {
     return new NextResponse("Not found", { status: 404 });
   }
 

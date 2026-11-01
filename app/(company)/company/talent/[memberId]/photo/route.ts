@@ -1,4 +1,5 @@
 import { getCompanyContext } from "@/lib/sponsor-mode";
+import { isPhotoPath } from "@/lib/storage-paths";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
   const { data: path } = await supabase.rpc("talent_photo_path", { p_member: memberId });
-  if (typeof path !== "string" || !path.startsWith(`${memberId}/`)) {
+  if (!isPhotoPath(path, memberId)) {
     return new NextResponse("Not found", { status: 404 });
   }
 

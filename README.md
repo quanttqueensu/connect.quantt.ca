@@ -114,6 +114,47 @@ npm test          # vitest run
 npm run test:watch
 ```
 
+### Security regression checks and rollout
+
+`scripts/test-security-db.py` applies every migration to a newly created,
+disposable local PostgreSQL database and checks path guards, role privileges,
+join admission, and concurrent posting quotas. It requires `psql` and local
+database-creation privileges, accepts only loopback URLs, and never reads `.env`:
+
+```bash
+python3 scripts/test-security-db.py postgresql://127.0.0.1:55439/postgres
+```
+
+This SQL fixture emulates the Supabase database roles and `auth.uid()` context;
+run the `tests/rls/` suite against a local Supabase stack as well to verify the
+Auth, PostgREST, and Storage HTTP integration.
+
+Release `20261101040104_security_boundary_fixes.sql` together with the app code.
+Public access requests fail closed until both are installed: direct anon and
+authenticated inserts are revoked, and the action uses the service-only
+`submit_join_request` RPC. Existing runtime service-role configuration is required;
+no additional secret or external service is needed. Nothing in the local tests
+applies migrations to the hosted database.
+
+Admission limits use shared database counters: 5 attempts per source per UTC
+hour, 3 per email per UTC day, 100 globally per hour, 500 globally per day, and
+at most 1,000 pending requests. Duplicates and throttled valid requests receive
+the same public acknowledgment. The source is an HMAC of Cloudflare's client-IP
+header; other hosts share an `unknown` source bucket. Global budgets still apply
+if a client can vary its apparent source. Expired counter rows are reclaimed on
+submission; requests remain available for admin review, with 25 per page. A
+security-invoker queue view bounds displayed field lengths even for old oversized
+rows, preserves admin-only RLS, and leaves the original records intact.
+
+Canonical path guards reject new unsafe package/photo/snapshot references.
+The migration warns about existing unsafe references without deleting their
+documents; download/signing routes refuse those legacy paths too. Review those
+warnings and re-upload affected files. Safe legacy package directories such as
+`packages/x/resume.pdf` remain supported. Job-slot counters are initialized from
+existing open in-app jobs; a firm already over its cap can edit or close its jobs,
+but cannot acquire another slot until it is below its cap. Privileged admin/service
+inserts retain their existing quota bypass while still updating the counters.
+
 The tests share one database and truncate between files, so `fileParallelism`
 is off; expect them to run serially.
 
