@@ -39,3 +39,7 @@ next-env.d.ts
 
 # supabase CLI temp
 supabase/.temp/
+
+# Supabase export for the Cloudflare import (member data, never commit)
+/supabase-export/
+d1-import.sql
