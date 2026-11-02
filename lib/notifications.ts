@@ -20,6 +20,7 @@
 
 import type { D1Database } from "@/lib/db/d1";
 import { DEFAULT_FROM, type EmailEnv } from "@/lib/cf-auth/email";
+import { getAlumniPrefs } from "@/lib/alumni/data";
 import { siteUrl } from "@/lib/site-url";
 
 export const NOTIFICATION_KINDS = ["messages", "applications", "application_updates", "new_jobs"] as const;
@@ -324,4 +325,51 @@ export async function notifyAlumniMessage(
       notificationEmail(c.alumni_email, "New message on QUANTT Connect", `${c.member_name || "A QUANTT member"} sent you a message on Connect.`, `/alumni/messages/${conversationId}`),
     ]);
   }
+}
+
+/**
+ * A member's message request: email the alum. Request emails are ON for alumni
+ * until they turn them off (Ethan, 2026-11-02), unlike every other email here.
+ */
+export async function notifyAlumniRequest(db: D1Database, send: SendEmails, conversationId: string) {
+  const c = await db
+    .prepare(
+      `SELECT c.alumni_id, a.email AS alumni_email, p.full_name AS member_name
+         FROM alumni_conversations c JOIN profiles p ON p.id = c.member_id JOIN alumni a ON a.id = c.alumni_id
+        WHERE c.id = ?`,
+    )
+    .bind(conversationId)
+    .first<{ alumni_id: string; alumni_email: string; member_name: string }>();
+  if (!c || !(await getAlumniPrefs(db, c.alumni_id)).requests) return;
+  await send([
+    notificationEmail(
+      c.alumni_email,
+      "New message request on QUANTT Connect",
+      `${c.member_name || "A QUANTT member"} asked to message you on Connect. Accept to start the conversation, or decline.`,
+      `/alumni/messages/${conversationId}`,
+    ),
+  ]);
+}
+
+/** The alum accepted: email the member if they turned message emails on. */
+export async function notifyAlumniRequestAccepted(db: D1Database, send: SendEmails, conversationId: string) {
+  const c = await db
+    .prepare(
+      `SELECT c.member_id, p.email AS member_email, a.full_name AS alumni_name
+         FROM alumni_conversations c JOIN profiles p ON p.id = c.member_id JOIN alumni a ON a.id = c.alumni_id
+        WHERE c.id = ?`,
+    )
+    .bind(conversationId)
+    .first<{ member_id: string; member_email: string; alumni_name: string }>();
+  if (!c) return;
+  const [to] = await wanting(db, "messages", [{ id: c.member_id, email: c.member_email }]);
+  if (!to) return;
+  await send([
+    notificationEmail(
+      to.email,
+      "Message request accepted on QUANTT Connect",
+      `${c.alumni_name || "A QUANTT alum"} accepted your message request. You can message them now.`,
+      `/alumni-network/messages/${conversationId}`,
+    ),
+  ]);
 }

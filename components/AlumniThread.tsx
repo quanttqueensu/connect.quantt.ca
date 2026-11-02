@@ -9,11 +9,14 @@ export default function AlumniThread({
   conversationId,
   otherName,
   messages,
+  canSend = true,
 }: {
   side: "alumni" | "member";
   conversationId: string;
   otherName: string;
   messages: ThreadMessage[];
+  /** False while a message request is waiting on the alum, or was declined. */
+  canSend?: boolean;
 }) {
   const items = messages.map((m, i) => ({
     m,
@@ -46,12 +49,14 @@ export default function AlumniThread({
           );
         })}
       </ul>
-      <form action={sendAlumniThreadMessage} className="mt-8 max-w-lg space-y-3">
-        <input type="hidden" name="side" value={side} />
-        <input type="hidden" name="conversation_id" value={conversationId} />
-        <TextArea name="body" rows={3} required aria-label="Message" maxLength={4000} />
-        <PrimaryButton type="submit">Send message</PrimaryButton>
-      </form>
+      {canSend && (
+        <form action={sendAlumniThreadMessage} className="mt-8 max-w-lg space-y-3">
+          <input type="hidden" name="side" value={side} />
+          <input type="hidden" name="conversation_id" value={conversationId} />
+          <TextArea name="body" rows={3} required aria-label="Message" maxLength={4000} />
+          <PrimaryButton type="submit">Send message</PrimaryButton>
+        </form>
+      )}
     </>
   );
 }

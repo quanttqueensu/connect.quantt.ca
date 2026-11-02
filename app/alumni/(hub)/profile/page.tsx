@@ -3,19 +3,20 @@ import { notFound } from "next/navigation";
 import { Field, PrimaryButton, TextArea, TextInput } from "@/components/Form";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
-import { saveAlumniProfile } from "@/lib/actions/alumni";
+import { saveAlumniNotifications, saveAlumniProfile } from "@/lib/actions/alumni";
 import { requireAlumnus } from "@/lib/alumni/current";
-import { getAlumnus } from "@/lib/alumni/data";
+import { getAlumniPrefs, getAlumnus } from "@/lib/alumni/data";
 import { hubEnv } from "@/lib/hub/env";
 
 export default async function AlumniProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string; saved?: string }>;
+  searchParams: Promise<{ denied?: string; saved?: string; notifications?: string }>;
 }) {
   const sp = await searchParams;
   const me = await requireAlumnus();
-  const a = await getAlumnus((await hubEnv()).DB, me.id);
+  const { DB } = await hubEnv();
+  const [a, prefs] = await Promise.all([getAlumnus(DB, me.id), getAlumniPrefs(DB, me.id)]);
   if (!a) notFound();
   return (
     <>
@@ -49,17 +50,26 @@ export default async function AlumniProfilePage({
         <Field label="About">
           <TextArea name="bio" rows={4} maxLength={1000} defaultValue={a.bio ?? ""} />
         </Field>
-        <label className="flex items-center gap-3 text-sm text-ink">
-          <input
-            type="checkbox"
-            name="email_messages"
-            defaultChecked={a.email_messages === 1}
-            className="h-4 w-4 accent-primary"
-          />
-          Email me when a member messages me
-        </label>
         <PrimaryButton type="submit">Save profile</PrimaryButton>
       </form>
+      <section id="notifications" className="mt-10 max-w-xl scroll-mt-40 border-t border-line pt-8">
+        <h2 className="font-heading text-lg font-bold text-ink">Email notifications</h2>
+        <p className="mt-1 text-sm text-copy">Emails link back to Connect and never include message text.</p>
+        <form action={saveAlumniNotifications} className="mt-4 space-y-3">
+          <label className="flex items-center gap-3 text-sm text-ink">
+            <input type="checkbox" name="requests" defaultChecked={prefs.requests} className="h-4 w-4 accent-primary" />
+            Message requests from members
+          </label>
+          <label className="flex items-center gap-3 text-sm text-ink">
+            <input type="checkbox" name="messages" defaultChecked={prefs.messages} className="h-4 w-4 accent-primary" />
+            New messages in my conversations
+          </label>
+          <div className="flex items-center gap-3 pt-2">
+            <PrimaryButton type="submit">Save notifications</PrimaryButton>
+            {sp.notifications === "saved" && <span className="text-sm text-copy">Saved.</span>}
+          </div>
+        </form>
+      </section>
     </>
   );
 }

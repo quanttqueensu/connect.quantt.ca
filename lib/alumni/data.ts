@@ -6,6 +6,10 @@
  *    posts, and their own conversations.
  *  - Members see alumni, open alumni posts, and their own alumni conversations.
  *  - A conversation is always one alumnus and one member.
+ *  - A member's first contact is a message request (Ethan, 2026-11-02): the
+ *    member sends one intro message, then can't send more until the alum
+ *    accepts. Alumni can message any member directly, and an alum replying to a
+ *    request accepts it. Declined requests drop out of the alum's inbox.
  */
 import type { D1Database } from "@/lib/db/d1";
 import { ensureAlumniTables } from "@/lib/alumni/schema";
@@ -73,18 +77,18 @@ export async function getAlumnus(db: D1Database, id: string) {
   return db.prepare(`SELECT ${PROFILE_COLS}, email_messages FROM alumni WHERE id = ?`).bind(id).first<AlumniProfile & { email_messages: number }>();
 }
 
-export type AlumniProfileInput = Omit<AlumniProfile, "id"> & { email_messages: boolean };
+export type AlumniProfileInput = Omit<AlumniProfile, "id">;
 
 export async function updateAlumnus(db: D1Database, viewer: AlumniViewer, input: AlumniProfileInput) {
   if (viewer.kind !== "alumni") throw new Error("Alumni only");
   await db
     .prepare(
       `UPDATE alumni SET full_name = ?, grad_year = ?, program = ?, firm = ?, title = ?, location = ?,
-         linkedin_url = ?, bio = ?, email_messages = ? WHERE id = ?`,
+         linkedin_url = ?, bio = ? WHERE id = ?`,
     )
     .bind(
       input.full_name, input.grad_year, input.program, input.firm, input.title, input.location,
-      input.linkedin_url, input.bio, input.email_messages ? 1 : 0, viewer.id,
+      input.linkedin_url, input.bio, viewer.id,
     )
     .run();
 }
@@ -149,20 +153,18 @@ export async function closeAlumniPost(db: D1Database, viewer: AlumniViewer, post
   return res.meta.changes === 1;
 }
 
-/** The conversation between this viewer and `otherId`, created if needed. Null if the other side doesn't exist. */
-export async function openConversation(db: D1Database, viewer: AlumniViewer, otherId: string, now = new Date()) {
-  await ensureAlumniTables(db);
-  const [alumniId, memberId] = viewer.kind === "alumni" ? [viewer.id, otherId] : [otherId, viewer.id];
+export type RequestStatus = "pending" | "accepted" | "declined";
+
+/** A conversation with no request row is open: alum-started, or from before requests existed. */
+const STATUS_SQL = `COALESCE((SELECT r.status FROM alumni_message_requests r WHERE r.conversation_id = c.id), 'accepted')`;
+
+async function bothExist(db: D1Database, alumniId: string, memberId: string) {
   const member = await db.prepare(`SELECT id FROM profiles WHERE id = ? AND role = 'member'`).bind(memberId).first();
   const alumnus = await db.prepare(`SELECT id FROM alumni WHERE id = ?`).bind(alumniId).first();
-  if (!member || !alumnus) return null;
-  await db
-    .prepare(
-      `INSERT INTO alumni_conversations (id, alumni_id, member_id, created_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT (alumni_id, member_id) DO NOTHING`,
-    )
-    .bind(crypto.randomUUID(), alumniId, memberId, now.toISOString())
-    .run();
+  return Boolean(member && alumnus);
+}
+
+async function existingConversation(db: D1Database, alumniId: string, memberId: string) {
   const row = await db
     .prepare(`SELECT id FROM alumni_conversations WHERE alumni_id = ? AND member_id = ?`)
     .bind(alumniId, memberId)
@@ -170,7 +172,88 @@ export async function openConversation(db: D1Database, viewer: AlumniViewer, oth
   return row?.id ?? null;
 }
 
-export type ConversationSummary = { id: string; other_id: string; other_name: string; last_at: string; unread: boolean };
+/**
+ * Alumni: the conversation with this member, created (open, no request) if
+ * needed. Members: the existing conversation only, since a member's first
+ * contact goes through requestConversation. Null if there's nothing to open.
+ */
+export async function openConversation(db: D1Database, viewer: AlumniViewer, otherId: string, now = new Date()) {
+  await ensureAlumniTables(db);
+  const [alumniId, memberId] = viewer.kind === "alumni" ? [viewer.id, otherId] : [otherId, viewer.id];
+  if (viewer.kind === "member") return existingConversation(db, alumniId, memberId);
+  if (!(await bothExist(db, alumniId, memberId))) return null;
+  await db
+    .prepare(
+      `INSERT INTO alumni_conversations (id, alumni_id, member_id, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (alumni_id, member_id) DO NOTHING`,
+    )
+    .bind(crypto.randomUUID(), alumniId, memberId, now.toISOString())
+    .run();
+  return existingConversation(db, alumniId, memberId);
+}
+
+/**
+ * A member asks to message an alum, with a short intro the alum sees first.
+ * If they already have a conversation, nothing is added and its id comes back
+ * with created = false. Null if the alum or member doesn't exist or the intro is empty.
+ */
+export async function requestConversation(
+  db: D1Database,
+  viewer: AlumniViewer,
+  alumniId: string,
+  intro: string,
+  now = new Date(),
+): Promise<{ id: string; created: boolean } | null> {
+  if (viewer.kind !== "member") return null;
+  await ensureAlumniTables(db);
+  const existing = await existingConversation(db, alumniId, viewer.id);
+  if (existing) return { id: existing, created: false };
+  const text = intro.trim();
+  if (!text || text.length > MAX_ALUMNI_REQUEST) return null;
+  if (!(await bothExist(db, alumniId, viewer.id))) return null;
+  const id = crypto.randomUUID();
+  const at = now.toISOString();
+  await db.batch([
+    db
+      .prepare(`INSERT INTO alumni_conversations (id, alumni_id, member_id, member_last_read_at, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .bind(id, alumniId, viewer.id, at, at),
+    db.prepare(`INSERT INTO alumni_message_requests (conversation_id, status, created_at) VALUES (?, 'pending', ?)`).bind(id, at),
+    db
+      .prepare(`INSERT INTO alumni_messages (id, conversation_id, sender, body, created_at) VALUES (?, ?, 'member', ?, ?)`)
+      .bind(crypto.randomUUID(), id, text, at),
+  ]);
+  return { id, created: true };
+}
+
+/** The alum accepts or declines a request in their inbox. False if it isn't theirs or isn't a request. */
+export async function decideRequest(db: D1Database, viewer: AlumniViewer, conversationId: string, accept: boolean, now = new Date()) {
+  if (viewer.kind !== "alumni") return false;
+  await ensureAlumniTables(db);
+  const res = await db
+    .prepare(
+      `UPDATE alumni_message_requests SET status = ?, decided_at = ?
+        WHERE conversation_id = ? AND status <> ?
+          AND conversation_id IN (SELECT id FROM alumni_conversations WHERE alumni_id = ?)`,
+    )
+    .bind(accept ? "accepted" : "declined", now.toISOString(), conversationId, accept ? "accepted" : "declined", viewer.id)
+    .run();
+  return res.meta.changes === 1;
+}
+
+/** Name of an alum a member can request, or null. */
+export async function getAlumnusName(db: D1Database, id: string) {
+  await ensureAlumniTables(db);
+  return (await db.prepare(`SELECT full_name FROM alumni WHERE id = ?`).bind(id).first<{ full_name: string }>())?.full_name ?? null;
+}
+
+export type ConversationSummary = {
+  id: string;
+  other_id: string;
+  other_name: string;
+  last_at: string;
+  unread: boolean;
+  status: RequestStatus;
+};
 
 export async function listConversations(db: D1Database, viewer: AlumniViewer): Promise<ConversationSummary[]> {
   await ensureAlumniTables(db);
@@ -183,7 +266,7 @@ export async function listConversations(db: D1Database, viewer: AlumniViewer): P
       : "c.alumni_id AS other_id, a.full_name AS other_name";
   const { results } = await db
     .prepare(
-      `SELECT c.id, ${other}, c.created_at, ${myRead} AS read_at,
+      `SELECT c.id, ${other}, c.created_at, ${myRead} AS read_at, ${STATUS_SQL} AS status,
               (SELECT max(created_at) FROM alumni_messages m WHERE m.conversation_id = c.id) AS last_at,
               (SELECT max(created_at) FROM alumni_messages m WHERE m.conversation_id = c.id AND m.sender = ?) AS last_in
          FROM alumni_conversations c
@@ -192,14 +275,20 @@ export async function listConversations(db: D1Database, viewer: AlumniViewer): P
         WHERE ${mine} = ?`,
     )
     .bind(otherSender, viewer.id)
-    .all<{ id: string; other_id: string; other_name: string; created_at: string; read_at: string | null; last_at: string | null; last_in: string | null }>();
+    .all<{
+      id: string; other_id: string; other_name: string; created_at: string; read_at: string | null;
+      last_at: string | null; last_in: string | null; status: RequestStatus;
+    }>();
   return results
+    // Declined requests leave the alum's inbox; the member still sees the outcome.
+    .filter((r) => !(viewer.kind === "alumni" && r.status === "declined"))
     .map((r) => ({
       id: r.id,
       other_id: r.other_id,
       other_name: r.other_name,
       last_at: r.last_at ?? r.created_at,
       unread: Boolean(r.last_in && (!r.read_at || r.last_in > r.read_at)),
+      status: r.status,
     }))
     .sort((a, b) => (a.last_at < b.last_at ? 1 : -1));
 }
@@ -211,12 +300,12 @@ export async function getThread(db: D1Database, viewer: AlumniViewer, conversati
   await ensureAlumniTables(db);
   const convo = await db
     .prepare(
-      `SELECT c.id, c.alumni_id, c.member_id, a.full_name AS alumni_name, p.full_name AS member_name
+      `SELECT c.id, c.alumni_id, c.member_id, a.full_name AS alumni_name, p.full_name AS member_name, ${STATUS_SQL} AS status
          FROM alumni_conversations c JOIN alumni a ON a.id = c.alumni_id JOIN profiles p ON p.id = c.member_id
         WHERE c.id = ? AND ${viewer.kind === "alumni" ? "c.alumni_id" : "c.member_id"} = ?`,
     )
     .bind(conversationId, viewer.id)
-    .first<{ id: string; alumni_id: string; member_id: string; alumni_name: string; member_name: string }>();
+    .first<{ id: string; alumni_id: string; member_id: string; alumni_name: string; member_name: string; status: RequestStatus }>();
   if (!convo) return null;
   const { results } = await db
     .prepare(
@@ -239,13 +328,22 @@ export async function markThreadRead(db: D1Database, viewer: AlumniViewer, conve
 }
 
 export const MAX_ALUMNI_MESSAGE = 4000;
+export const MAX_ALUMNI_REQUEST = 1000;
 
-/** Adds a message if the viewer is in the conversation. Returns false otherwise. */
+/**
+ * Adds a message if the viewer is in the conversation. Returns false otherwise,
+ * and for a member whose request is still pending or was declined. An alum
+ * replying to a request accepts it.
+ */
 export async function sendThreadMessage(db: D1Database, viewer: AlumniViewer, conversationId: string, body: string, now = new Date()) {
   const text = body.trim();
   if (!text || text.length > MAX_ALUMNI_MESSAGE) return false;
   const thread = await getThread(db, viewer, conversationId, 1);
   if (!thread) return false;
+  if (thread.status !== "accepted") {
+    if (viewer.kind === "member") return false;
+    await decideRequest(db, viewer, conversationId, true, now);
+  }
   await db
     .prepare(`INSERT INTO alumni_messages (id, conversation_id, sender, body, created_at) VALUES (?, ?, ?, ?, ?)`)
     .bind(crypto.randomUUID(), conversationId, viewer.kind, text, now.toISOString())
@@ -256,6 +354,36 @@ export async function sendThreadMessage(db: D1Database, viewer: AlumniViewer, co
 
 export async function unreadCount(db: D1Database, viewer: AlumniViewer) {
   return (await listConversations(db, viewer)).filter((c) => c.unread).length;
+}
+
+/** Alumni email settings. With no saved row: request emails on, message emails per the older profile checkbox. */
+export type AlumniNotificationPrefs = { requests: boolean; messages: boolean };
+
+export async function getAlumniPrefs(db: D1Database, alumniId: string): Promise<AlumniNotificationPrefs> {
+  await ensureAlumniTables(db);
+  const row = await db
+    .prepare(
+      `SELECT a.email_messages, n.requests, n.messages
+         FROM alumni a LEFT JOIN alumni_notification_prefs n ON n.alumni_id = a.id WHERE a.id = ?`,
+    )
+    .bind(alumniId)
+    .first<{ email_messages: number; requests: number | null; messages: number | null }>();
+  if (!row) return { requests: false, messages: false };
+  return { requests: (row.requests ?? 1) === 1, messages: (row.messages ?? row.email_messages) === 1 };
+}
+
+export async function saveAlumniPrefs(db: D1Database, viewer: AlumniViewer, prefs: AlumniNotificationPrefs, now = new Date()) {
+  if (viewer.kind !== "alumni") throw new Error("Alumni only");
+  await ensureAlumniTables(db);
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO alumni_notification_prefs (alumni_id, requests, messages, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (alumni_id) DO UPDATE SET requests = excluded.requests, messages = excluded.messages, updated_at = excluded.updated_at`,
+      )
+      .bind(viewer.id, prefs.requests ? 1 : 0, prefs.messages ? 1 : 0, now.toISOString()),
+    db.prepare(`UPDATE alumni SET email_messages = ? WHERE id = ?`).bind(prefs.messages ? 1 : 0, viewer.id),
+  ]);
 }
 
 /** Admin: invites, accounts and removal. Callers check is_admin. */
