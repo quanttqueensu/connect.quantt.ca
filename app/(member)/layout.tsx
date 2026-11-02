@@ -6,10 +6,14 @@ import { requireCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { one } from "@/lib/types";
 import { redirect } from "next/navigation";
+import { hubEnv } from "@/lib/hub/env";
+import { hasChosenPrefs } from "@/lib/notifications";
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const profile = await requireCurrentProfile();
   if (profile.role === "company_user") redirect("/company");
+  // Everyone picks their email notifications once before using Connect.
+  if (!(await hasChosenPrefs((await hubEnv()).DB, profile.id))) redirect("/setup/notifications");
 
   const supabase = await createClient();
   // Only the single newest message per conversation, ordered explicitly.

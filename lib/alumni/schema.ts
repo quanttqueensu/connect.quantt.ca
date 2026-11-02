@@ -89,9 +89,35 @@ export const ALUMNI_DISCORD_SCHEMA = [
 )`,
 ];
 
+/**
+ * Message requests and alumni email settings. Mirrors
+ * db/migrations/0009_alumni_message_requests.sql.
+ *
+ *  - alumni_message_requests: a member's first contact with an alum. The
+ *    conversation stays read-only for the member until the alum accepts. A
+ *    conversation with no row here is open (alum-started, or from before
+ *    requests existed).
+ *  - alumni_notification_prefs: request emails default ON (Ethan, 2026-11-02);
+ *    message emails default to the older alumni.email_messages setting.
+ */
+export const ALUMNI_REQUESTS_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS alumni_message_requests (
+  conversation_id text PRIMARY KEY REFERENCES alumni_conversations (id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at text NOT NULL DEFAULT ${NOW},
+  decided_at text
+)`,
+  `CREATE TABLE IF NOT EXISTS alumni_notification_prefs (
+  alumni_id text PRIMARY KEY REFERENCES alumni (id) ON DELETE CASCADE,
+  requests integer NOT NULL DEFAULT 1 CHECK (requests IN (0, 1)),
+  messages integer NOT NULL DEFAULT 0 CHECK (messages IN (0, 1)),
+  updated_at text NOT NULL DEFAULT ${NOW}
+)`,
+];
+
 let ready = false;
 export async function ensureAlumniTables(db: D1Database) {
   if (ready) return;
-  await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA].map((s) => db.prepare(s)));
+  await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA, ...ALUMNI_REQUESTS_SCHEMA].map((s) => db.prepare(s)));
   ready = true;
 }

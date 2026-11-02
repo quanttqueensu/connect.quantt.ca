@@ -2,12 +2,17 @@ import type { ReactNode } from "react";
 
 import AlumniNav from "@/components/AlumniNav";
 import { requireAlumnus } from "@/lib/alumni/current";
-import { unreadCount } from "@/lib/alumni/data";
+import { redirect } from "next/navigation";
+
+import { hasChosenAlumniPrefs, unreadCount } from "@/lib/alumni/data";
 import { hubEnv } from "@/lib/hub/env";
 
 export default async function AlumniLayout({ children }: { children: ReactNode }) {
   const me = await requireAlumnus();
-  const unread = await unreadCount((await hubEnv()).DB, { kind: "alumni", id: me.id });
+  const { DB } = await hubEnv();
+  // Alumni pick their email notifications once before using the alumni area.
+  if (!(await hasChosenAlumniPrefs(DB, me.id))) redirect("/alumni/setup");
+  const unread = await unreadCount(DB, { kind: "alumni", id: me.id });
   return (
     <>
       <AlumniNav unread={unread} />

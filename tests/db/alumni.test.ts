@@ -13,6 +13,9 @@ import {
 import {
   closeAlumniPost,
   createAlumniPost,
+  decideRequest,
+  getAlumniPrefs,
+  hasChosenAlumniPrefs,
   getThread,
   inviteAlumnus,
   listAlumniPosts,
@@ -20,12 +23,20 @@ import {
   markThreadRead,
   openConversation,
   removeAlumnus,
+  requestConversation,
+  saveAlumniPrefs,
   sendThreadMessage,
   unreadCount,
 } from "@/lib/alumni/data";
-import { ALUMNI_SCHEMA } from "@/lib/alumni/schema";
+import { ALUMNI_REQUESTS_SCHEMA, ALUMNI_SCHEMA } from "@/lib/alumni/schema";
 import { readSession } from "@/lib/cf-auth/sessions";
-import { notifyAlumniMessage, savePrefs, type Email } from "@/lib/notifications";
+import {
+  notifyAlumniMessage,
+  notifyAlumniRequest,
+  notifyAlumniRequestAccepted,
+  savePrefs,
+  type Email,
+} from "@/lib/notifications";
 
 import { addCompany, addMember, all, asD1, freshDb, NOW } from "./sqlite";
 
@@ -51,6 +62,11 @@ describe("alumni schema", () => {
   it("matches db/migrations/0006_alumni.sql exactly", () => {
     const sql = readFileSync(resolve(__dirname, "../../db/migrations/0006_alumni.sql"), "utf8");
     for (const stmt of ALUMNI_SCHEMA) expect(sql).toContain(stmt.trim());
+  });
+
+  it("matches db/migrations/0009_alumni_message_requests.sql exactly", () => {
+    const sql = readFileSync(resolve(__dirname, "../../db/migrations/0009_alumni_message_requests.sql"), "utf8");
+    for (const stmt of ALUMNI_REQUESTS_SCHEMA) expect(sql).toContain(stmt.trim());
   });
 });
 
@@ -130,9 +146,9 @@ describe("alumni messages", () => {
     const firm = addCompany(raw, "partner");
 
     expect(await openConversation(db, { kind: "alumni", id: alum }, firm.userId, NOW)).toBeNull();
-    const convo = await openConversation(db, { kind: "member", id: ann }, alum, NOW);
+    const convo = await openConversation(db, { kind: "alumni", id: alum }, ann, NOW);
     expect(convo).toBeTruthy();
-    expect(await openConversation(db, { kind: "alumni", id: alum }, ann, NOW)).toBe(convo);
+    expect(await openConversation(db, { kind: "member", id: ann }, alum, NOW)).toBe(convo);
 
     expect(await sendThreadMessage(db, { kind: "member", id: ann }, convo!, "Hi Alex", NOW)).toBe(true);
     expect(await sendThreadMessage(db, { kind: "member", id: bob }, convo!, "sneaky", NOW)).toBe(false);
@@ -158,7 +174,7 @@ describe("alumni message emails", () => {
     const { raw, db } = setupDb();
     const alum = await signIn(db, "alex@firm.com");
     const ann = addMember(raw, { email: "ann@queensu.ca" });
-    const convo = (await openConversation(db, { kind: "member", id: ann }, alum, NOW))!;
+    const convo = (await openConversation(db, { kind: "alumni", id: alum }, ann, NOW))!;
     const sent: Email[] = [];
     const send = async (e: Email[]) => void sent.push(...e);
 
@@ -172,5 +188,97 @@ describe("alumni message emails", () => {
     await notifyAlumniMessage(db, send, convo, "member", NOW);
     await notifyAlumniMessage(db, send, convo, "member", later(1));
     expect(sent.map((e) => e.to)).toEqual(["ann@queensu.ca", "alex@firm.com"]);
+  });
+});
+
+describe("alumni message requests", () => {
+  it("makes a member's first contact a request the alum accepts before more messages", async () => {
+    const { raw, db } = setupDb();
+    const alum = await signIn(db, "alex@firm.com");
+    const ann = addMember(raw, { email: "ann@queensu.ca" });
+    const member = { kind: "member" as const, id: ann };
+    const alumni = { kind: "alumni" as const, id: alum };
+
+    // No conversation yet: members can't open one without a request.
+    expect(await openConversation(db, member, alum, NOW)).toBeNull();
+    expect(await requestConversation(db, member, alum, "   ", NOW)).toBeNull();
+    expect(await requestConversation(db, alumni, ann, "hi", NOW)).toBeNull();
+
+    const req = (await requestConversation(db, member, alum, "Hi Alex, I'm Ann", NOW))!;
+    expect(req.created).toBe(true);
+    expect(await requestConversation(db, member, alum, "again", later(1))).toEqual({ id: req.id, created: false });
+    expect(await openConversation(db, member, alum, NOW)).toBe(req.id);
+
+    expect(await sendThreadMessage(db, member, req.id, "follow up", later(1))).toBe(false);
+    const [inbox] = await listConversations(db, alumni);
+    expect(inbox).toMatchObject({ id: req.id, status: "pending", unread: true });
+    expect((await listConversations(db, member))[0]).toMatchObject({ status: "pending", unread: false });
+
+    expect(await decideRequest(db, member, req.id, true, later(2))).toBe(false);
+    expect(await decideRequest(db, alumni, req.id, true, later(2))).toBe(true);
+    expect(await decideRequest(db, alumni, req.id, true, later(2))).toBe(false);
+    expect(await sendThreadMessage(db, member, req.id, "Thanks!", later(3))).toBe(true);
+    const thread = await getThread(db, alumni, req.id);
+    expect(thread?.status).toBe("accepted");
+    expect(thread?.messages.map((m) => m.body)).toEqual(["Hi Alex, I'm Ann", "Thanks!"]);
+  });
+
+  it("hides declined requests from the alum, keeps the member blocked, and a reply accepts", async () => {
+    const { raw, db } = setupDb();
+    const alum = await signIn(db, "alex@firm.com");
+    const other = await signIn(db, "sam@firm.com", "Sam");
+    const ann = addMember(raw, { email: "ann@queensu.ca" });
+    const bob = addMember(raw, { email: "bob@queensu.ca" });
+    const alumni = { kind: "alumni" as const, id: alum };
+
+    const a = (await requestConversation(db, { kind: "member", id: ann }, alum, "Hi", NOW))!;
+    expect(await decideRequest(db, { kind: "alumni", id: other }, a.id, false, NOW)).toBe(false);
+    expect(await decideRequest(db, alumni, a.id, false, NOW)).toBe(true);
+    expect(await listConversations(db, alumni)).toEqual([]);
+    expect(await unreadCount(db, alumni)).toBe(0);
+    expect((await listConversations(db, { kind: "member", id: ann }))[0].status).toBe("declined");
+    expect(await sendThreadMessage(db, { kind: "member", id: ann }, a.id, "please", later(1))).toBe(false);
+
+    const b = (await requestConversation(db, { kind: "member", id: bob }, alum, "Hi", NOW))!;
+    expect(await sendThreadMessage(db, alumni, b.id, "Happy to chat", later(1))).toBe(true);
+    expect((await getThread(db, alumni, b.id))?.status).toBe("accepted");
+
+    // Alum-started conversations never need a request.
+    const c = (await openConversation(db, { kind: "alumni", id: other }, ann, NOW))!;
+    expect((await getThread(db, { kind: "member", id: ann }, c))?.status).toBe("accepted");
+  });
+
+  it("emails the alum about requests by default, and respects their settings", async () => {
+    const { raw, db } = setupDb();
+    const alum = await signIn(db, "alex@firm.com");
+    const ann = addMember(raw, { email: "ann@queensu.ca" });
+    const bob = addMember(raw, { email: "bob@queensu.ca" });
+    const sent: Email[] = [];
+    const send = async (e: Email[]) => void sent.push(...e);
+
+    expect(await getAlumniPrefs(db, alum)).toEqual({ requests: true, messages: false });
+    expect(await hasChosenAlumniPrefs(db, alum)).toBe(false);
+    const a = (await requestConversation(db, { kind: "member", id: ann }, alum, "Hi", NOW))!;
+    await notifyAlumniRequest(db, send, a.id);
+    expect(sent.map((e) => [e.to, e.subject])).toEqual([["alex@firm.com", "New message request on QUANTT Connect"]]);
+
+    await saveAlumniPrefs(db, { kind: "alumni", id: alum }, { requests: false, messages: true }, NOW);
+    expect(await getAlumniPrefs(db, alum)).toEqual({ requests: false, messages: true });
+    expect(await hasChosenAlumniPrefs(db, alum)).toBe(true);
+    const b = (await requestConversation(db, { kind: "member", id: bob }, alum, "Hi", NOW))!;
+    await notifyAlumniRequest(db, send, b.id);
+    expect(sent).toHaveLength(1);
+
+    // Accepting emails the member only if they turned message emails on.
+    await decideRequest(db, { kind: "alumni", id: alum }, a.id, true, NOW);
+    await notifyAlumniRequestAccepted(db, send, a.id);
+    expect(sent).toHaveLength(1);
+    await savePrefs(db, ann, { messages: true, applications: false, application_updates: false, new_jobs: false });
+    await notifyAlumniRequestAccepted(db, send, a.id);
+    expect(sent.map((e) => e.to)).toEqual(["alex@firm.com", "ann@queensu.ca"]);
+
+    // The message-email setting now drives member -> alum message emails.
+    await notifyAlumniMessage(db, send, a.id, "member", NOW);
+    expect(sent.map((e) => e.to)).toEqual(["alex@firm.com", "ann@queensu.ca", "alex@firm.com"]);
   });
 });

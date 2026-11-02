@@ -18,9 +18,12 @@ import {
   cancelAlumniInvite,
   closeAlumniPost,
   createAlumniPost,
+  decideRequest,
   inviteAlumnus,
   openConversation,
   removeAlumnus,
+  requestConversation,
+  saveAlumniPrefs,
   sendThreadMessage,
   updateAlumnus,
   type AlumniViewer,
@@ -30,7 +33,7 @@ import { sendInviteEmail, sendLoginCodeEmail } from "@/lib/cf-auth/email";
 import { looksLikeEmail, normalizeEmail } from "@/lib/cf-auth/tokens";
 import { hubEnv } from "@/lib/hub/env";
 import { notifyLater } from "@/lib/notify";
-import { notifyAlumniMessage } from "@/lib/notifications";
+import { notifyAlumniMessage, notifyAlumniRequest, notifyAlumniRequestAccepted } from "@/lib/notifications";
 import { siteUrl } from "@/lib/site-url";
 import { denyRedirect } from "./deny";
 
@@ -133,7 +136,6 @@ export async function saveAlumniProfile(formData: FormData) {
     location: text(formData, "location", 120),
     linkedin_url: link.url,
     bio: text(formData, "bio", 1000),
-    email_messages: formData.get("email_messages") === "on",
   });
   revalidatePath("/alumni", "layout");
   redirect("/alumni/profile?saved=1");
@@ -178,7 +180,11 @@ function threadPath(viewer: AlumniViewer, id: string) {
   return viewer.kind === "alumni" ? `/alumni/messages/${id}` : `/alumni-network/messages/${id}`;
 }
 
-/** Start (or reopen) a conversation. Alumni pass member_id; members pass alumni_id. */
+/**
+ * Start (or reopen) a conversation. Alumni pass member_id and go straight to
+ * the thread. Members pass alumni_id: an existing conversation opens, and a
+ * first contact goes to the message request form.
+ */
 export async function startAlumniConversation(formData: FormData) {
   const isAlumniSide = formData.get("side") === "alumni";
   const viewer: AlumniViewer = isAlumniSide ? { kind: "alumni", id: (await requireAlumnus()).id } : await memberViewer();
@@ -186,8 +192,50 @@ export async function startAlumniConversation(formData: FormData) {
   const back = isAlumniSide ? "/alumni/members" : "/alumni-network";
   if (!UUID_RE.test(other)) denyRedirect(back, "alumni_conversation_failed");
   const id = await openConversation((await hubEnv()).DB, viewer, other);
-  if (!id) denyRedirect(back, "alumni_conversation_failed");
+  if (!id) {
+    if (!isAlumniSide) redirect(`/alumni-network/request/${other}`);
+    denyRedirect(back, "alumni_conversation_failed");
+  }
   redirect(threadPath(viewer, id));
+}
+
+/** A member's message request to an alum, with a short intro. */
+export async function requestAlumniConversation(formData: FormData) {
+  const viewer = await memberViewer();
+  const alumniId = String(formData.get("alumni_id") ?? "");
+  if (!UUID_RE.test(alumniId)) denyRedirect("/alumni-network", "alumni_conversation_failed");
+  const res = await requestConversation((await hubEnv()).DB, viewer, alumniId, String(formData.get("body") ?? ""));
+  if (!res) denyRedirect(`/alumni-network/request/${alumniId}`, "alumni_request_invalid");
+  if (res.created) notifyLater("alumni request", (db, send) => notifyAlumniRequest(db, send, res.id));
+  revalidatePath("/alumni-network");
+  redirect(threadPath(viewer, res.id));
+}
+
+/** The alum accepts or declines a member's request. */
+export async function decideAlumniRequest(formData: FormData) {
+  const me = await requireAlumnus();
+  const id = String(formData.get("conversation_id") ?? "");
+  const accept = formData.get("decision") === "accept";
+  if (!UUID_RE.test(id)) denyRedirect("/alumni/messages", "alumni_request_failed");
+  const ok = await decideRequest((await hubEnv()).DB, { kind: "alumni", id: me.id }, id, accept);
+  if (!ok) denyRedirect(`/alumni/messages/${id}`, "alumni_request_failed");
+  if (accept) notifyLater("alumni request accepted", (db, send) => notifyAlumniRequestAccepted(db, send, id));
+  revalidatePath("/alumni", "layout");
+  redirect(accept ? `/alumni/messages/${id}` : "/alumni/messages?declined=1");
+}
+
+export async function saveAlumniNotifications(formData: FormData) {
+  const me = await requireAlumnus();
+  await saveAlumniPrefs((await hubEnv()).DB, { kind: "alumni", id: me.id }, {
+    requests: formData.get("requests") === "on",
+    messages: formData.get("messages") === "on",
+  });
+  if (formData.get("setup") === "1") {
+    revalidatePath("/alumni", "layout");
+    redirect("/alumni");
+  }
+  revalidatePath("/alumni/profile");
+  redirect("/alumni/profile?notifications=saved#notifications");
 }
 
 export async function sendAlumniThreadMessage(formData: FormData) {

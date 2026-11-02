@@ -80,6 +80,8 @@ const MESSAGES = {
   alumni_post_failed: "That post could not be changed. It may not be yours, or it's already closed.",
   alumni_message_failed: "That message was not sent. Keep it under 4,000 characters and try again.",
   alumni_conversation_failed: "That conversation could not be opened.",
+  alumni_request_invalid: "Write a short intro (under 1,000 characters), then send the request again.",
+  alumni_request_failed: "That request could not be changed. It may already be answered.",
   alumni_invite_exists: "That email already has an alumni account.",
   alumni_invite_invalid: "Enter a name and a valid email to invite an alum.",
 
