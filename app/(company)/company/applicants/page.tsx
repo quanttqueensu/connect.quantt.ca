@@ -1,4 +1,3 @@
-import { DEMO_APPLICATIONS } from "@/lib/sponsor-demo";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
@@ -23,10 +22,10 @@ export default async function ApplicantsPage({
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers({ demo: cu.preview }),
+    loadTiers(),
   ]);
 
-  const { data: apps } = cu.preview ? { data: DEMO_APPLICATIONS } : can(access, "read_applicants") ? await supabase
+  const { data: apps } = can(access, "read_applicants") ? await supabase
     .from("applications")
     .select("*, posts(title), profiles(full_name)")
     .eq("kind", "in_app")
@@ -57,11 +56,11 @@ export default async function ApplicantsPage({
               {assigned?.name} package takes effect.
             </p>
           )}
-        {!cu.preview && <p className="mb-6">
+        <p className="mb-6">
           <a href="/company/applicants/export" className={buttonClass("ghost")}>
             Download CSV
           </a>
-        </p>}
+        </p>
         <ul>
           {(apps as Application[] | null)?.map((a) => (
             <li key={a.id} className="border-t border-line py-4">

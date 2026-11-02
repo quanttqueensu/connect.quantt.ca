@@ -9,7 +9,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const profile = await requireCurrentProfile();
   if (!profile.is_admin) redirect("/feed");
 
-  const sponsorContext = profile.is_admin ? await getCompanyContext() : null;
+  // Middleware keeps sponsor mode on /company, except this picker page.
+  const sponsorContext = await getCompanyContext();
 
   return (
     <>

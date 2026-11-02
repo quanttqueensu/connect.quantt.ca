@@ -366,6 +366,7 @@ export class QueryBuilder<T = unknown> implements PromiseLike<Result<T>> {
 
   async execute(): Promise<Result<T>> {
     try {
+      if (this.action.kind !== "select" && this.viewer?.readOnly) throw new Denied("Sponsor mode is read-only");
       switch (this.action.kind) {
         case "select":
           return await this.runSelect();

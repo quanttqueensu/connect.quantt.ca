@@ -9,7 +9,9 @@ import { cache } from "react";
 
 import { readSession, SESSION_COOKIE, type SessionProfile } from "@/lib/cf-auth/sessions";
 import { createHubClient, type HubClient } from "@/lib/db/client";
-import { loadViewer } from "@/lib/db/viewer";
+import { loadCompanyAccess, loadViewer } from "@/lib/db/viewer";
+import type { Viewer } from "@/lib/db/policies";
+import { parseSponsorModeCookie, SPONSOR_MODE_COOKIE } from "@/lib/sponsor-mode-cookie";
 import { fileLinkKey, hubEnv } from "@/lib/hub/env";
 
 export type SessionUser = { id: string; email: string; app_metadata: Record<string, unknown> };
@@ -34,10 +36,27 @@ export const currentSession = cache(async (): Promise<SessionProfile | null> => 
   return readSession(env.DB, token);
 });
 
+/**
+ * Sponsor mode: an admin who picked a company reads every page as that
+ * company's sponsor contact would (same RLS, tier and overrides), and every
+ * write is refused. Anyone else, or a cookie naming a missing company, gets
+ * their normal viewer.
+ */
+export const sponsorModeViewer = cache(async (): Promise<Viewer | null> => {
+  const session = await currentSession();
+  if (!session?.is_admin) return null;
+  const companyId = parseSponsorModeCookie((await cookies()).get(SPONSOR_MODE_COOKIE)?.value, session.id);
+  if (!companyId) return null;
+  const now = new Date();
+  const access = await loadCompanyAccess((await hubEnv()).DB, companyId, now);
+  if (!access) return null;
+  return { id: session.id, role: "company_user", isAdmin: false, companyId, access, now, readOnly: true };
+});
+
 export const createClient = cache(async (): Promise<ServerClient> => {
   const session = await currentSession();
   const env = await hubEnv();
-  const viewer = session ? await loadViewer(env.DB, session) : null;
+  const viewer = session ? ((await sponsorModeViewer()) ?? (await loadViewer(env.DB, session))) : null;
   const client = createHubClient({
     db: env.DB,
     files: env.FILES,

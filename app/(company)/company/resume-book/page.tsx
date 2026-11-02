@@ -1,4 +1,4 @@
-import { getCompanyContext, loadPreviewTalent } from "@/lib/sponsor-mode";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
@@ -21,7 +21,7 @@ export default async function ResumeBookPage({
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers({ demo: cu.preview }),
+    loadTiers(),
   ]);
 
   const program = cleanSearchTerm(sp.program);
@@ -29,9 +29,7 @@ export default async function ResumeBookPage({
 
   const { data: members } =
     can(access, "resume_book") && !yearInvalid
-      ? cu.preview
-        ? { data: await loadPreviewTalent({ capability: "resume_book", program, year }) }
-        : await supabase.rpc("resume_book_list", {
+      ? await supabase.rpc("resume_book_list", {
           p_program: program || null,
           p_grad_year: year,
         })

@@ -112,7 +112,7 @@ export function createStorage(r2: R2BucketLike, principal: Principal, link: File
           opts: { contentType?: string; upsert?: boolean } = {},
         ): Promise<StorageResult<{ path: string }>> {
           try {
-            if (!service && !canWriteFile(viewer, bucket, path)) {
+            if (!service && (viewer?.readOnly || !canWriteFile(viewer, bucket, path))) {
               return { data: null, error: { message: "new row violates row-level security policy", statusCode: "403" } };
             }
             const key = objectKey(bucket, path);
@@ -144,7 +144,7 @@ export function createStorage(r2: R2BucketLike, principal: Principal, link: File
 
         async remove(paths: string[]): Promise<StorageResult<{ name: string }[]>> {
           try {
-            const allowed = service ? paths : paths.filter((p) => canWriteFile(viewer, bucket, p));
+            const allowed = service ? paths : viewer?.readOnly ? [] : paths.filter((p) => canWriteFile(viewer, bucket, p));
             if (allowed.length) await r2.delete(allowed.map((p) => objectKey(bucket, p)));
             return { data: allowed.map((name) => ({ name })), error: null };
           } catch (e) {

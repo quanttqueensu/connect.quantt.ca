@@ -18,8 +18,9 @@ export async function GET(
   }
 
   const supabase = await createClient();
-  const context = profile.is_admin ? await getCompanyContext() : null;
-  if (context?.preview || profile.role !== "company_user") {
+  // A sponsor, or an admin viewing as one; the RPC below applies that sponsor's rules.
+  const context = await getCompanyContext();
+  if (!context) {
     return new NextResponse("Not found", { status: 404 });
   }
   const { data: path } = await supabase.rpc("talent_photo_path", { p_member: memberId });

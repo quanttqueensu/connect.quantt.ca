@@ -27,6 +27,8 @@ export type Viewer = {
   /** Resolved firm access for a company user, else null. */
   access: CompanyAccess | null;
   now: Date;
+  /** Admin previewing a sponsor in sponsor mode: reads as that sponsor, writes nothing. */
+  readOnly?: boolean;
 };
 
 /** A signed-out visitor. Every scope returns nothing and every write is denied. */

@@ -1,4 +1,3 @@
-import { DEMO_POSTS } from "@/lib/sponsor-demo";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
@@ -21,14 +20,12 @@ export default async function NewCompanyPost({
 
   const [{ access }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers({ demo: cu.preview }),
+    loadTiers(),
   ]);
 
   const quota = capValue(access, "post_in_app_job");
   const { count: openInApp } = can(access, "post_in_app_job")
-    ? cu.preview
-      ? { count: DEMO_POSTS.filter((post) => post.kind === "job" && !post.external_url && post.status === "open").length }
-      : await supabase
+    ? await supabase
         .from("posts")
         .select("id", { count: "exact", head: true })
         .eq("company_id", cu.company_id)

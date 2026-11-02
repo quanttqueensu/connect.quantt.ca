@@ -1,4 +1,3 @@
-import { DEMO_POSTS } from "@/lib/sponsor-demo";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
@@ -20,7 +19,7 @@ export default async function CompanyHome({
   if (!cu) {
     return <p className="text-copy">This account is not attached to a company.</p>;
   }
-  const { data: posts } = cu.preview ? { data: DEMO_POSTS } : await supabase
+  const { data: posts } = await supabase
     .from("posts")
     .select("*")
     .eq("company_id", cu.company_id)

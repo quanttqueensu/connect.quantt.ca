@@ -1,4 +1,3 @@
-import { DEMO_CONVERSATIONS, DEMO_MESSAGES } from "@/lib/sponsor-demo";
 import { getCurrentProfile } from "@/lib/auth";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import Notice from "@/components/Notice";
@@ -28,7 +27,7 @@ export default async function CompanyThreadPage({
   const supabase = await createClient();
   const cu = await getCompanyContext();
   if (!cu) notFound();
-  const { data: convo } = cu.preview ? { data: DEMO_CONVERSATIONS.find((convo) => convo.id === id) } : await supabase
+  const { data: convo } = await supabase
     .from("conversations")
     .select("*, profiles(full_name)")
     .eq("id", id)
@@ -45,9 +44,7 @@ export default async function CompanyThreadPage({
     Number.isInteger(requested) && requested > PAGE_SIZE ? requested : PAGE_SIZE,
     MAX_MESSAGES,
   );
-  const { data: rows, count } = cu?.preview
-    ? { data: DEMO_MESSAGES.filter((message) => message.conversation_id === id), count: DEMO_MESSAGES.filter((message) => message.conversation_id === id).length }
-    : await supabase
+  const { data: rows, count } = await supabase
     .from("messages")
     .select("*", { count: "exact" })
     .eq("conversation_id", id)
@@ -87,9 +84,9 @@ export default async function CompanyThreadPage({
         </p>
       )}
 
-      {cu?.preview && <p className="mt-6 text-sm text-copy">These are fictional sample messages. Sending is disabled in sponsor mode.</p>}
+      {cu?.preview && <p className="mt-6 text-sm text-copy">Sponsor mode is read-only. Sending is off.</p>}
       <ul className="mt-8 space-y-4">
-        {!cu?.preview && messages.length === 0 && (
+        {messages.length === 0 && (
           <li className="text-sm text-copy">No messages yet. Start the conversation.</li>
         )}
         {items.map(({ message: m, newDay }) => {

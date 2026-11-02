@@ -1,4 +1,4 @@
-import { getCompanyContext, loadPreviewTalent } from "@/lib/sponsor-mode";
+import { getCompanyContext } from "@/lib/sponsor-mode";
 import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
@@ -21,7 +21,7 @@ export default async function CandidateSearchPage({
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers({ demo: cu.preview }),
+    loadTiers(),
   ]);
 
   const q = cleanSearchTerm(sp.q);
@@ -30,9 +30,7 @@ export default async function CandidateSearchPage({
 
   const { data: members } =
     can(access, "candidate_search") && !yearInvalid
-      ? cu.preview
-        ? { data: await loadPreviewTalent({ capability: "candidate_search", program, year, q }) }
-        : await supabase.rpc("candidate_search_list", {
+      ? await supabase.rpc("candidate_search_list", {
           p_q: q || null,
           p_program: program || null,
           p_grad_year: year,

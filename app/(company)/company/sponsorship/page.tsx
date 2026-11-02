@@ -38,9 +38,9 @@ export default async function SponsorshipPage({
   const [{ assigned, effective, access, overrides, graceUntil }, capabilities, tiers, { data: company }] =
     await Promise.all([
       loadMyCompanyTier(cu.company_id),
-      loadCapabilities({ demo: cu.preview }),
-      loadTiers({ demo: cu.preview }),
-      cu.preview ? { data: cu.company } : supabase
+      loadCapabilities(),
+      loadTiers(),
+      supabase
         .from("companies")
         .select("website, logo_url, description")
         .eq("id", cu.company_id)

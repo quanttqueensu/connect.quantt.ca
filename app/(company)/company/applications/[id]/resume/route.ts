@@ -37,7 +37,7 @@ export async function GET(
 
   const supabase = await createClient();
   const cu = await getCompanyContext();
-  if (!cu?.company_id || cu.preview) return new NextResponse("Not found", { status: 404 });
+  if (!cu?.company_id) return new NextResponse("Not found", { status: 404 });
 
   // RLS already scopes applications to the caller's company; company_id is
   // compared again so a policy change can never silently widen this route.
