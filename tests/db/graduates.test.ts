@@ -48,8 +48,8 @@ function setup() {
 }
 
 describe("graduation schema", () => {
-  it("matches db/migrations/0010_alumni_graduation.sql exactly", () => {
-    const sql = readFileSync(resolve(__dirname, "../../db/migrations/0010_alumni_graduation.sql"), "utf8");
+  it("matches db/migrations/0011_alumni_graduation.sql exactly", () => {
+    const sql = readFileSync(resolve(__dirname, "../../db/migrations/0011_alumni_graduation.sql"), "utf8");
     for (const stmt of ALUMNI_GRADUATION_SCHEMA) expect(sql).toContain(stmt.replace("${NOW}", "").trim().slice(0, 40));
   });
 });

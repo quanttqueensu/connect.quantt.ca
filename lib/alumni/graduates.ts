@@ -52,15 +52,24 @@ type Row = { alumni_id: string; auth_id: string; profile_id: string | null; susp
 
 export type SyncResult = { created: number; linked: number; reactivated: number; suspended: number; waiting: string[] };
 
-async function findProfile(db: D1Database, emails: string[]) {
-  for (const e of emails) {
-    const p = await db
-      .prepare(`SELECT id, full_name, program, grad_year, bio, linkedin_url, photo_path, resume_book_opt_in, resume_book_opt_in_at, resume_book_opt_in_by FROM profiles WHERE email = ? AND role = 'member'`)
-      .bind(e)
+const PROFILE_FIELDS = "id, full_name, program, grad_year, bio, linkedin_url, photo_path, resume_book_opt_in, resume_book_opt_in_at, resume_book_opt_in_by";
+
+/** Their member profile: the one linked to their directory id (member_links), else the oldest under any of their addresses. */
+async function findProfile(db: D1Database, authId: string, emails: string[]) {
+  try {
+    const linked = await db
+      .prepare(`SELECT ${PROFILE_FIELDS.split(", ").map((c) => `p.${c}`).join(", ")} FROM member_links l JOIN profiles p ON p.id = l.profile_id WHERE l.directory_id = ? AND p.role = 'member'`)
+      .bind(authId)
       .first<Profile>();
-    if (p) return p;
+    if (linked) return linked;
+  } catch {
+    // member_links is created on the first member sign-in; before that there are no links.
   }
-  return null;
+  if (!emails.length) return null;
+  return db
+    .prepare(`SELECT ${PROFILE_FIELDS} FROM profiles WHERE role = 'member' AND lower(email) IN (${emails.map(() => "?").join(", ")}) ORDER BY created_at, id LIMIT 1`)
+    .bind(...emails.map((e) => e.toLowerCase()))
+    .first<Profile>();
 }
 
 async function bytesOf(files: R2BucketLike, key: string) {
@@ -141,7 +150,7 @@ export async function syncGraduates(
     }
     if (!a.personal) { out.waiting.push(a.name); continue; }
 
-    const p = await findProfile(db, a.emails);
+    const p = await findProfile(db, a.id, a.emails);
     const existing = await db.prepare(`SELECT id FROM alumni WHERE email = ?`).bind(a.personal).first<{ id: string }>();
     const alumniId = existing?.id ?? crypto.randomUUID();
     if (existing) {

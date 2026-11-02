@@ -116,7 +116,7 @@ export const ALUMNI_REQUESTS_SCHEMA = [
 ];
 
 /**
- * Graduates (lib/alumni/graduates.ts). Mirrors db/migrations/0010_alumni_graduation.sql.
+ * Graduates (lib/alumni/graduates.ts). Mirrors db/migrations/0011_alumni_graduation.sql.
  *
  *  - alumni_graduation: an alumni account made (or linked) for a member who
  *    graduated on auth.quantt.ca. profile_id is their old member profile, hidden
