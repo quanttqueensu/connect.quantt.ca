@@ -19,7 +19,7 @@ export default function LoginPanel({
   const [audience, setAudience] = useState<"member" | "sponsor">(initial);
 
   return (
-    <div className="p-6 sm:p-10 lg:min-h-[43rem] lg:p-12">
+    <div className="p-6 sm:p-8">
       <div role="group" aria-label="Log in as" className="grid grid-cols-2 gap-1 rounded border border-line bg-surface p-1">
         {(["member", "sponsor"] as const).map((option) => (
           <button
@@ -37,7 +37,7 @@ export default function LoginPanel({
           </button>
         ))}
       </div>
-      <h2 className="mt-7 text-xl font-semibold text-ink">
+      <h2 className="mt-6 text-xl font-semibold text-ink">
         {audience === "member" ? "Member login" : "Sponsor login"}
       </h2>
       <p className="mt-2 text-sm leading-6 text-copy">
@@ -47,7 +47,7 @@ export default function LoginPanel({
       </p>
       {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       {audience === "member" && (
-        <div className="mt-6">
+        <div className="mt-5">
           {/* The route handler redirects off-site, so this stays a plain link. */}
           <a
             href="/auth/quantt/start"
@@ -58,7 +58,7 @@ export default function LoginPanel({
         </div>
       )}
       {audience === "sponsor" && children}
-      <p className="mt-6 text-sm text-copy">
+      <p className={`text-sm text-copy ${audience === "sponsor" ? "mt-2" : "mt-6 border-t border-line pt-5"}`}>
         QUANTT alumni?{" "}
         <a href="/alumni/login" className="font-medium text-primary hover:underline">
           Alumni login
