@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { copyDirectoryFiles } from "@/lib/directory-files";
+import { readFileSync } from "node:fs";
+
+import {
+  DIRECTORY_SYNC_SCHEMA,
+  getDirectorySync,
+  setDirectorySync,
+  syncAllDirectoryFiles,
+  syncDirectoryFiles,
+} from "@/lib/directory-files";
 
 import { addMember, asD1, freshDb, run } from "./db/sqlite";
 
@@ -19,10 +27,20 @@ function bucket() {
     async delete(keys: string | string[]) { for (const k of [keys].flat()) objects.delete(k); },
   };
 }
-const auth = (photo: ArrayBuffer | null, resume: ArrayBuffer | null) => ({
-  photo: async () => (photo ? { type: "image/jpeg", data: photo } : null),
-  resume: async () => (resume ? { type: "application/pdf", data: resume } : null),
-});
+type Store = { photo: ArrayBuffer | null; resume: ArrayBuffer | null; photoAt: string | null; resumeAt: string | null };
+/** A fake auth Directory for ann@queensu.ca; `fetched` counts file downloads. */
+function auth(photo: ArrayBuffer | null, resume: ArrayBuffer | null, opts: { stamps?: boolean } = {}) {
+  const st: Store = { photo, resume, photoAt: photo ? "2026-11-01T00:00:00.000Z" : null, resumeAt: resume ? "2026-11-01T00:00:00.000Z" : null };
+  const fetched = { photo: 0, resume: 0 };
+  const mine = (who: string) => who === "ann@queensu.ca";
+  return {
+    st,
+    fetched,
+    photo: async (who: string) => { fetched.photo++; return mine(who) && st.photo ? { type: "image/jpeg", data: st.photo, updated: st.photoAt! } : null; },
+    resume: async (who: string) => { fetched.resume++; return mine(who) && st.resume ? { type: "application/pdf", data: st.resume, updated: st.resumeAt! } : null; },
+    ...(opts.stamps === false ? {} : { files: async (who: string) => (mine(who) ? { photo: st.photoAt, resume: st.resumeAt } : null) }),
+  };
+}
 function setup() {
   const raw = freshDb();
   const id = addMember(raw, { email: "ann@queensu.ca" });
@@ -30,42 +48,107 @@ function setup() {
 }
 const row = (raw: ReturnType<typeof freshDb>, sql: string, ...args: string[]) =>
   raw.prepare(sql).get(...args) as Record<string, unknown> | undefined;
+const photoPath = (raw: ReturnType<typeof freshDb>, id: string) => row(raw, `SELECT photo_path FROM profiles WHERE id = ?`, id)?.photo_path as string | null;
+const resumePath = (raw: ReturnType<typeof freshDb>, id: string) => row(raw, `SELECT resume_path FROM member_documents WHERE member_id = ?`, id)?.resume_path as string | null;
 
-describe("copying directory headshots and resumes", () => {
-  it("fills an empty profile with both", async () => {
+describe("syncing directory headshots and resumes", () => {
+  it("is on by default and fills an empty profile with both", async () => {
     const { raw, db, id } = setup();
     const r2 = bucket();
-    expect(await copyDirectoryFiles(db, r2, auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: true, resume: true });
-    expect(row(raw, `SELECT photo_path FROM profiles WHERE id = ?`, id)?.photo_path).toBe(`${id}/photo.jpg`);
-    expect(r2.objects.get(`photos/${id}/photo.jpg`)?.type).toBe("image/jpeg");
-    const path = row(raw, `SELECT resume_path FROM member_documents WHERE member_id = ?`, id)?.resume_path as string;
-    expect(path).toMatch(new RegExp(`^${id}/packages/[0-9a-f-]{36}/resume\\.pdf$`));
-    expect(r2.objects.get(`resumes/${path}`)?.type).toBe("application/pdf");
+    expect(await getDirectorySync(db, id)).toBe(true);
+    expect(await syncDirectoryFiles(db, r2, auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: true, resume: true });
+    expect(photoPath(raw, id)).toMatch(new RegExp(`^${id}/directory-[0-9a-f]{8}\\.jpg$`));
+    expect(r2.objects.get(`photos/${photoPath(raw, id)}`)?.type).toBe("image/jpeg");
+    expect(resumePath(raw, id)).toMatch(new RegExp(`^${id}/packages/[0-9a-f-]{36}/resume\\.pdf$`));
+    expect(r2.objects.get(`resumes/${resumePath(raw, id)}`)?.type).toBe("application/pdf");
   });
 
-  it("never replaces a photo or documents the member already has, or put back a removed resume", async () => {
+  it("copies only when the directory has a newer upload, and never deletes earlier files", async () => {
     const { raw, db, id } = setup();
     run(raw, `UPDATE profiles SET photo_path = ? WHERE id = ?`, `${id}/photo.png`, id);
-    run(raw, `INSERT INTO member_documents (member_id, resume_path) VALUES (?, NULL)`, id);
+    run(raw, `INSERT INTO member_documents (member_id, resume_path, cover_letter_path) VALUES (?, ?, ?)`, id, `${id}/packages/old/resume.pdf`, `${id}/packages/old/cover.pdf`);
     const r2 = bucket();
-    expect(await copyDirectoryFiles(db, r2, auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    const a = auth(jpeg, pdf);
+    await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca");
+    const first = { photo: photoPath(raw, id), resume: resumePath(raw, id) };
+    expect(first.photo).not.toBe(`${id}/photo.png`);
+    expect(row(raw, `SELECT cover_letter_path FROM member_documents WHERE member_id = ?`, id)?.cover_letter_path).toBe(`${id}/packages/old/cover.pdf`);
+
+    // Nothing new: no downloads, nothing changes.
+    a.fetched.photo = a.fetched.resume = 0;
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(a.fetched).toEqual({ photo: 0, resume: 0 });
+
+    // A new headshot on auth: only the photo is copied, the earlier copy stays in R2.
+    a.st.photoAt = "2026-11-02T00:00:00.000Z";
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: true, resume: false });
+    expect(photoPath(raw, id)).not.toBe(first.photo);
+    expect(r2.objects.has(`photos/${first.photo}`)).toBe(true);
+    expect(resumePath(raw, id)).toBe(first.resume);
+    expect(r2.objects.size).toBe(3);
+
+    // Removed on auth: the hub keeps its copy.
+    a.st.photo = null; a.st.photoAt = null;
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(photoPath(raw, id)).not.toBeNull();
+  });
+
+  it("does nothing while the member has sync off, and catches up when they turn it back on", async () => {
+    const { raw, db, id } = setup();
+    run(raw, `UPDATE profiles SET photo_path = ? WHERE id = ?`, `${id}/photo.png`, id);
+    const r2 = bucket();
+    await setDirectorySync(db, id, false);
+    expect(await getDirectorySync(db, id)).toBe(false);
+    expect(await syncDirectoryFiles(db, r2, auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(await syncAllDirectoryFiles(db, r2, auth(jpeg, pdf))).toMatchObject({ members: 0 });
+    expect(photoPath(raw, id)).toBe(`${id}/photo.png`);
     expect(r2.objects.size).toBe(0);
-    expect(row(raw, `SELECT photo_path FROM profiles WHERE id = ?`, id)?.photo_path).toBe(`${id}/photo.png`);
+
+    await setDirectorySync(db, id, true);
+    expect(await syncDirectoryFiles(db, r2, auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: true, resume: true });
+  });
+
+  it("re-copies after sync is turned off and on, even with no new upload", async () => {
+    const { db, id } = setup();
+    const r2 = bucket();
+    const a = auth(jpeg, null);
+    await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca");
+    await setDirectorySync(db, id, false);
+    await setDirectorySync(db, id, true);
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: true, resume: false });
+  });
+
+  it("works with an auth Worker that has no files() yet, using each file's upload time", async () => {
+    const { db, id } = setup();
+    const r2 = bucket();
+    const a = auth(jpeg, pdf, { stamps: false });
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: true, resume: true });
+    expect(await syncDirectoryFiles(db, r2, a, id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
   });
 
   it("ignores files that aren't what they claim, and members with nothing on file", async () => {
     const { db, id } = setup();
     const r2 = bucket();
     const html = new TextEncoder().encode("<html>").buffer;
-    expect(await copyDirectoryFiles(db, r2, auth(html, html), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
-    expect(await copyDirectoryFiles(db, r2, auth(null, null), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
-    expect(await copyDirectoryFiles(db, r2, {}, id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(await syncDirectoryFiles(db, r2, auth(html, html), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(await syncDirectoryFiles(db, r2, auth(null, null), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(await syncDirectoryFiles(db, r2, {}, id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
     expect(r2.objects.size).toBe(0);
   });
 
-  it("skips company accounts", async () => {
+  it("copies each member's own files only, and skips company accounts", async () => {
     const { raw, db, id } = setup();
+    const bob = addMember(raw, { email: "bob@queensu.ca" });
+    const r2 = bucket();
+    expect(await syncAllDirectoryFiles(db, r2, auth(jpeg, pdf))).toEqual({ members: 2, photos: 1, resumes: 1, failed: 0 });
+    expect(photoPath(raw, bob)).toBeNull();
+    expect([...r2.objects.keys()].every((k) => k.includes(`/${id}/`))).toBe(true);
     run(raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, id);
-    expect(await copyDirectoryFiles(db, bucket(), auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+    expect(await syncDirectoryFiles(db, bucket(), auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+  });
+
+  it("matches the migration", () => {
+    const sql = readFileSync("db/migrations/0007_directory_sync.sql", "utf8");
+    for (const stmt of DIRECTORY_SYNC_SCHEMA) expect(sql).toContain(stmt.trim());
   });
 });

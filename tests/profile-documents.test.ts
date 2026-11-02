@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   member: "11111111-1111-4111-8111-111111111111", role: "member",
   upload: vi.fn(), remove: vi.fn(), upsert: vi.fn(), update: vi.fn(),
-  saved: [] as { member_id: string }[], error: null as { message: string } | null,
+  saved: [] as { member_id: string }[], error: null as { message: string } | null, synced: false,
+}));
+vi.mock("@/lib/hub/env", () => ({ hubEnv: async () => ({ DB: {}, FILES: {} }) }));
+vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: async () => ({ env: {} }) }));
+vi.mock("@/lib/directory-files", () => ({
+  getDirectorySync: async () => state.synced, setDirectorySync: vi.fn(), syncDirectoryFiles: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (url: string) => {
@@ -30,7 +35,7 @@ const form = (body = "%PDF-1.7\n") => {
 };
 describe("profile document writes", () => {
   beforeEach(() => {
-    state.role = "member"; state.saved = [{ member_id: state.member }]; state.error = null;
+    state.role = "member"; state.synced = false; state.saved = [{ member_id: state.member }]; state.error = null;
     state.upload.mockReset().mockResolvedValue({ error: null });
     state.remove.mockReset().mockResolvedValue({ error: null });
     state.upsert.mockReset(); state.update.mockReset();
@@ -50,6 +55,14 @@ describe("profile document writes", () => {
     expect(row.cover_letter_path).toMatch(/\/cover.pdf$/);
     expect(row.cover_letter).toBeNull();
     expect(row).not.toHaveProperty("resume_path");
+  });
+  it("refuses resume changes while the member keeps sync on, but not the cover", async () => {
+    state.synced = true;
+    await expect(saveProfileDocument("resume", form())).rejects.toThrow("profile_files_synced");
+    await expect(removeProfileDocument("resume")).rejects.toThrow("profile_files_synced");
+    expect(state.upload).not.toHaveBeenCalled();
+    await saveProfileDocument("cover", form());
+    expect(state.upsert).toHaveBeenCalledOnce();
   });
   it("rejects a PDF with spoofed MIME before uploading", async () => {
     await expect(saveProfileDocument("resume", form("<html>"))).rejects.toThrow("profile_document_invalid");
