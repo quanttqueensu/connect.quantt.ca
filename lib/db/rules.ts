@@ -32,6 +32,7 @@ import {
   Denied,
   documentsScope,
   iso,
+  jobListingsScope,
   isOpenInAppJob,
   messagesScope,
   myCapability,
@@ -464,6 +465,19 @@ const tierEvents: TableRules = {
 
 const sponsorCapabilities: TableRules = serviceOnly;
 
+// --- opportunities ------------------------------------------------------------------
+
+/** Written by the sync (lib/jobs/store.ts, straight to D1). An admin may only hide or unhide one. */
+const jobListings: TableRules = {
+  ...serviceOnly,
+  updateScope: (ctx) => scopeIf(isAdminCtx(ctx), ALL),
+  async update(ctx, _before, patch) {
+    requireAdmin(ctx);
+    if (!isService(ctx) && Object.keys(patch).some((k) => k !== "hidden")) throw new Denied();
+    return patch;
+  },
+};
+
 // ---------------------------------------------------------------------------
 
 const RULES: Record<TableName, TableRules> = {
@@ -476,6 +490,7 @@ const RULES: Record<TableName, TableRules> = {
   conversations,
   hiring_packages: hiringPackages,
   invites: adminOnly,
+  job_listings: jobListings,
   member_documents: memberDocuments,
   messages,
   post_comments: postComments,
@@ -511,6 +526,8 @@ export function readScopeFor(table: TableName, v: MaybeViewer, a: string): Sql {
       return conversationsScope(v, a);
     case "hiring_packages":
       return packagesScope(v, a);
+    case "job_listings":
+      return jobListingsScope(v);
     case "member_documents":
       return documentsScope(v, a);
     case "messages":

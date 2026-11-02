@@ -1,0 +1,36 @@
+name: Opportunities
+
+# Refreshes the Opportunities page on connect.quantt.ca from public quant job
+# lists (scripts/sync-opportunities.mjs). Runs daily; "Run workflow" on the
+# Actions tab runs it now.
+#
+# Needs the repo secret OPPORTUNITIES_SYNC_TOKEN, with the same value as the
+# Worker secret of that name on quantt-connect (README "Opportunities").
+
+on:
+  schedule:
+    - cron: "15 11 * * *" # 06:15 / 07:15 in Kingston
+  workflow_dispatch:
+
+concurrency:
+  group: opportunities
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Fetch, filter and send listings
+        env:
+          OPPORTUNITIES_SYNC_TOKEN: ${{ secrets.OPPORTUNITIES_SYNC_TOKEN }}
+        run: node --experimental-strip-types scripts/sync-opportunities.mjs

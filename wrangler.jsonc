@@ -24,7 +24,7 @@
     }
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "connect-files" }],
-  // Secrets (RESEND_API_KEY, FILES_SIGNING_KEY) and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README);
+  // Secrets (RESEND_API_KEY, FILES_SIGNING_KEY, OPPORTUNITIES_SYNC_TOKEN) and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README);
   // keep them on deploy.
   "keep_vars": true,
   "observability": { "enabled": true },

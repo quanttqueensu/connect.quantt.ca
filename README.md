@@ -42,7 +42,7 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
 2. `npx wrangler d1 migrations apply connect-db --remote`, then
    `npx wrangler d1 execute connect-db --remote --file db/seed.sql`.
 3. Worker secrets on `quantt-connect`: `RESEND_API_KEY`, `FILES_SIGNING_KEY`
-   (`openssl rand -hex 32`). Optional `LOGIN_EMAIL_FROM`
+   (`openssl rand -hex 32`), `OPPORTUNITIES_SYNC_TOKEN` (see Opportunities). Optional `LOGIN_EMAIL_FROM`
    (default `QUANTT Connect <connect@quantt.ca>`; its domain must be verified in Resend).
    Variable `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`.
 4. First admin:
@@ -68,6 +68,36 @@ sh supabase-export/r2-upload.sh
 
 The import can be run again; it replaces what's there. The folder holds member
 data and resumes: it's gitignored, delete it afterwards.
+
+## Opportunities
+
+`/opportunities` lists open quant internships and new-grad roles for club members
+(sponsors don't see it). It piggybacks on public lists other people keep current,
+rather than scraping firms' career sites:
+
+- Simplify's [internship](https://github.com/SimplifyJobs/Summer2027-Internships) and
+  [new-grad](https://github.com/SimplifyJobs/New-Grad-Positions) lists, "Quant" category only.
+- Northwestern Fintech's [quant internship list](https://github.com/northwesternfintech/2027QuantInternships).
+
+Once a day `.github/workflows/opportunities.yml` runs `scripts/sync-opportunities.mjs`,
+which fetches the lists, keeps the quant roles whose term hasn't started
+(`lib/jobs/sources.ts`), and POSTs them to `/api/opportunities/sync`. `worker.js`
+answers that route before Next; `lib/jobs/store.ts` checks the bearer token and upserts
+into `job_listings` by link. A listing a source stops showing is closed; closed
+listings are deleted after 90 days. The fetching runs on GitHub, not the Worker,
+because Simplify's files are about 13 MB each, more than a free-plan Worker's CPU allows.
+
+Admins can hide a listing from the page (Hide, then "Hidden listings" to undo).
+
+Setup, once:
+
+1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`).
+2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
+   `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
+   same name (Settings → Secrets and variables → Actions).
+3. Actions → Opportunities → Run workflow, for the first fill.
+
+Preview locally with `node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run`.
 
 ## Sign in with QUANTT (club members)
 
@@ -141,8 +171,8 @@ push and pull request.
 
 | Who | Paths |
 | --- | --- |
-| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links) |
-| Member | `/feed`, `/applications`, `/profile`, `/members`, `/messages` |
+| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links). `POST /api/opportunities/sync` is answered by `worker.js` with a bearer token, before the middleware. |
+| Member | `/feed`, `/opportunities`, `/applications`, `/profile`, `/members`, `/messages` |
 | Company | `/company`, `/company/posts/new`, `/company/applicants`, `/company/messages` |
 | Admin | `/admin` panel (invite, people, companies, requests, posts, applications). Admins are also members and use the member app separately. |
 
