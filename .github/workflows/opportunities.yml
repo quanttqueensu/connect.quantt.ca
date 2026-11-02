@@ -5,8 +5,8 @@ name: Opportunities
 # Actions tab runs it now.
 #
 # Needs the repo secret OPPORTUNITIES_SYNC_TOKEN, with the same value as the
-# Worker secret of that name on quantt-connect, and the repo variable
-# CONNECT_URL set to the Worker's workers.dev address (README "Opportunities").
+# Worker secret of that name on quantt-connect. It posts to the Worker's
+# workers.dev address (repo variable CONNECT_URL overrides it).
 # connect.quantt.ca itself sits behind Cloudflare's bot challenge, which
 # answers requests from GitHub's runners with a 403 page.
 
@@ -36,5 +36,5 @@ jobs:
       - name: Fetch, filter and send listings
         env:
           OPPORTUNITIES_SYNC_TOKEN: ${{ secrets.OPPORTUNITIES_SYNC_TOKEN }}
-          CONNECT_URL: ${{ vars.CONNECT_URL }}
+          CONNECT_URL: ${{ vars.CONNECT_URL || 'https://quantt-connect.quanttgroup.workers.dev' }}
         run: node --experimental-strip-types scripts/sync-opportunities.mjs
