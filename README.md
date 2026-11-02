@@ -94,7 +94,7 @@ firm suffixes) and the terms match or one source leaves the term out.
 Admins can hide a listing from the page (Hide, then "Hidden listings" to undo).
 
 Members can "Mark applied" on a listing: it adds an off-platform entry to their
-Applications, linked by `applications.job_listing_id` (`db/migrations/0007`), and the
+Applications, linked by `applications.job_listing_id` (`db/migrations/0008`), and the
 Applied filter shows applied or not-applied listings. "Applied ✓" undoes it.
 
 Each run also posts the roles that weren't open before to #opportunities in the
@@ -104,7 +104,7 @@ with "Post all open roles" ticked posts the whole list the same way.
 
 Setup, once:
 
-1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, and 0007's `applications.job_listing_id`).
+1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, and 0008's `applications.job_listing_id`).
 2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
    `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
    same name (Settings → Secrets and variables → Actions).
