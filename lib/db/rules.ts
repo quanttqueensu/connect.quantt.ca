@@ -32,6 +32,7 @@ import {
   Denied,
   documentsScope,
   iso,
+  isMember,
   jobListingsScope,
   isOpenInAppJob,
   messagesScope,
@@ -325,9 +326,17 @@ const applications: TableRules = {
     }
     return patch;
   },
-  deleteScope: (ctx) => scopeIf(isAdminCtx(ctx), ALL),
-  async remove(ctx) {
-    requireAdmin(ctx);
+  // Admins delete anything; a member can undo their own "Mark applied" on a listing.
+  deleteScope(ctx, a) {
+    if (isAdminCtx(ctx)) return ALL;
+    const v = viewerOf(ctx);
+    if (!isMember(v)) return NONE;
+    return { sql: `${a}.member_id = ? AND ${a}.kind = 'off_platform' AND ${a}.job_listing_id IS NOT NULL`, params: [v.id] };
+  },
+  async remove(ctx, row) {
+    if (isAdminCtx(ctx)) return;
+    const v = viewerOf(ctx);
+    if (!isMember(v) || row.member_id !== v.id || row.kind !== "off_platform" || row.job_listing_id == null) throw new Denied();
   },
 };
 

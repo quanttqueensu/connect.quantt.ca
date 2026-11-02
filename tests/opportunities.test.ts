@@ -316,6 +316,48 @@ describe("job_listings access", () => {
   });
 });
 
+describe("mark applied", () => {
+  it("links one tracker entry per listing, filters by it, and only the member can undo it", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    await storeListings(db, {
+      sources: { simplify: [listing(), listing({ url: "https://example.com/b", title: "QT Intern" })] },
+    });
+    const member = addMember(raw);
+    const other = addMember(raw);
+    const as = (id: string) =>
+      createHubClient({ db, files: null as never, principal: { kind: "user", viewer: viewer(raw, id) }, fileLinks: null });
+    const [a, b] = all<{ id: string }>(raw, "SELECT id FROM job_listings ORDER BY url").map((r) => r.id);
+
+    const row = { member_id: member, kind: "off_platform", company_name: "Citadel", stage: "submitted", job_listing_id: a };
+    expect((await as(member).from("applications").insert(row)).error).toBeNull();
+    expect((await as(member).from("applications").insert(row)).error?.code).toBe("23505");
+    expect((await as(other).from("applications").insert(row)).error).not.toBeNull();
+
+    const ids = (await as(member).from("applications").select("job_listing_id").eq("member_id", member)).data!.map(
+      (r) => r.job_listing_id,
+    );
+    const yes = await as(member).from("job_listings").select("id").in("id", ids);
+    const no = await as(member).from("job_listings").select("id").notIn("id", ids);
+    expect(yes.data!.map((r) => r.id)).toEqual([a]);
+    expect(no.data!.map((r) => r.id)).toEqual([b]);
+    const many = Array.from({ length: 150 }, (_, i) => `x${i}`);
+    expect((await as(member).from("job_listings").select("id").notIn("id", [...many, a])).data!.map((r) => r.id)).toEqual([b]);
+
+    await as(other).from("applications").delete().eq("job_listing_id", a);
+    expect(all(raw, "SELECT job_listing_id FROM applications")).toEqual([{ job_listing_id: a }]);
+    const logged = await as(member)
+      .from("applications")
+      .insert({ member_id: member, kind: "off_platform", company_name: "Jane Street", stage: "submitted" })
+      .select("id")
+      .single();
+    await as(member).from("applications").delete().eq("id", logged.data!.id);
+    expect(all(raw, "SELECT count(*) AS n FROM applications")).toEqual([{ n: 2 }]);
+    await as(member).from("applications").delete().eq("member_id", member).eq("job_listing_id", a);
+    expect(all(raw, "SELECT job_listing_id FROM applications")).toEqual([{ job_listing_id: null }]);
+  });
+});
+
 describe("sponsor jobs tab", () => {
   it("lists open job posts from sponsoring firms only", async () => {
     const raw = freshDb();
