@@ -115,9 +115,49 @@ export const ALUMNI_REQUESTS_SCHEMA = [
 )`,
 ];
 
+/**
+ * Graduates (lib/alumni/graduates.ts). Mirrors db/migrations/0011_alumni_graduation.sql.
+ *
+ *  - alumni_graduation: an alumni account made (or linked) for a member who
+ *    graduated on auth.quantt.ca. profile_id is their old member profile, hidden
+ *    from member lists while the row is active. suspended_at is set when auth's
+ *    "Make member again" undoes the graduation: the account can't sign in and is
+ *    hidden, but nothing is deleted. photo_path / resume_path are R2 paths under
+ *    photos/ and resumes/.
+ *  - graduation_reminders: the April "add a personal email" email, once per member per year.
+ */
+export const ALUMNI_GRADUATION_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS alumni_graduation (
+  alumni_id text PRIMARY KEY REFERENCES alumni (id) ON DELETE CASCADE,
+  auth_id text NOT NULL UNIQUE,
+  profile_id text REFERENCES profiles (id) ON DELETE SET NULL,
+  photo_path text,
+  resume_path text,
+  discord_id text,
+  resume_book_was integer NOT NULL DEFAULT 0 CHECK (resume_book_was IN (0, 1)),
+  resume_book_at text,
+  resume_book_by text,
+  suspended_at text,
+  created_at text NOT NULL DEFAULT ${NOW}
+)`,
+  `CREATE TABLE IF NOT EXISTS graduation_reminders (
+  auth_id text NOT NULL,
+  year integer NOT NULL,
+  sent_at text NOT NULL DEFAULT ${NOW},
+  PRIMARY KEY (auth_id, year)
+)`,
+];
+
+/** SQL: the alumni row `col` (e.g. "a.id") isn't a suspended graduate. */
+export const notSuspended = (col: string) =>
+  `NOT EXISTS (SELECT 1 FROM alumni_graduation sg WHERE sg.alumni_id = ${col} AND sg.suspended_at IS NOT NULL)`;
+/** SQL: the member profile `col` isn't hidden because its owner graduated. */
+export const notGraduated = (col: string) =>
+  `NOT EXISTS (SELECT 1 FROM alumni_graduation gg WHERE gg.profile_id = ${col} AND gg.suspended_at IS NULL)`;
+
 let ready = false;
 export async function ensureAlumniTables(db: D1Database) {
   if (ready) return;
-  await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA, ...ALUMNI_REQUESTS_SCHEMA].map((s) => db.prepare(s)));
+  await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA, ...ALUMNI_REQUESTS_SCHEMA, ...ALUMNI_GRADUATION_SCHEMA].map((s) => db.prepare(s)));
   ready = true;
 }

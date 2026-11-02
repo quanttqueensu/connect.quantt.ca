@@ -1,6 +1,8 @@
 import PageHeader from "@/components/PageHeader";
 import { PrimaryButton, buttonClass } from "@/components/Form";
 import { getCurrentProfile } from "@/lib/auth";
+import { graduatedProfileIds } from "@/lib/alumni/graduates";
+import { hubEnv } from "@/lib/hub/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 import Link from "next/link";
@@ -38,6 +40,8 @@ export default async function MembersPage({
       count: "exact",
     })
     .eq("role", "member");
+  // Members who graduated are alumni now (lib/alumni/graduates.ts): leave their old profiles out.
+  for (const id of await graduatedProfileIds((await hubEnv()).DB).catch(() => [] as string[])) query = query.neq("id", id);
 
   if (q) {
     // `or` takes a comma-separated filter list, so commas, parentheses and the

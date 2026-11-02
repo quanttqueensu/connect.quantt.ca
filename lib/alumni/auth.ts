@@ -9,7 +9,7 @@
  */
 import type { D1Database } from "@/lib/db/d1";
 import { looksLikeEmail, normalizeEmail, randomCode, randomToken, sameHex, sha256Hex } from "@/lib/cf-auth/tokens";
-import { ensureAlumniTables } from "@/lib/alumni/schema";
+import { ensureAlumniTables, notSuspended } from "@/lib/alumni/schema";
 
 export const ALUMNI_COOKIE = "connect_alumni";
 export const ALUMNI_SESSION_DAYS = 30;
@@ -25,7 +25,8 @@ function hashCode(email: string, code: string) {
 }
 
 async function alumnusByEmail(db: D1Database, email: string) {
-  return db.prepare(`SELECT id, email, full_name FROM alumni WHERE email = ?`).bind(email).first<Alumnus>();
+  // A graduate whose graduation was undone on auth.quantt.ca can't sign in (lib/alumni/graduates.ts).
+  return db.prepare(`SELECT id, email, full_name FROM alumni WHERE email = ? AND ${notSuspended("alumni.id")}`).bind(email).first<Alumnus>();
 }
 
 async function pendingAlumniInvite(db: D1Database, email: string) {
@@ -132,7 +133,7 @@ export async function readAlumniSession(db: D1Database, token: string | null | u
   const row = await db
     .prepare(
       `SELECT a.id, a.email, a.full_name, s.expires_at, s.last_seen_at
-         FROM alumni_sessions s JOIN alumni a ON a.id = s.alumni_id WHERE s.token_hash = ?`,
+         FROM alumni_sessions s JOIN alumni a ON a.id = s.alumni_id WHERE s.token_hash = ? AND ${notSuspended("a.id")}`,
     )
     .bind(hash)
     .first<Alumnus & { expires_at: string; last_seen_at: string }>();

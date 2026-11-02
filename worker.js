@@ -7,13 +7,19 @@
 // The hourly cron in wrangler.jsonc: copy headshots and resumes changed on
 // auth.quantt.ca into the profiles of members who keep sync on
 // (lib/directory-files.ts); at 08:00 UTC, also delete expired sessions,
-// sign-in codes and join-form admission rows from D1.
+// sign-in codes and join-form admission rows from D1. Hourly too: members who
+// graduated on auth.quantt.ca become alumni (lib/alumni/graduates.ts); in April
+// at 08:00 UTC, graduates without a personal email get one reminder.
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
 import handler from "./.open-next/worker.js";
 import { handleSync } from "./lib/jobs/store";
 import { syncAllDirectoryFiles } from "./lib/directory-files";
+import { syncGraduates, remindPersonalEmail } from "./lib/alumni/graduates";
+import { sendEmail, graduationEmail, personalEmailReminder } from "./lib/cf-auth/email";
+
+const SITE = "https://connect.quantt.ca";
 
 const worker = {
   fetch(request, env, ctx) {
@@ -36,7 +42,25 @@ const worker = {
         ),
       );
     }
+    // Members who graduated on auth.quantt.ca become alumni here (lib/alumni/graduates.ts).
+    if (env.FILES && env.AUTH) {
+      ctx.waitUntil(
+        syncGraduates(env.DB, env.FILES, env.AUTH, (to, name) => sendEmail(env, to, graduationEmail(name, `${SITE}/alumni/login`))).then(
+          (r) => console.log("graduates", JSON.stringify(r)),
+          (err) => console.error("graduates sync failed", err),
+        ),
+      );
+    }
     if (new Date(controller.scheduledTime).getUTCHours() !== 8) return;
+    // April, daily at 08:00 UTC: remind this spring's graduates to give auth a personal email (once each).
+    if (env.AUTH) {
+      ctx.waitUntil(
+        remindPersonalEmail(env.DB, env.AUTH, (to, name, year) => sendEmail(env, to, personalEmailReminder(name, year))).then(
+          (n) => n && console.log("graduation reminders sent", n),
+          (err) => console.error("graduation reminders failed", err),
+        ),
+      );
+    }
     const now = new Date().toISOString();
     const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
     ctx.waitUntil(

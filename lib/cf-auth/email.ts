@@ -84,3 +84,53 @@ export async function sendInviteEmail(
   });
   if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
 }
+
+/** Any one-off email through Resend. */
+export async function sendEmail(
+  env: EmailEnv,
+  to: string,
+  msg: { subject: string; text: string; html: string },
+  fetchImpl: typeof fetch = fetch,
+) {
+  if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+  const res = await fetchImpl("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM, to: [to], ...msg }),
+  });
+  if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
+}
+
+/** To a member who just graduated (lib/alumni/graduates.ts), at their personal email. */
+export function graduationEmail(name: string, loginUrl: string) {
+  const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
+  const subject = "Congratulations, you're now a QUANTT alum";
+  const lines = [
+    "Congratulations on graduating. You're now part of the QUANTT alumni network.",
+    "Your Connect profile, headshot and resume moved to an alumni account at this email address. You can post jobs and mentorship, and message current members.",
+    "In the QUANTT Discord, your member roles have been swapped for the Alumni role.",
+  ];
+  const text = [greeting, "", ...lines, "", `Sign in at ${loginUrl} with this email address. We'll email you a one-time code; there's no password.`].join("\n");
+  const html = `<p>${escapeHtml(greeting)}</p>${lines.map((l) => `<p>${escapeHtml(l)}</p>`).join("")}
+<p>Sign in at <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> with this email address. We'll email you a one-time code; there's no password.</p>`;
+  return { subject, text, html };
+}
+
+/** April reminder to a member graduating this spring who hasn't given a personal email on auth.quantt.ca. */
+export function personalEmailReminder(name: string, year: number) {
+  const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
+  const subject = "Add a personal email before you graduate";
+  const url = "https://auth.quantt.ca";
+  const text = [
+    greeting,
+    "",
+    `You're graduating in ${year}. On May 1 you become a QUANTT alum, and your Connect profile, headshot and resume move to an alumni account.`,
+    "Your Queen's email stops working after you graduate, so the alumni account needs a personal one.",
+    `Add it under "After you graduate" at ${url}.`,
+  ].join("\n");
+  const html = `<p>${escapeHtml(greeting)}</p>
+<p>You're graduating in ${year}. On May 1 you become a QUANTT alum, and your Connect profile, headshot and resume move to an alumni account.</p>
+<p>Your Queen's email stops working after you graduate, so the alumni account needs a personal one.</p>
+<p>Add it under "After you graduate" at <a href="${url}">${url}</a>.</p>`;
+  return { subject, text, html };
+}

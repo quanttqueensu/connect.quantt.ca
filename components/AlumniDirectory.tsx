@@ -31,7 +31,13 @@ export default function AlumniDirectory({
         <div className="grid gap-4 md:grid-cols-2">
           {alumni.map((a) => (
             <div key={a.id} className="min-w-0 border border-line p-5 [overflow-wrap:anywhere]">
-              <p className="font-heading text-lg font-bold text-ink">{a.full_name}</p>
+              <div className="flex items-center gap-3">
+                {a.has_photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/alumni/photo/${a.id}`} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" loading="lazy" />
+                ) : null}
+                <p className="font-heading text-lg font-bold text-ink">{a.full_name}</p>
+              </div>
               <p className="mt-1 text-sm text-muted">
                 {[[a.title, a.firm].filter(Boolean).join(", "), a.location, a.grad_year && `Class of ${a.grad_year}`, a.program]
                   .filter(Boolean)
