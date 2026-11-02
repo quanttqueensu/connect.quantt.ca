@@ -127,7 +127,6 @@ const MESSAGES = {
   tier_rank_taken: "Another active tier already uses that rank. Pick a different number.",
   tier_key_duplicate: "A tier with that name already exists. Choose a different name.",
   tier_price_invalid: "Price must be a number, or left blank.",
-  tier_embargo_invalid: "Applicant delay must be a whole number of hours between 0 and 8760.",
   tier_save_failed:
     "That tier could not be saved. It may have been removed, or your account may no longer have admin rights.",
   tier_deactivate_system: "That system tier cannot be deactivated.",

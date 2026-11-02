@@ -90,7 +90,7 @@ describe("firm access", () => {
     expect(access.value("post_in_app_job")).toBe(2);
   });
 
-  it("uses the assigned package's book delay when that package has the book", () => {
+  it("uses the grace package while grace is open", () => {
     const access = resolveCompanyAccess(
       {
         company: { id: "c", status: "active", sponsor_tier_id: "a", grace_tier_id: "g", tier_grace_until: "2099-01-01" },
@@ -104,7 +104,6 @@ describe("firm access", () => {
       NOW,
     );
     expect(access.effectiveTierId).toBe("g");
-    expect(access.applicantEmbargoHours).toBe(0);
   });
 });
 
@@ -140,7 +139,7 @@ describe("read scopes", () => {
     expect(where(db, "companies", "c", companiesScope(viewer(db, a.userId)))).toEqual([a.companyId]);
   });
 
-  it("a firm sees an applicant only after its applicant embargo", () => {
+  it("a firm sees an applicant as soon as they apply", () => {
     const db = freshDb();
     const member = addMember(db);
     const partner = addCompany(db, "partner");
@@ -150,11 +149,7 @@ describe("read scopes", () => {
     const fresh = addApplication(db, member, pPost, hoursAgo(1));
     const instant = addApplication(db, member, qPost, hoursAgo(1));
 
-    const partnerView = viewer(db, partner.userId);
-    expect(where(db, "applications", "ap", applicationsScope(partnerView))).toEqual([]);
-    expect(where(db, "profiles", "p", profilesScope(partnerView))).toEqual([partner.userId]);
-
-    run(db, `UPDATE applications SET created_at = ? WHERE id = ?`, hoursAgo(73), fresh);
+    // No delay at any tier: a just-submitted application is visible at once.
     expect(where(db, "applications", "ap", applicationsScope(viewer(db, partner.userId)))).toEqual([fresh]);
     expect(where(db, "profiles", "p", profilesScope(viewer(db, partner.userId)))).toContain(member);
 

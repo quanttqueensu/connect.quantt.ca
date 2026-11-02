@@ -110,11 +110,6 @@ export default async function SponsorshipPage({
           );
         })}
       </ul>
-      {access && access.applicant_embargo_hours > 0 && (
-        <p className="mt-8 text-sm text-copy">
-          New applications appear {access.applicant_embargo_hours} hours after they are submitted.
-        </p>
-      )}
 
       <section className="mt-12 border-t border-line pt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Firm profile</h2>
