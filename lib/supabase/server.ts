@@ -27,14 +27,16 @@ export function isSupabaseConfigured() {
 
 /** The signed-in profile for this request, read once. */
 export const currentSession = cache(async (): Promise<SessionProfile | null> => {
-  const env = await hubEnv();
+  // cookies() first: it marks the page as per-request, so `next build` never
+  // prerenders it and never starts a local Workers runtime to get bindings.
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const env = await hubEnv();
   return readSession(env.DB, token);
 });
 
 export const createClient = cache(async (): Promise<ServerClient> => {
-  const env = await hubEnv();
   const session = await currentSession();
+  const env = await hubEnv();
   const viewer = session ? await loadViewer(env.DB, session) : null;
   const client = createHubClient({
     db: env.DB,
