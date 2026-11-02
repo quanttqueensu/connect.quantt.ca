@@ -46,6 +46,7 @@ export const TABLES: Record<TableName, TableInfo> = {
     columns: [
       "id", "member_id", "kind", "post_id", "company_id", "company_name", "package_id", "package_name",
       "linkedin_url", "resume_path", "cover_letter", "cover_letter_path", "stage", "notes", "created_at", "updated_at",
+      "job_listing_id",
     ],
     key: ["id"],
     generatedId: true,
@@ -178,6 +179,7 @@ export const RELATIONS: Relation[] = [
   { from: "applications", column: "post_id", to: "posts", toColumn: "id" },
   { from: "applications", column: "company_id", to: "companies", toColumn: "id" },
   { from: "applications", column: "package_id", to: "hiring_packages", toColumn: "id" },
+  { from: "applications", column: "job_listing_id", to: "job_listings", toColumn: "id" },
   { from: "companies", column: "sponsor_tier_id", to: "sponsor_tiers", toColumn: "id" },
   { from: "companies", column: "grace_tier_id", to: "sponsor_tiers", toColumn: "id" },
   { from: "company_capability_overrides", column: "company_id", to: "companies", toColumn: "id" },

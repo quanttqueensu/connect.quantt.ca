@@ -94,15 +94,24 @@ into `job_listings` by link. A listing a source stops showing is closed; closed
 listings are deleted after 90 days. The fetching runs on GitHub, not the Worker,
 because Simplify's files are about 13 MB each, more than a free-plan Worker's CPU allows.
 
+One role is stored once: two links count as the same role when the firm and title match
+after `roleKey` (Quant/Quantitative, Researcher/Research, Intern/Internship, word order,
+firm suffixes) and the terms match or one source leaves the term out.
+
 Admins can hide a listing from the page (Hide, then "Hidden listings" to undo).
 
-Each run also posts the listings it saw for the first time to #opportunities in the
-QUANTT Discord, as one digest from QUANTT Bot (repo secret `DISCORD_BOT_TOKEN`; skipped
-without it).
+Members can "Mark applied" on a listing: it adds an off-platform entry to their
+Applications, linked by `applications.job_listing_id` (`db/migrations/0008`), and the
+Applied filter shows applied or not-applied listings. "Applied ✓" undoes it.
+
+Each run also posts the roles that weren't open before to #opportunities in the
+QUANTT Discord from QUANTT Bot, grouped by internship term, then new grad, with a 🇨🇦
+on Canadian roles (repo secret `DISCORD_BOT_TOKEN`; skipped without it). Run workflow
+with "Post all open roles" ticked posts the whole list the same way.
 
 Setup, once:
 
-1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`).
+1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, and 0008's `applications.job_listing_id`).
 2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
    `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
    same name (Settings → Secrets and variables → Actions).

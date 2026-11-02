@@ -2,7 +2,7 @@ import PageHeader from "@/components/PageHeader";
 import PostCard from "@/components/PostCard";
 import { PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { requireCurrentProfile } from "@/lib/auth";
-import { setListingHidden } from "@/lib/actions/opportunities";
+import { markListingApplied, setListingHidden, unmarkListingApplied } from "@/lib/actions/opportunities";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/time";
 import type { Post } from "@/lib/types";
@@ -31,6 +31,7 @@ type SearchParams = {
   location?: string;
   canada?: string;
   hidden?: string;
+  applied?: string;
   page?: string;
 };
 
@@ -47,7 +48,7 @@ function term(v: string | undefined) {
 
 function href(sp: SearchParams, page: number) {
   const qs = new URLSearchParams();
-  for (const k of ["view", "q", "role", "term", "location", "canada", "hidden"] as const) {
+  for (const k of ["view", "q", "role", "term", "location", "canada", "hidden", "applied"] as const) {
     if (sp[k]) qs.set(k, String(sp[k]));
   }
   if (page > 1) qs.set("page", String(page));
@@ -78,6 +79,16 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   // Sponsor jobs first whenever there are any; otherwise straight to every listing.
   const view = sp.view === "sponsors" || sp.view === "all" ? sp.view : sponsorJobs.length > 0 ? "sponsors" : "all";
 
+  // Listings this member marked applied (members only; admins and sponsors have no tracker).
+  const isMember = profile.role === "member";
+  const { data: appliedData } = isMember
+    ? await supabase.from("applications").select("job_listing_id").eq("member_id", profile.id)
+    : { data: [] };
+  const appliedIds = new Set(
+    ((appliedData ?? []) as { job_listing_id: string | null }[]).map((a) => a.job_listing_id).filter((x): x is string => Boolean(x)),
+  );
+  const appliedFilter = isMember && (sp.applied === "yes" || sp.applied === "no") ? sp.applied : "";
+
   const parsed = Number(sp.page);
   const page = Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : 1;
   const from = (page - 1) * PAGE_SIZE;
@@ -98,6 +109,8 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   const loc = term(sp.location);
   if (loc) query = query.ilike("locations", `%${loc}%`);
   if (sp.canada === "1") query = query.or(CANADA.map((c) => `locations.ilike.*${c}*`).join(","));
+  if (appliedFilter === "yes") query = query.in("id", [...appliedIds]);
+  if (appliedFilter === "no") query = query.notIn("id", [...appliedIds]);
 
   const { data, error } = await query;
   if (error) console.error("opportunities: query failed", error.message, error.code);
@@ -110,7 +123,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   for (let y = year; y <= year + 2; y++) {
     for (const s of ["Winter", "Spring", "Summer", "Fall"]) terms.push(`${s} ${y}`);
   }
-  const hasFilters = Boolean(sp.q || sp.role || sp.term || sp.location || sp.canada);
+  const hasFilters = Boolean(sp.q || sp.role || sp.term || sp.location || sp.canada || appliedFilter);
 
   return (
     <>
@@ -181,6 +194,13 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
           placeholder="Location"
           className="rounded px-3 py-2 text-sm"
         />
+        {isMember && (
+          <select name="applied" aria-label="Applied" defaultValue={appliedFilter} className="rounded px-3 py-2 text-sm">
+            <option value="">Applied or not</option>
+            <option value="no">Not applied</option>
+            <option value="yes">Applied</option>
+          </select>
+        )}
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-copy">
           <input type="checkbox" name="canada" value="1" defaultChecked={sp.canada === "1"} className="h-4 w-4" />
           Canada only
@@ -228,6 +248,22 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
                 <a href={l.url} target="_blank" rel="noopener noreferrer" className={buttonClass("primary")}>
                   Apply
                 </a>
+                {isMember &&
+                  (appliedIds.has(l.id) ? (
+                    <form action={unmarkListingApplied}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <button type="submit" className={buttonClass("quiet")} title="Remove from your applications">
+                        Applied ✓
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={markListingApplied}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <button type="submit" className={buttonClass("quiet")}>
+                        Mark applied
+                      </button>
+                    </form>
+                  ))}
                 {isAdmin && (
                   <form action={setListingHidden}>
                     <input type="hidden" name="id" value={l.id} />

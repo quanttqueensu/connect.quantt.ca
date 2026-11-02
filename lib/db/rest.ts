@@ -97,10 +97,10 @@ export function parseSelect(text: string): SelectNode {
 // filters
 // ---------------------------------------------------------------------------
 
-type Op = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "is" | "in" | "like" | "ilike";
+type Op = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "is" | "in" | "nin" | "like" | "ilike";
 type Filter = { path: string[]; column: string; op: Op; value: unknown } | { or: Filter[] };
 
-const OP_SQL: Record<Exclude<Op, "is" | "in">, string> = {
+const OP_SQL: Record<Exclude<Op, "is" | "in" | "nin">, string> = {
   eq: "=",
   neq: "<>",
   gt: ">",
@@ -133,10 +133,16 @@ function filterSql(table: TableName, alias: string, f: Filter): Sql {
       if (f.value === null) return { sql: `${c} IS NULL`, params: [] };
       if (f.value === true || f.value === false) return { sql: `${c} IS ?`, params: [v] };
       throw new Error(`Unsupported is(${String(f.value)})`);
-    case "in": {
+    case "in":
+    case "nin": {
       const list = (f.value as unknown[]).map((x) => encodeValue(table, f.column, x));
-      if (list.length === 0) return { sql: "0", params: [] };
-      return { sql: `${c} IN (${list.map(() => "?").join(", ")})`, params: list };
+      const not = f.op === "nin";
+      if (list.length === 0) return { sql: not ? "1" : "0", params: [] };
+      // A long list goes in as one JSON parameter: D1 allows 100 bound values per statement.
+      if (list.length > 20) {
+        return { sql: `${c} ${not ? "NOT IN" : "IN"} (SELECT value FROM json_each(?))`, params: [JSON.stringify(list)] };
+      }
+      return { sql: `${c} ${not ? "NOT IN" : "IN"} (${list.map(() => "?").join(", ")})`, params: list };
     }
     case "like":
       // Postgres LIKE is case-sensitive; SQLite's is not for ASCII. GLOB would be, but uses * not %.
@@ -279,6 +285,8 @@ export class QueryBuilder<T = unknown> implements PromiseLike<Result<T>> {
   lte(column: string, value: unknown) { return this.push(column, "lte", value); }
   is(column: string, value: null | boolean) { return this.push(column, "is", value); }
   in(column: string, values: readonly unknown[]) { return this.push(column, "in", [...values]); }
+  /** Not in the list (NOT IN; a NULL column never matches, as in Postgres). */
+  notIn(column: string, values: readonly unknown[]) { return this.push(column, "nin", [...values]); }
   like(column: string, pattern: string) { return this.push(column, "like", pattern); }
   ilike(column: string, pattern: string) { return this.push(column, "ilike", pattern); }
 

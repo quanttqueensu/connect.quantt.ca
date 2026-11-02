@@ -9,9 +9,12 @@
 // Cloudflare's bot challenge lets through, but not from GitHub's runners.
 //
 // The parsing lives in lib/jobs/sources.ts so the tests cover it.
-import { dedupe, dropPastTerms, parseNwft, parseSimplify, RoleIndex, SOURCES } from "../lib/jobs/sources.ts";
+import { dedupe, dropPastTerms, inCanada, parseNwft, parseSimplify, RoleIndex, SOURCES } from "../lib/jobs/sources.ts";
 
 const dryRun = process.argv.includes("--dry-run");
+// Discord digest layout (used at the end; declared here so it exists when the digest runs).
+const TERM_ORDER = { Winter: 0, Spring: 1, Summer: 2, Fall: 3 };
+const PER_SECTION = 15;
 
 async function get(url) {
   for (let attempt = 1; ; attempt++) {
@@ -99,7 +102,8 @@ const added = postAll
       String(b.posted_at ?? "").localeCompare(String(a.posted_at ?? "")),
     )
   : (JSON.parse(body).added ?? []);
-const discordToken = process.env.DISCORD_BOT_TOKEN;
+// Tolerates a pasted "Bot " prefix, quotes or a trailing newline in the secret.
+const discordToken = (process.env.DISCORD_BOT_TOKEN ?? "").trim().replace(/^["']|["']$/g, "").replace(/^Bot\s+/i, "");
 const channel = process.env.DISCORD_OPPORTUNITIES_CHANNEL;
 if (added.length && discordToken && channel) {
   try {
@@ -112,29 +116,57 @@ if (added.length && discordToken && channel) {
   console.log(`discord: ${added.length ? "no DISCORD_BOT_TOKEN, not posting" : "nothing new"}`);
 }
 
-function line(l) {
-  const where = (l.locations ?? []).slice(0, 2).join("; ");
-  const bits = [l.role_type === "full_time" ? "New grad" : l.term || "Internship", where].filter(Boolean).join(" · ");
-  const title = l.title.replace(/[[\]]/g, "");
-  return `• **${l.company}**: [${title}](<${l.url}>)${bits ? ` (${bits})` : ""}`;
+/** Sort key for a term: "Summer 2027" before "Fall 2027" before "Winter 2028". */
+function termRank(term) {
+  const m = /^(\w+) (\d{4})$/.exec(term ?? "");
+  return m ? Number(m[2]) * 4 + (TERM_ORDER[m[1]] ?? 0) : 1e9;
 }
 
-/** At most 40 lines, split into messages under Discord's 2000-character limit. */
+function line(l) {
+  const locs = l.locations ?? [];
+  const where = locs.slice(0, 2).join("; ") + (locs.length > 2 ? ` +${locs.length - 2}` : "");
+  const title = l.title.replace(/[[\]]/g, "");
+  return `• **${l.company}**: [${title}](<${l.url}>)${where ? ` · ${where}` : ""}${inCanada(locs) ? " 🇨🇦" : ""}`;
+}
+
+/**
+ * One section per internship term (soonest first), then term not listed, then
+ * new grad. Each section shows at most PER_SECTION roles; the rest are on Connect.
+ */
+function sections(list) {
+  const groups = new Map();
+  for (const l of list) {
+    const name = l.role_type === "full_time" ? "New grad" : l.term ? `Internships · ${l.term}` : "Internships · term not listed";
+    // Terms in order, then "term not listed", then new grad.
+    const rank = l.role_type === "full_time" ? 2e9 : l.term ? termRank(l.term) : 1e9;
+    if (!groups.has(name)) groups.set(name, { name, rank, items: [] });
+    groups.get(name).items.push(l);
+  }
+  return [...groups.values()].sort((a, b) => a.rank - b.rank);
+}
+
+/** Split into Discord messages under the 2000-character limit, a section header never left alone at the end. */
 async function postDigest(list, token, channelId, kind) {
-  const shown = list.slice(0, 40);
-  const head = `**${list.length} ${kind} quant role${list.length === 1 ? "" : "s"}** · all open roles: <https://connect.quantt.ca/opportunities>`;
-  const tail = list.length > shown.length ? `…and ${list.length - shown.length} more on Connect.` : "";
+  const head = `## ${list.length} ${kind} quant role${list.length === 1 ? "" : "s"}\nSearch, filter and mark applied: <https://connect.quantt.ca/opportunities>`;
+  const blocks = [head];
+  for (const g of sections(list)) {
+    const shown = g.items.slice(0, PER_SECTION).map(line);
+    const more = g.items.length > shown.length ? [`…and ${g.items.length - shown.length} more on Connect`] : [];
+    blocks.push([`### ${g.name} (${g.items.length})`, ...shown, ...more].join("\n"));
+  }
   const messages = [];
-  let cur = head;
-  for (const l of [...shown.map(line), tail].filter(Boolean)) {
-    if (cur.length + l.length + 1 > 1900) {
-      messages.push(cur);
-      cur = l;
-    } else {
-      cur += `\n${l}`;
+  let cur = "";
+  for (const block of blocks) {
+    for (const piece of block.length > 1900 ? block.split("\n") : [block]) {
+      if (cur && cur.length + piece.length + 2 > 1900) {
+        messages.push(cur);
+        cur = piece;
+      } else {
+        cur = cur ? `${cur}\n${piece.startsWith("###") || piece.startsWith("## ") ? "\n" : ""}${piece}` : piece;
+      }
     }
   }
-  messages.push(cur);
+  if (cur) messages.push(cur);
   for (const content of messages) {
     const r = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
