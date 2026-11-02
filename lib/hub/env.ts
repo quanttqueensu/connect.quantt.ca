@@ -11,6 +11,11 @@ export type HubEnv = {
   RESEND_API_KEY?: string;
   LOGIN_EMAIL_FROM?: string;
   FILES_SIGNING_KEY?: string;
+  // Alumni in the QUANTT Discord (lib/alumni/discord.ts).
+  DISCORD_CLIENT_ID?: string;
+  DISCORD_CLIENT_SECRET?: string;
+  DISCORD_BOT_TOKEN?: string;
+  DISCORD_GUILD_ID?: string;
 };
 
 function check(env: unknown): HubEnv {

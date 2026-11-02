@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/alumni/members", label: "Members" },
   { href: "/alumni/directory", label: "Alumni" },
   { href: "/alumni/messages", label: "Messages" },
+  { href: "/alumni/discord", label: "Discord" },
   { href: "/alumni/profile", label: "Profile" },
 ];
 
