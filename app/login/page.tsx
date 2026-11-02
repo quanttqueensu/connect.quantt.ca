@@ -18,29 +18,29 @@ export default async function LoginPage({
   const codeStep = step === "code" && Boolean(pendingEmail);
   return (
     <PublicShell>
-      <div className="grid w-full overflow-hidden rounded border border-line bg-white lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="flex flex-col bg-navy p-6 sm:p-8 lg:p-12">
+      <div className="mx-auto grid w-full max-w-4xl overflow-hidden rounded border border-line bg-white md:grid-cols-[0.85fr_1.15fr]">
+        <div className="flex flex-col bg-navy p-6 sm:p-8 md:justify-center">
           <Image
             src="/images/logos/quantt-icon.png"
             alt=""
             width={56}
             height={56}
-            className="hidden h-12 w-12 lg:block"
+            className="hidden h-10 w-10 md:block"
             priority
           />
-          <div className="lg:mt-40">
-            <h1 className="font-heading text-3xl font-semibold tracking-[-0.035em] text-white sm:text-[40px]">
+          <div className="md:mt-8">
+            <h1 className="font-heading text-3xl font-semibold tracking-[-0.035em] text-white sm:text-[34px]">
               Connect{" "}
               <span className="mt-2 block text-base font-normal tracking-normal text-white/80">by QUANTT</span>
             </h1>
-            <p className="mt-4 max-w-sm text-base leading-7 text-white/80">
+            <p className="mt-3 max-w-xs text-sm leading-6 text-white/80">
               Invite-only access for members and approved companies.
             </p>
           </div>
         </div>
         <LoginPanel error={errorText} initial={codeStep || error?.startsWith("login_") ? "sponsor" : "member"}>
           {codeStep ? (
-            <form action={verifyCode} className="mt-6 w-full space-y-5">
+            <form action={verifyCode} className="mt-5 w-full space-y-4">
               <p className="text-sm text-copy">
                 If <span className="font-medium text-ink">{pendingEmail}</span> has an account, a
                 six-digit code is on its way. It works for 10 minutes.
@@ -64,7 +64,7 @@ export default async function LoginPage({
               </GhostButton>
             </form>
           ) : (
-            <form action={requestCode} className="mt-6 w-full space-y-5">
+            <form action={requestCode} className="mt-5 w-full space-y-4">
               <Field label="Email">
                 <TextInput name="email" type="email" required autoComplete="email" />
               </Field>
@@ -73,7 +73,7 @@ export default async function LoginPage({
               </PrimaryButton>
             </form>
           )}
-          <p className="mt-8 border-t border-line pt-6 text-sm text-copy">
+          <p className="mt-6 border-t border-line pt-5 text-sm text-copy">
             Hiring for your firm?{" "}
             <Link href="/join" className="font-medium text-primary hover:underline">
               Request Connect access
