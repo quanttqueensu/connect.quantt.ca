@@ -15,6 +15,7 @@ import {
   createAlumniPost,
   decideRequest,
   getAlumniPrefs,
+  hasChosenAlumniPrefs,
   getThread,
   inviteAlumnus,
   listAlumniPosts,
@@ -256,12 +257,14 @@ describe("alumni message requests", () => {
     const send = async (e: Email[]) => void sent.push(...e);
 
     expect(await getAlumniPrefs(db, alum)).toEqual({ requests: true, messages: false });
+    expect(await hasChosenAlumniPrefs(db, alum)).toBe(false);
     const a = (await requestConversation(db, { kind: "member", id: ann }, alum, "Hi", NOW))!;
     await notifyAlumniRequest(db, send, a.id);
     expect(sent.map((e) => [e.to, e.subject])).toEqual([["alex@firm.com", "New message request on QUANTT Connect"]]);
 
     await saveAlumniPrefs(db, { kind: "alumni", id: alum }, { requests: false, messages: true }, NOW);
     expect(await getAlumniPrefs(db, alum)).toEqual({ requests: false, messages: true });
+    expect(await hasChosenAlumniPrefs(db, alum)).toBe(true);
     const b = (await requestConversation(db, { kind: "member", id: bob }, alum, "Hi", NOW))!;
     await notifyAlumniRequest(db, send, b.id);
     expect(sent).toHaveLength(1);

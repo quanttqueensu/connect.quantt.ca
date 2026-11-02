@@ -230,6 +230,10 @@ export async function saveAlumniNotifications(formData: FormData) {
     requests: formData.get("requests") === "on",
     messages: formData.get("messages") === "on",
   });
+  if (formData.get("setup") === "1") {
+    revalidatePath("/alumni", "layout");
+    redirect("/alumni");
+  }
   revalidatePath("/alumni/profile");
   redirect("/alumni/profile?notifications=saved#notifications");
 }

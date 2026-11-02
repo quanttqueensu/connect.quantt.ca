@@ -372,6 +372,12 @@ export async function getAlumniPrefs(db: D1Database, alumniId: string): Promise<
   return { requests: (row.requests ?? 1) === 1, messages: (row.messages ?? row.email_messages) === 1 };
 }
 
+/** True once the alum has saved their email settings (the alumni area asks once, at /alumni/setup). */
+export async function hasChosenAlumniPrefs(db: D1Database, alumniId: string) {
+  await ensureAlumniTables(db);
+  return Boolean(await db.prepare(`SELECT 1 AS x FROM alumni_notification_prefs WHERE alumni_id = ?`).bind(alumniId).first());
+}
+
 export async function saveAlumniPrefs(db: D1Database, viewer: AlumniViewer, prefs: AlumniNotificationPrefs, now = new Date()) {
   if (viewer.kind !== "alumni") throw new Error("Alumni only");
   await ensureAlumniTables(db);

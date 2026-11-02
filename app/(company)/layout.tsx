@@ -7,6 +7,8 @@ import { graceIsOpen, loadMyCompanyTier } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/time";
 import { redirect } from "next/navigation";
+import { hubEnv } from "@/lib/hub/env";
+import { hasChosenPrefs } from "@/lib/notifications";
 import Link from "next/link";
 
 export default async function CompanyLayout({ children }: { children: ReactNode }) {
@@ -15,6 +17,8 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
   const supabase = await createClient();
   const cu = await getCompanyContext();
   if (!cu && profile.role !== "company_user") redirect(profile.is_admin ? "/admin/sponsor-mode" : "/feed");
+  // Sponsors pick their email notifications once before using Connect (not admins previewing).
+  if (!cu?.preview && !(await hasChosenPrefs((await hubEnv()).DB, profile.id))) redirect("/setup/notifications");
 
   let unread = 0;
   let graceUntil: string | null = null;

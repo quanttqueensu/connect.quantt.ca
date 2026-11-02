@@ -75,6 +75,16 @@ export async function getPrefs(db: D1Database, profileId: string): Promise<Notif
   return toPrefs(row);
 }
 
+/**
+ * True once the person has saved their notification settings. Everyone picks
+ * them once before using Connect (Ethan, 2026-11-02): the member and sponsor
+ * layouts send anyone without a saved row to /setup/notifications.
+ */
+export async function hasChosenPrefs(db: D1Database, profileId: string) {
+  await ensureNotificationTables(db);
+  return Boolean(await db.prepare(`SELECT 1 AS x FROM notification_prefs WHERE profile_id = ?`).bind(profileId).first());
+}
+
 export async function savePrefs(db: D1Database, profileId: string, prefs: NotificationPrefs, now = new Date()) {
   await ensureNotificationTables(db);
   const vals = NOTIFICATION_KINDS.map((k) => (prefs[k] ? 1 : 0));

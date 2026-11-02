@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 
+import AlumniNotificationSettings from "@/components/AlumniNotificationSettings";
 import { Field, PrimaryButton, TextArea, TextInput } from "@/components/Form";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
-import { saveAlumniNotifications, saveAlumniProfile } from "@/lib/actions/alumni";
+import { saveAlumniProfile } from "@/lib/actions/alumni";
 import { requireAlumnus } from "@/lib/alumni/current";
 import { getAlumniPrefs, getAlumnus } from "@/lib/alumni/data";
 import { hubEnv } from "@/lib/hub/env";
@@ -55,20 +56,9 @@ export default async function AlumniProfilePage({
       <section id="notifications" className="mt-10 max-w-xl scroll-mt-40 border-t border-line pt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Email notifications</h2>
         <p className="mt-1 text-sm text-copy">Emails link back to Connect and never include message text.</p>
-        <form action={saveAlumniNotifications} className="mt-4 space-y-3">
-          <label className="flex items-center gap-3 text-sm text-ink">
-            <input type="checkbox" name="requests" defaultChecked={prefs.requests} className="h-4 w-4 accent-primary" />
-            Message requests from members
-          </label>
-          <label className="flex items-center gap-3 text-sm text-ink">
-            <input type="checkbox" name="messages" defaultChecked={prefs.messages} className="h-4 w-4 accent-primary" />
-            New messages in my conversations
-          </label>
-          <div className="flex items-center gap-3 pt-2">
-            <PrimaryButton type="submit">Save notifications</PrimaryButton>
-            {sp.notifications === "saved" && <span className="text-sm text-copy">Saved.</span>}
-          </div>
-        </form>
+        <div className="mt-4">
+          <AlumniNotificationSettings prefs={prefs} saved={sp.notifications === "saved"} />
+        </div>
       </section>
     </>
   );

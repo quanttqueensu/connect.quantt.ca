@@ -7,6 +7,7 @@ import {
   notifyNewApplication,
   notifyNewJob,
   notifyNewMessage,
+  hasChosenPrefs,
   savePrefs,
   type Email,
 } from "@/lib/notifications";
@@ -97,5 +98,16 @@ describe("application and job emails", () => {
     await savePrefs(db, member, { messages: true, applications: true, application_updates: true, new_jobs: true });
     await notifyNewJob(db, send, post);
     expect(sent.map((e) => e.to)).toEqual(["ann@queensu.ca"]);
+  });
+});
+
+describe("notification setup step", () => {
+  it("counts as chosen only once the person saves their settings, even all off", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    const member = addMember(raw);
+    expect(await hasChosenPrefs(db, member)).toBe(false);
+    await savePrefs(db, member, { messages: false, applications: false, application_updates: false, new_jobs: false });
+    expect(await hasChosenPrefs(db, member)).toBe(true);
   });
 });

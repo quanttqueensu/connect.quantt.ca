@@ -24,6 +24,10 @@ export async function saveNotificationSettings(formData: FormData) {
     NOTIFICATION_KINDS.map((k) => [k, shown.has(k) ? formData.get(k) === "on" : current[k]]),
   ) as Record<NotificationKind, boolean>;
   await savePrefs(DB, profile.id, next);
+  if (formData.get("setup") === "1") {
+    revalidatePath("/", "layout");
+    redirect(profile.role === "company_user" ? "/company" : "/feed");
+  }
   const back = profile.role === "company_user" ? "/company/sponsorship" : "/profile";
   revalidatePath(back);
   redirect(`${back}?notifications=saved#notifications`);
