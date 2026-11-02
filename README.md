@@ -89,6 +89,10 @@ because Simplify's files are about 13 MB each, more than a free-plan Worker's CP
 
 Admins can hide a listing from the page (Hide, then "Hidden listings" to undo).
 
+Each run also posts the listings it saw for the first time to #opportunities in the
+QUANTT Discord, as one digest from QUANTT Bot (repo secret `DISCORD_BOT_TOKEN`; skipped
+without it).
+
 Setup, once:
 
 1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`).

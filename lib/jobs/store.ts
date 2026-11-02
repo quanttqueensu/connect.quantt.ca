@@ -10,12 +10,15 @@
  * Relative imports only: worker.js bundles this through wrangler, outside Next.
  */
 import type { D1Database } from "../db/d1";
-import { normalizeUrl, type Listing, type ListingSource } from "./sources";
+import { normalizeUrl, roleKey, type Listing, type ListingSource } from "./sources";
 
 /** What the Action sends. A source is null when its fetch failed. */
 export type SyncPayload = { sources: Partial<Record<ListingSource, Listing[] | null>> };
 
-export type SyncResult = { stored: number; closed: Record<string, number>; skipped: string[] };
+export type NewListing = Pick<Listing, "company" | "title" | "url" | "locations" | "role_type" | "term">;
+
+/** `added` is what this run saw for the first time, for the Discord post (newest first). */
+export type SyncResult = { stored: number; closed: Record<string, number>; skipped: string[]; added: NewListing[] };
 
 const SOURCES: ListingSource[] = ["simplify", "nwft"];
 /** Far more than the ~400 quant listings today; a cap so a bad payload can't flood the table. */
@@ -71,7 +74,13 @@ SELECT lower(hex(randomblob(16))),
        coalesce(json_extract(value, '$.posted_at'), ?1),
        ?1, ?1, 1
   FROM json_each(?2)
- WHERE true
+ WHERE NOT EXISTS (
+   SELECT 1 FROM job_listings j
+    WHERE j.active = 1
+      AND j.url <> json_extract(value, '$.url')
+      AND lower(j.company) = lower(json_extract(value, '$.company'))
+      AND lower(j.title) = lower(json_extract(value, '$.title'))
+      AND coalesce(j.term, '') = coalesce(json_extract(value, '$.term'), ''))
 ON CONFLICT (url) DO UPDATE SET
   company = excluded.company,
   title = excluded.title,
@@ -99,8 +108,9 @@ export async function storeListings(db: D1Database, payload: SyncPayload, now = 
     const clean: Listing[] = [];
     for (const raw of list.slice(0, MAX_PER_SOURCE)) {
       const l = sanitize(raw, source);
-      if (l && !seen.has(l.url)) {
+      if (l && !seen.has(l.url) && !seen.has(roleKey(l))) {
         seen.add(l.url);
+        seen.add(roleKey(l));
         clean.push(l);
       }
     }
@@ -131,7 +141,16 @@ export async function storeListings(db: D1Database, payload: SyncPayload, now = 
   fresh.forEach((source, i) => {
     closed[source] = results[firstClose + i]?.meta.changes ?? 0;
   });
-  return { stored, closed, skipped };
+  const { results: rows } = await db
+    .prepare(
+      `SELECT company, title, url, locations, role_type, term FROM job_listings
+        WHERE first_seen_at = ? AND active = 1 AND hidden = 0
+        ORDER BY posted_at DESC LIMIT 200`,
+    )
+    .bind(at)
+    .all<{ company: string; title: string; url: string; locations: string; role_type: Listing["role_type"]; term: string | null }>();
+  const added = rows.map((r) => ({ ...r, locations: JSON.parse(r.locations || "[]") as string[] }));
+  return { stored, closed, skipped, added };
 }
 
 /** Constant-time compare of the Action's bearer token with the Worker secret. */

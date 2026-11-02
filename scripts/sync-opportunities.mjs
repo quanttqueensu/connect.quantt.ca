@@ -9,7 +9,7 @@
 // Cloudflare's bot challenge lets through, but not from GitHub's runners.
 //
 // The parsing lives in lib/jobs/sources.ts so the tests cover it.
-import { dedupe, dropPastTerms, parseNwft, parseSimplify, SOURCES } from "../lib/jobs/sources.ts";
+import { dedupe, dropPastTerms, parseNwft, parseSimplify, roleKey, SOURCES } from "../lib/jobs/sources.ts";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -44,12 +44,13 @@ const simplify = await source("simplify", async () => {
 });
 const nwft = await source("nwft", async () => dropPastTerms(parseNwft(await get(SOURCES.nwftInternships))));
 
-// A link on both lists is stored once, under Simplify (it has the posting date).
-const simplifyUrls = new Set((simplify ?? []).map((l) => l.url));
+// A role on both lists is stored once, under Simplify (it has the posting date):
+// same link, or same firm + title + term.
+const onSimplify = new Set((simplify ?? []).flatMap((l) => [l.url, roleKey(l)]));
 const payload = {
   sources: {
     simplify,
-    nwft: nwft && nwft.filter((l) => !simplifyUrls.has(l.url)),
+    nwft: nwft && nwft.filter((l) => !onSimplify.has(l.url) && !onSimplify.has(roleKey(l))),
   },
 };
 
@@ -85,5 +86,54 @@ if (/<html/i.test(body) && /challenge|Just a moment/i.test(body)) {
   );
   process.exit(1);
 }
-console.log(`connect: ${res.status} ${body.slice(0, 500)}`);
+console.log(`connect: ${res.status} ${body.slice(0, 300)}`);
 if (!res.ok) process.exit(1);
+
+// New listings go to the QUANTT Discord's #opportunities as one short digest.
+// Skipped when DISCORD_BOT_TOKEN isn't set; a Discord failure never fails the sync.
+const added = JSON.parse(body).added ?? [];
+const discordToken = process.env.DISCORD_BOT_TOKEN;
+const channel = process.env.DISCORD_OPPORTUNITIES_CHANNEL;
+if (added.length && discordToken && channel) {
+  try {
+    await postDigest(added, discordToken, channel);
+    console.log(`discord: posted ${added.length} new listings`);
+  } catch (err) {
+    console.error(`discord: post failed (${err.message})`);
+  }
+} else {
+  console.log(`discord: ${added.length ? "no DISCORD_BOT_TOKEN, not posting" : "nothing new"}`);
+}
+
+function line(l) {
+  const where = (l.locations ?? []).slice(0, 2).join("; ");
+  const bits = [l.role_type === "full_time" ? "New grad" : l.term || "Internship", where].filter(Boolean).join(" · ");
+  const title = l.title.replace(/[[\]]/g, "");
+  return `• **${l.company}**: [${title}](<${l.url}>)${bits ? ` (${bits})` : ""}`;
+}
+
+/** At most 40 lines, split into messages under Discord's 2000-character limit. */
+async function postDigest(list, token, channelId) {
+  const shown = list.slice(0, 40);
+  const head = `**${list.length} new quant role${list.length === 1 ? "" : "s"}** · all open roles: <https://connect.quantt.ca/opportunities>`;
+  const tail = list.length > shown.length ? `…and ${list.length - shown.length} more on Connect.` : "";
+  const messages = [];
+  let cur = head;
+  for (const l of [...shown.map(line), tail].filter(Boolean)) {
+    if (cur.length + l.length + 1 > 1900) {
+      messages.push(cur);
+      cur = l;
+    } else {
+      cur += `\n${l}`;
+    }
+  }
+  messages.push(cur);
+  for (const content of messages) {
+    const r = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ content, allowed_mentions: { parse: [] }, flags: 4 }),
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  }
+}

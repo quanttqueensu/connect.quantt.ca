@@ -1,9 +1,11 @@
 import PageHeader from "@/components/PageHeader";
+import PostCard from "@/components/PostCard";
 import { PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { requireCurrentProfile } from "@/lib/auth";
 import { setListingHidden } from "@/lib/actions/opportunities";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/time";
+import type { Post } from "@/lib/types";
 import Link from "next/link";
 
 const PAGE_SIZE = 30;
@@ -22,6 +24,7 @@ type Listing = {
 };
 
 type SearchParams = {
+  view?: string;
   q?: string;
   role?: string;
   term?: string;
@@ -44,7 +47,7 @@ function term(v: string | undefined) {
 
 function href(sp: SearchParams, page: number) {
   const qs = new URLSearchParams();
-  for (const k of ["q", "role", "term", "location", "canada", "hidden"] as const) {
+  for (const k of ["view", "q", "role", "term", "location", "canada", "hidden"] as const) {
     if (sp[k]) qs.set(k, String(sp[k]));
   }
   if (page > 1) qs.set("page", String(page));
@@ -58,6 +61,22 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   const supabase = await createClient();
   const isAdmin = Boolean(profile.is_admin);
   const showHidden = isAdmin && sp.hidden === "1";
+
+  // Jobs QUANTT's sponsors posted on Connect (rank 0 is "Not sponsoring"). Kept
+  // apart from the public listings below: members apply to these through the hub.
+  const { data: sponsorData, error: sponsorError } = await supabase
+    .from("posts")
+    .select("*, companies!inner(*, sponsor_tiers!sponsor_tier_id!inner(id, name, rank, key))")
+    .eq("published", true)
+    .eq("status", "open")
+    .in("kind", ["job", "job_link"])
+    .gt("companies.sponsor_tiers!sponsor_tier_id.rank", 0)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (sponsorError) console.error("opportunities: sponsor jobs failed", sponsorError.message, sponsorError.code);
+  const sponsorJobs = (sponsorData ?? []) as unknown as Post[];
+  // Sponsor jobs first whenever there are any; otherwise straight to every listing.
+  const view = sp.view === "sponsors" || sp.view === "all" ? sp.view : sponsorJobs.length > 0 ? "sponsors" : "all";
 
   const parsed = Number(sp.page);
   const page = Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : 1;
@@ -96,10 +115,45 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   return (
     <>
       <PageHeader kicker="Connect" title="Opportunities">
-        Open quant internships and new-grad roles, refreshed daily from public job lists.
+        Jobs from QUANTT sponsors, plus open quant internships and new-grad roles from public lists, refreshed daily.
       </PageHeader>
 
+      <nav aria-label="Opportunity type" className="mb-6 flex gap-2">
+        <Link
+          href="/opportunities?view=sponsors"
+          aria-current={view === "sponsors" ? "page" : undefined}
+          className={buttonClass(view === "sponsors" ? "primary" : "quiet")}
+        >
+          Sponsor jobs ({sponsorJobs.length})
+        </Link>
+        <Link
+          href="/opportunities?view=all"
+          aria-current={view === "all" ? "page" : undefined}
+          className={buttonClass(view === "all" ? "primary" : "quiet")}
+        >
+          All quant listings
+        </Link>
+      </nav>
+
+      {view === "sponsors" ? (
+        <div>
+          {sponsorError ? (
+            <p className="text-sm text-copy">Sponsor jobs could not be loaded. Try again.</p>
+          ) : sponsorJobs.length === 0 ? (
+            <p className="text-sm text-copy">
+              No sponsor jobs open right now.{" "}
+              <Link href="/opportunities?view=all" className="text-primary">
+                See all quant listings
+              </Link>
+            </p>
+          ) : (
+            sponsorJobs.map((post) => <PostCard key={post.id} post={post} />)
+          )}
+        </div>
+      ) : (
+      <>
       <form className="mb-4 grid items-end gap-3 rounded border border-line bg-surface p-5 md:grid-cols-4">
+        <input type="hidden" name="view" value="all" />
         <TextInput
           name="q"
           aria-label="Search role or firm"
@@ -139,7 +193,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         )}
         <PrimaryButton type="submit">Apply filters</PrimaryButton>
         {(hasFilters || showHidden) && (
-          <Link href="/opportunities" className={buttonClass("ghost")}>
+          <Link href="/opportunities?view=all" className={buttonClass("ghost")}>
             Clear filters
           </Link>
         )}
@@ -209,8 +263,11 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         </nav>
       )}
 
+      </>
+      )}
+
       <p className="mt-10 text-xs text-muted">
-        Sources:{" "}
+        Listings from{" "}
         <a href="https://github.com/SimplifyJobs/Summer2027-Internships" target="_blank" rel="noopener noreferrer" className="text-primary">
           Simplify
         </a>{" "}

@@ -195,10 +195,36 @@ export function parseNwft(markdown: string): Listing[] {
   return out;
 }
 
-/** Keeps the first listing for each link (Simplify comes first, it has dates). */
+/** Same firm, same title, same term: one role, even when two sources link to different pages. */
+export function roleKey(l: Pick<Listing, "company" | "title" | "term">): string {
+  const norm = (s: string | null) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return `${norm(l.company)}|${norm(l.title)}|${norm(l.term)}`;
+}
+
+/**
+ * Keeps the first listing for each link and each role (Simplify comes first,
+ * it has dates). A role posted once per city keeps every city.
+ */
 export function dedupe(listings: Listing[]): Listing[] {
-  const seen = new Set<string>();
-  return listings.filter((l) => (seen.has(l.url) ? false : (seen.add(l.url), true)));
+  const byKey = new Map<string, Listing>();
+  const urls = new Set<string>();
+  const out: Listing[] = [];
+  for (const l of listings) {
+    const key = roleKey(l);
+    const kept = byKey.get(key);
+    if (kept) {
+      for (const loc of l.locations) {
+        if (!kept.locations.includes(loc) && kept.locations.length < 12) kept.locations.push(loc);
+      }
+      continue;
+    }
+    if (urls.has(l.url)) continue;
+    const copy = { ...l, locations: [...l.locations] };
+    byKey.set(key, copy);
+    urls.add(l.url);
+    out.push(copy);
+  }
+  return out;
 }
 
 /** True when a listing names a place in Canada, for the "Canada" filter. */
