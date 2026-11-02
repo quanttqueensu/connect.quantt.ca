@@ -8,7 +8,7 @@ import { createHubClient } from "@/lib/db/client";
 import { dedupe, dropPastTerms, inCanada, normalizeUrl, parseNwft, parseSimplify, type Listing } from "@/lib/jobs/sources";
 import { handleSync, storeListings } from "@/lib/jobs/store";
 
-import { addCompany, addMember, all, asD1, freshDb, viewer } from "./db/sqlite";
+import { addCompany, addMember, addPost, all, asD1, freshDb, viewer } from "./db/sqlite";
 
 const simplifyRow = (over: Record<string, unknown> = {}) => ({
   source: "Simplify",
@@ -87,6 +87,10 @@ describe("sources", () => {
       null,
     ]);
     expect(dedupe([base, { ...base, title: "dup" }])).toHaveLength(1);
+    const merged = dedupe([base, { ...base, url: "https://other.example/x", company: "AKUNA capital", locations: ["NYC"] }]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].locations).toEqual(["Chicago", "Sydney", "NYC"]);
+    expect(dedupe([base, { ...base, url: "https://other.example/x", term: "Summer 2028" }])).toHaveLength(2);
     expect(inCanada(["Toronto, ON, Canada"])).toBe(true);
     expect(inCanada(["London, UK"])).toBe(false);
     expect(normalizeUrl("ftp://x")).toBeNull();
@@ -117,19 +121,25 @@ describe("storeListings", () => {
       {
         sources: {
           simplify: [listing(), listing({ url: "https://example.com/b", title: "QT Intern" })],
-          nwft: [listing({ source: "nwft", url: "https://example.com/n", posted_at: null })],
+          nwft: [listing({ source: "nwft", url: "https://example.com/n", title: "QR Intern", posted_at: null })],
         },
       },
       day1,
     );
     expect(r1).toMatchObject({ stored: 3, skipped: [] });
+    expect(r1.added.map((l) => l.url).sort()).toEqual([
+      "https://example.com/a",
+      "https://example.com/b",
+      "https://example.com/n",
+    ]);
+    expect(r1.added[0].locations).toEqual(["Chicago, IL"]);
     const n = all<{ posted_at: string; locations: string }>(raw, "SELECT posted_at, locations FROM job_listings WHERE source = 'nwft'")[0];
     expect(n.posted_at).toBe(day1.toISOString());
     expect(JSON.parse(n.locations)).toEqual(["Chicago, IL"]);
 
     // Day 2: Simplify drops /b and renames /a; Northwestern's fetch failed.
     const r2 = await storeListings(db, { sources: { simplify: [listing({ title: "Renamed" })], nwft: null } }, day2);
-    expect(r2).toMatchObject({ stored: 1, closed: { simplify: 1 }, skipped: ["nwft"] });
+    expect(r2).toMatchObject({ stored: 1, closed: { simplify: 1 }, skipped: ["nwft"], added: [] });
     const rows = all<{ url: string; title: string; active: number; first_seen_at: string }>(
       raw,
       "SELECT url, title, active, first_seen_at FROM job_listings ORDER BY url",
@@ -137,8 +147,21 @@ describe("storeListings", () => {
     expect(rows).toEqual([
       { url: "https://example.com/a", title: "Renamed", active: 1, first_seen_at: day1.toISOString() },
       { url: "https://example.com/b", title: "QT Intern", active: 0, first_seen_at: day1.toISOString() },
-      { url: "https://example.com/n", title: "Quant Research Intern", active: 1, first_seen_at: day1.toISOString() },
+      { url: "https://example.com/n", title: "QR Intern", active: 1, first_seen_at: day1.toISOString() },
     ]);
+  });
+
+  it("doesn't add a role that's already open under another link", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    await storeListings(db, { sources: { simplify: [listing()] } }, new Date("2026-11-01T11:00:00Z"));
+    const r = await storeListings(
+      db,
+      { sources: { nwft: [listing({ source: "nwft", url: "https://other.example/a", company: "citadel" })] } },
+      new Date("2026-11-02T11:00:00Z"),
+    );
+    expect(r.added).toEqual([]);
+    expect(all(raw, "SELECT url FROM job_listings")).toEqual([{ url: "https://example.com/a" }]);
   });
 
   it("rejects junk rows and an empty source never closes anything", async () => {
@@ -198,5 +221,37 @@ describe("job_listings access", () => {
     const { error } = await as(admin).from("job_listings").update({ hidden: true }).eq("id", id);
     expect(error).toBeNull();
     expect(all(raw, "SELECT hidden FROM job_listings")).toEqual([{ hidden: 1 }]);
+  });
+});
+
+describe("sponsor jobs tab", () => {
+  it("lists open job posts from sponsoring firms only", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    const member = addMember(raw);
+    const sponsor = addCompany(raw, "partner");
+    const notSponsoring = addCompany(raw, "none");
+    const job = addPost(raw, sponsor.companyId, sponsor.userId);
+    const link = addPost(raw, sponsor.companyId, sponsor.userId, { kind: "job_link" });
+    addPost(raw, sponsor.companyId, sponsor.userId, { kind: "announcement" });
+    addPost(raw, notSponsoring.companyId, notSponsoring.userId);
+    const client = createHubClient({
+      db,
+      files: null as never,
+      principal: { kind: "user", viewer: viewer(raw, member) },
+      fileLinks: null,
+    });
+    // The same query app/(member)/opportunities/page.tsx makes.
+    const { data, error } = await client
+      .from("posts")
+      .select("*, companies!inner(*, sponsor_tiers!sponsor_tier_id!inner(id, name, rank, key))")
+      .eq("published", true)
+      .eq("status", "open")
+      .in("kind", ["job", "job_link"])
+      .gt("companies.sponsor_tiers!sponsor_tier_id.rank", 0)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    expect(error).toBeNull();
+    expect((data ?? []).map((p) => p.id).sort()).toEqual([job, link].sort());
   });
 });

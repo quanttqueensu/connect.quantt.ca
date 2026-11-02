@@ -37,4 +37,7 @@ jobs:
         env:
           OPPORTUNITIES_SYNC_TOKEN: ${{ secrets.OPPORTUNITIES_SYNC_TOKEN }}
           CONNECT_URL: ${{ vars.CONNECT_URL || 'https://quantt-connect.quanttgroup.workers.dev' }}
+          # New listings are posted to #opportunities in the QUANTT Discord (QUANTT Bot).
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_OPPORTUNITIES_CHANNEL: "1566267471349030933"
         run: node --experimental-strip-types scripts/sync-opportunities.mjs
