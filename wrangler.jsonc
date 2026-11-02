@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "quantt-connect",
-  // worker.js wraps OpenNext's .open-next/worker.js and adds the Supabase keep-alive cron.
+  // worker.js wraps OpenNext's .open-next/worker.js and adds a daily cleanup cron.
   "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -13,12 +13,24 @@
     { "binding": "WORKER_SELF_REFERENCE", "service": "quantt-connect" },
     { "binding": "AUTH", "service": "quantt-auth", "entrypoint": "Directory" }
   ],
-  // Supabase keys and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README); keep them on deploy.
+  // The hub's database and files, both in the quanttgroup Cloudflare account. Migrations: db/migrations
+  // (`npx wrangler d1 migrations apply connect-db --remote`).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "connect-db",
+      "database_id": "960deba4-5448-4059-92d6-baf9e533b957",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "connect-files" }],
+  // Secrets (RESEND_API_KEY, FILES_SIGNING_KEY) and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README);
+  // keep them on deploy.
   "keep_vars": true,
   "observability": { "enabled": true },
-  // Every hub page makes several Supabase calls one after another. Smart Placement lets Cloudflare run the
-  // Worker next to the Supabase region instead of next to the visitor, so each of those calls is short.
+  // Every hub page makes several D1 calls one after another. Smart Placement lets Cloudflare run the
+  // Worker next to the database instead of next to the visitor, so each of those calls is short.
   "placement": { "mode": "smart" },
-  // Supabase keep-alive (worker.js `scheduled`): 12:00 UTC every third day, well inside the ~7-day pause window.
-  "triggers": { "crons": ["0 12 */3 * *"] }
+  // Cleanup of expired sessions and codes (worker.js `scheduled`): 08:00 UTC daily.
+  "triggers": { "crons": ["0 8 * * *"] }
 }

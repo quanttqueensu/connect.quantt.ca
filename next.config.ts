@@ -1,29 +1,9 @@
 import type { NextConfig } from "next";
 
-/**
- * The Supabase origin the browser talks to directly (auth token refresh,
- * PostgREST reads from client components, Storage signed-URL downloads).
- * Read at build time; if it is absent we fall back to allowing https: so a
- * misconfigured build never produces a CSP that silently breaks sign-in.
- */
-const supabaseOrigin = (() => {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!raw) return null;
-  try {
-    return new URL(raw).origin;
-  } catch {
-    return null;
-  }
-})();
-
-const connectSrc = [
-  "'self'",
-  supabaseOrigin ?? "https:",
-  supabaseOrigin
-    ? supabaseOrigin.replace(/^https:/, "wss:").replace(/^http:/, "ws:")
-    : "wss:",
-].join(" ");
-const imgSrc = ["'self'", "data:", "blob:", supabaseOrigin ?? "https:"].join(" ");
+// Everything the browser loads comes from this origin: pages, server
+// actions, and files through the /files route (R2).
+const connectSrc = "'self'";
+const imgSrc = ["'self'", "data:", "blob:"].join(" ");
 
 /**
  * Content-Security-Policy.

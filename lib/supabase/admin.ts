@@ -1,12 +1,17 @@
-import { createClient } from "@supabase/supabase-js";
+/**
+ * The trusted client, the old service-role key: skips the per-person rules
+ * but keeps the invariants. Use only after the caller has checked who may
+ * do what. Since the move to Cloudflare this is the D1/R2 client.
+ */
+import { createHubClient } from "@/lib/db/client";
+import { fileLinkKey, hubEnvSync } from "@/lib/hub/env";
 
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Missing Supabase service role configuration");
-  }
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  const env = hubEnvSync();
+  return createHubClient({
+    db: env.DB,
+    files: env.FILES,
+    principal: { kind: "service" },
+    fileLinks: fileLinkKey(env),
   });
 }

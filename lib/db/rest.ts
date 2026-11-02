@@ -316,12 +316,12 @@ export class QueryBuilder<T = unknown> implements PromiseLike<Result<T>> {
     return this;
   }
 
-  maybeSingle<R = T>() {
+  maybeSingle<R = Row<T>>() {
     this.singleMode = "maybe";
     return this as unknown as QueryBuilder<R | null>;
   }
 
-  single<R = T>() {
+  single<R = Row<T>>() {
     this.singleMode = "single";
     return this as unknown as QueryBuilder<R>;
   }
@@ -718,13 +718,19 @@ function validateTree(table: TableName, node: SelectNode) {
 // client
 // ---------------------------------------------------------------------------
 
+/** Untyped rows, like supabase-js without generated types: a list of `any`. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyRows = any[];
+/** The row type of a list result, for single() and maybeSingle(). */
+export type Row<T> = T extends readonly (infer E)[] ? E : T;
+
 export type RestClient = {
-  from<T = unknown>(table: string): QueryBuilder<T>;
+  from<T = AnyRows>(table: string): QueryBuilder<T>;
 };
 
 export function createRestClient(db: D1Database, principal: Principal): RestClient {
   return {
-    from<T>(table: string) {
+    from<T = AnyRows>(table: string) {
       if (!isTable(table)) throw new Error(`Unknown table ${table}`);
       return new QueryBuilder<T>(db, principal, table);
     },

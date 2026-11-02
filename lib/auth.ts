@@ -1,19 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentSession } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
 /**
- * Both are wrapped in React `cache()`, so they run once per request. A hub page
- * used to verify the session with Supabase Auth and re-read the profile in the
- * layout and again in the page, one round trip after another. Now the layout
- * and the page share the first result.
+ * Both are wrapped in React `cache()`, so they run once per request and the
+ * layout and the page share the result.
  */
 export const getSessionUser = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await currentSession();
+  const user = session ? { id: session.id, email: session.email, app_metadata: {} } : null;
   return { supabase, user };
 });
 

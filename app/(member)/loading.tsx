@@ -1,5 +1,5 @@
 /**
- * Shown straight away on navigation while the page's Supabase reads finish,
+ * Shown straight away on navigation while the page's database reads finish,
  * instead of leaving the old page on screen with no sign anything happened.
  * It also gives link prefetching a boundary, so the nav prefetch stops there.
  */

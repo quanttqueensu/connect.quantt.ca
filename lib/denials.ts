@@ -66,22 +66,17 @@ const MESSAGES = {
     "That application could not be submitted. Try again in a moment.",
 
   // lib/actions/auth.ts
-  login_failed: "Could not log in. Check your email and password and try again.",
-  login_misconfigured:
-    "This copy of Connect is not connected to the database. Copy .env.example to .env.local and add the Supabase keys, or set them on the host.",
+  login_failed: "Could not log in. Ask for a new code and try again.",
+  login_email_required: "Enter your email address to get a sign-in code.",
+  login_code_invalid: "That code didn't work. Check it, or ask for a new one.",
+  login_code_expired: "That code expired. Enter your email to get a new one.",
   login_account_missing:
-    "You're signed in, but this account is not set up in Connect yet. Ask a QUANTT exec to check your invite.",
-  login_reset_email_required:
-    "Enter your email address, then choose “Forgot your password?”.",
-  login_link_expired: "That sign-in link expired. Ask for a new invite, or use “Forgot your password?”.",
+    "This email is not set up in Connect yet. Ask a QUANTT exec to check your invite.",
 
   // app/auth/quantt/callback/route.ts
   quantt_signin_failed: "QUANTT sign-in didn't go through. Try again, or ask a QUANTT exec.",
-  quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca. Use your email and password here.",
-  quantt_signin_company: "That email belongs to a company account. Log in with your email and password instead.",
-  password_too_short: "Password must be at least 8 characters.",
-  password_mismatch: "Passwords do not match.",
-  password_save_failed: "That password could not be saved. Try again, or ask for a new invite.",
+  quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca. Use an emailed code here.",
+  quantt_signin_company: "That email belongs to a company account. Log in with an emailed code instead.",
 
   // lib/actions/admin.ts
   join_request_reject_failed:

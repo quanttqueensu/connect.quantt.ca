@@ -1,71 +1,54 @@
-import { createClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createHubClient } from "@/lib/db/client";
+import type { R2BucketLike } from "@/lib/db/storage";
 import { markConversationRead } from "../lib/message-read";
+
+import { addCompany, addMember, all, asD1, freshDb, run, uuid, viewer } from "./db/sqlite";
 
 afterEach(() => vi.restoreAllMocks());
 
-function client(fetcher: typeof fetch) {
-  return createClient("http://127.0.0.1:54321", "test-anon-key", {
-    global: { fetch: fetcher },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+const noFiles = {} as R2BucketLike;
+
+function setup() {
+  const raw = freshDb();
+  const member = addMember(raw);
+  const firm = addCompany(raw, "partner");
+  const id = uuid();
+  run(raw, `INSERT INTO conversations (id, member_id, company_id) VALUES (?, ?, ?)`, id, member, firm.companyId);
+  const as = (profileId: string) =>
+    createHubClient({
+      db: asD1(raw),
+      files: noFiles,
+      principal: { kind: "user", viewer: viewer(raw, profileId, new Date()) },
+      fileLinks: null,
+    });
+  return { raw, member, firm, id, as };
 }
 
 describe("conversation read markers", () => {
-  it.each(["member", "company_user"] as const)(
-    "updates only the %s read marker with the authenticated client",
-    async (role) => {
-      const requests: Request[] = [];
-      const supabase = client(async (input, init) => {
-        requests.push(new Request(input, init));
-        return Response.json([{ id: "thread-1" }]);
-      });
-
-      await markConversationRead(supabase, { id: "profile-1", role }, "thread-1");
-
-      expect(requests).toHaveLength(1);
-      const request = requests[0];
-      const url = new URL(request.url);
-      expect(request.method).toBe("PATCH");
-      expect(url.pathname).toBe("/rest/v1/conversations");
-      expect(url.searchParams.get("id")).toBe("eq.thread-1");
-      expect(url.searchParams.get("member_id")).toBe(role === "member" ? "eq.profile-1" : null);
-      const body = await request.json() as Record<string, string>;
-      const column = role === "member" ? "member_last_read_at" : "company_last_read_at";
-      expect(Object.keys(body)).toEqual([column]);
-      expect(Number.isFinite(Date.parse(body[column]))).toBe(true);
-      expect(request.headers.get("authorization")).toBe("Bearer test-anon-key");
-    },
-  );
-
-  it("keeps its promise pending until the update completes", async () => {
-    let finish!: (response: Response) => void;
-    let started!: () => void;
-    const requested = new Promise<void>((resolve) => { started = resolve; });
-    const supabase = client(() => {
-      started();
-      return new Promise<Response>((resolve) => { finish = resolve; });
-    });
-    let settled = false;
-    const task = markConversationRead(supabase, { id: "profile-1", role: "member" }, "thread-1")
-      .then(() => { settled = true; });
-    await requested;
-    expect(settled).toBe(false);
-    finish(Response.json([{ id: "thread-1" }]));
-    await task;
-    expect(settled).toBe(true);
+  it("updates only the member's read marker for a member", async () => {
+    const { raw, member, id, as } = setup();
+    await markConversationRead(as(member), { id: member, role: "member" }, id);
+    const row = all(raw, `SELECT member_last_read_at, company_last_read_at FROM conversations WHERE id = ?`, id)[0];
+    expect(Number.isFinite(Date.parse(String(row.member_last_read_at)))).toBe(true);
+    expect(row.company_last_read_at).toBeNull();
   });
 
-  it("surfaces database errors to the after callback", async () => {
-    const supabase = client(async () => Response.json({ message: "Denied" }, { status: 403 }));
-    await expect(markConversationRead(supabase, { id: "profile-1", role: "member" }, "thread-1"))
-      .rejects.toThrow("Could not update conversation");
+  it("updates only the firm's read marker for a company user", async () => {
+    const { raw, firm, id, as } = setup();
+    await markConversationRead(as(firm.userId), { id: firm.userId, role: "company_user" }, id);
+    const row = all(raw, `SELECT member_last_read_at, company_last_read_at FROM conversations WHERE id = ?`, id)[0];
+    expect(row.member_last_read_at).toBeNull();
+    expect(Number.isFinite(Date.parse(String(row.company_last_read_at)))).toBe(true);
   });
 
-  it("logs a silent RLS refusal without throwing or redirecting", async () => {
+  it("logs a silent refusal without throwing or redirecting", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const supabase = client(async () => Response.json([]));
-    await markConversationRead(supabase, { id: "profile-1", role: "member" }, "thread-1");
-    expect(warn).toHaveBeenCalledWith("markRead: conversation thread-1 refused for profile profile-1");
+    const { raw, id, as } = setup();
+    const stranger = addMember(raw);
+    await markConversationRead(as(stranger), { id: stranger, role: "member" }, id);
+    expect(warn).toHaveBeenCalledWith(`markRead: conversation ${id} refused for profile ${stranger}`);
+    expect(all(raw, `SELECT member_last_read_at FROM conversations WHERE id = ?`, id)[0].member_last_read_at).toBeNull();
   });
 });

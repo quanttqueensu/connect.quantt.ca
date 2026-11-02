@@ -18,8 +18,8 @@ export default async function JoinPage({
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Sponsors</p>
         <h1 className="mt-3 font-heading text-3xl font-semibold leading-tight text-ink">Request Connect access</h1>
         <p className="mt-4 text-sm leading-6 text-copy">
-          Share this page with hiring contacts. QUANTT execs review each request and send an
-          invite to set a password. You will not have an account until you are approved.
+          Share this page with hiring contacts. QUANTT execs review each request and email you
+          once you can sign in. You will not have an account until you are approved.
         </p>
         {sent ? (
           <p className="mt-10 text-sm text-primary">

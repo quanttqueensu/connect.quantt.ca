@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { HubClient } from "@/lib/db/client";
 import type { Profile } from "./types";
 
 /**
@@ -7,7 +7,7 @@ import type { Profile } from "./types";
  * cannot read cookies themselves. Returning this promise keeps the write alive.
  */
 export async function markConversationRead(
-  supabase: SupabaseClient,
+  supabase: HubClient,
   profile: Pick<Profile, "id" | "role">,
   conversationId: string,
 ) {
