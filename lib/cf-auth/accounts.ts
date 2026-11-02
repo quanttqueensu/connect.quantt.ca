@@ -36,9 +36,15 @@ export async function pendingInvite(db: D1Database, email: string) {
     .first<Invite>();
 }
 
-/** True if this email may be sent a sign-in code: an account or a pending invite. */
+/**
+ * True if this email may be sent a sign-in code: a company account, or a
+ * pending company invite. Club members sign in through auth.quantt.ca
+ * ("Sign in with QUANTT"), never with an emailed code.
+ */
 export async function canSignIn(db: D1Database, email: string) {
-  return Boolean((await profileByEmail(db, email)) || (await pendingInvite(db, email)));
+  const profile = await profileByEmail(db, email);
+  if (profile) return profile.role === "company_user";
+  return (await pendingInvite(db, email))?.role === "company_user";
 }
 
 function defaultName(invite: { full_name: string }, email: string) {

@@ -27,7 +27,8 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
   `lib/db/rules.ts` and run on every query for the signed-in person. Hidden rows are
   skipped silently; a refused write returns error `42501`. `createAdminClient()` skips
   them, so check who may do what first.
-- **Sign-in:** `/login` emails a six-digit code (Resend, `lib/cf-auth/`), valid once
+- **Sign-in:** members use Sign in with QUANTT (auth.quantt.ca, below), like the
+  calendar. Sponsors get a six-digit emailed code (Resend, `lib/cf-auth/`), valid once
   for 10 minutes. The session is an HttpOnly cookie `connect_session`; D1 keeps only its
   hash, for 30 days. Nobody has a password. An invite is just an `invites` row: the
   person's profile is created the first time they sign in with that email.
@@ -70,7 +71,7 @@ data and resumes: it's gitignored, delete it afterwards.
 
 ## Sign in with QUANTT (club members)
 
-Club members can skip the emailed code: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a one-time code. The callback redeems the code through the service binding `AUTH` (the `quantt-auth` Worker), signs them in, creating their profile the first time, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. No secret is shared: only a Worker bound to `quantt-auth` in the same Cloudflare account can redeem a code. Code: `lib/quantt-signin.ts`, `app/auth/quantt/`.
+Club members sign in only one way, the same as the calendar and the other QUANTT sites: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a one-time code. The callback redeems the code through the service binding `AUTH` (the `quantt-auth` Worker), signs them in, creating their profile the first time, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. No secret is shared: only a Worker bound to `quantt-auth` in the same Cloudflare account can redeem a code. Code: `lib/quantt-signin.ts`, `app/auth/quantt/`. Emailed codes are for sponsors only: `/login` never sends one to a member account or member invite.
 
 If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://localhost:3000` with `npm run preview`), list that origin in `CONNECT_ORIGINS` on `quantt-auth`.
 
