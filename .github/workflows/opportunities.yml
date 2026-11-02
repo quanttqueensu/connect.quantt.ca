@@ -14,6 +14,11 @@ on:
   schedule:
     - cron: "15 11 * * *" # 06:15 / 07:15 in Kingston
   workflow_dispatch:
+    inputs:
+      post_all:
+        description: "Post all open roles to Discord (not just new ones)"
+        type: boolean
+        default: false
 
 concurrency:
   group: opportunities
@@ -40,4 +45,5 @@ jobs:
           # New listings are posted to #opportunities in the QUANTT Discord (QUANTT Bot).
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_OPPORTUNITIES_CHANNEL: "1566267471349030933"
+          POST_ALL: ${{ inputs.post_all || false }}
         run: node --experimental-strip-types scripts/sync-opportunities.mjs

@@ -5,7 +5,16 @@
 import { describe, expect, it } from "vitest";
 
 import { createHubClient } from "@/lib/db/client";
-import { dedupe, dropPastTerms, inCanada, normalizeUrl, parseNwft, parseSimplify, type Listing } from "@/lib/jobs/sources";
+import {
+  dedupe,
+  dropPastTerms,
+  inCanada,
+  normalizeUrl,
+  parseNwft,
+  parseSimplify,
+  roleKey,
+  type Listing,
+} from "@/lib/jobs/sources";
 import { handleSync, storeListings } from "@/lib/jobs/store";
 
 import { addCompany, addMember, addPost, all, asD1, freshDb, viewer } from "./db/sqlite";
@@ -91,9 +100,43 @@ describe("sources", () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].locations).toEqual(["Chicago", "Sydney", "NYC"]);
     expect(dedupe([base, { ...base, url: "https://other.example/x", term: "Summer 2028" }])).toHaveLength(2);
+    expect(dedupe([base, { ...base, url: "https://other.example/x", term: null }])).toHaveLength(1);
+    const filled = dedupe([{ ...base, term: null }, { ...base, url: "https://other.example/x" }]);
+    expect(filled).toHaveLength(1);
+    expect(filled[0].term).toBe("Summer 2027");
     expect(inCanada(["Toronto, ON, Canada"])).toBe(true);
     expect(inCanada(["London, UK"])).toBe(false);
     expect(normalizeUrl("ftp://x")).toBeNull();
+  });
+});
+
+describe("roleKey", () => {
+  const key = (company: string, title: string) => roleKey({ company, title, term: null });
+
+  it("reads different spellings of one role as the same role", () => {
+    const same: [string, string, string, string][] = [
+      ["Jane Street", "Quantitative Researcher Intern", "Jane Street", "Quant Research Internship"],
+      ["Flow Traders", "Quantitative Trader Intern", "Flow Traders", "Quantitative Trading Intern"],
+      ["Akuna Capital University", "Junior Quantitative Researcher", "Akuna Capital", "Junior Quantitative Researcher"],
+      ["Optiver", "Graduate Quantitative Researcher", "Optiver", "Quantitative Researcher Graduate"],
+      ["BlackRock", "Quantitative Master\u2019s Intern - Investing", "BlackRock", "Quantitative Masters Internship - Investing"],
+      ["JP Morgan Chase", "Quant Research Summer Analyst Internship", "JP Morgan Chase", "Quantitative Research Intern"],
+      ["Brevan Howard", "Trading Intern - Trading", "Brevan Howard", "Trading Intern"],
+      ["Jane Street", "Quantitative Researcher Intern [Summer 2027]", "Jane Street", "Quantitative Researcher Intern"],
+      ["Two Sigma, LLC", "Quant Co-op", "Two Sigma", "Quant Intern"],
+    ];
+    for (const [c1, t1, c2, t2] of same) expect(key(c1, t1), `${t1} / ${t2}`).toBe(key(c2, t2));
+  });
+
+  it("keeps different roles and firms apart", () => {
+    const apart: [string, string, string, string][] = [
+      ["Citadel", "Quantitative Research Intern", "Citadel Securities", "Quantitative Research Intern"],
+      ["Jane Street", "Quantitative Researcher Intern", "Jane Street", "Quantitative Trader Intern"],
+      ["Optiver", "Quantitative Researcher Intern", "Optiver", "Quantitative Researcher Graduate"],
+      ["IMC", "Software Engineer Intern", "IMC", "Quant Software Engineer Intern"],
+      ["PIMCO", "Quant Research Analyst Intern", "PIMCO", "Quant Research Intern"],
+    ];
+    for (const [c1, t1, c2, t2] of apart) expect(key(c1, t1), `${t1} / ${t2}`).not.toBe(key(c2, t2));
   });
 });
 
@@ -162,6 +205,55 @@ describe("storeListings", () => {
     );
     expect(r.added).toEqual([]);
     expect(all(raw, "SELECT url FROM job_listings")).toEqual([{ url: "https://example.com/a" }]);
+  });
+
+  it("stores a role listed twice once, and a role that only changed link isn't new", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    const r1 = await storeListings(
+      db,
+      {
+        sources: {
+          simplify: [listing()],
+          nwft: [listing({ source: "nwft", url: "https://nwft.example/a", title: "Quantitative Researcher Internship", term: null })],
+        },
+      },
+      new Date("2026-11-01T11:00:00Z"),
+    );
+    expect(r1.added.map((l) => l.url)).toEqual(["https://example.com/a"]);
+    expect(all(raw, "SELECT url FROM job_listings")).toEqual([{ url: "https://example.com/a" }]);
+
+    const r2 = await storeListings(
+      db,
+      { sources: { simplify: [listing({ url: "https://example.com/a2", title: "Quantitative Research Intern" })] } },
+      new Date("2026-11-02T11:00:00Z"),
+    );
+    expect(r2.added).toEqual([]);
+    expect(all(raw, "SELECT url, active FROM job_listings ORDER BY url")).toEqual([
+      { url: "https://example.com/a", active: 0 },
+      { url: "https://example.com/a2", active: 1 },
+    ]);
+  });
+
+  it("closes a duplicate stored before, and keeps the one still listed", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    await storeListings(db, { sources: { simplify: [listing()] } }, new Date("2026-11-01T11:00:00Z"));
+    raw.exec(`INSERT INTO job_listings (id, url, source, company, title, locations, role_type, term, posted_at, first_seen_at, last_seen_at)
+      VALUES ('dup', 'https://nwft.example/a', 'nwft', 'Citadel', 'Quantitative Researcher Intern', '[]', 'internship', NULL,
+              '2026-11-01T11:00:00Z', '2026-11-01T11:00:00Z', '2026-11-01T11:00:00Z')`);
+    const r = await storeListings(
+      db,
+      {
+        sources: {
+          simplify: [listing()],
+          nwft: [listing({ source: "nwft", url: "https://nwft.example/a", title: "Quantitative Researcher Intern", term: null })],
+        },
+      },
+      new Date("2026-11-02T11:00:00Z"),
+    );
+    expect(r).toMatchObject({ stored: 1, closed: { simplify: 0, nwft: 1 }, added: [] });
+    expect(all(raw, "SELECT url FROM job_listings WHERE active = 1")).toEqual([{ url: "https://example.com/a" }]);
   });
 
   it("rejects junk rows and an empty source never closes anything", async () => {

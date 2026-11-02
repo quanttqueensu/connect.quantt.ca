@@ -195,10 +195,76 @@ export function parseNwft(markdown: string): Listing[] {
   return out;
 }
 
-/** Same firm, same title, same term: one role, even when two sources link to different pages. */
-export function roleKey(l: Pick<Listing, "company" | "title" | "term">): string {
-  const norm = (s: string | null) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  return `${norm(l.company)}|${norm(l.title)}|${norm(l.term)}`;
+type RoleLike = Pick<Listing, "company" | "title" | "term">;
+
+/** Words that don't change which firm it is ("Akuna Capital University" is Akuna Capital). */
+const COMPANY_NOISE = new Set([
+  "the", "inc", "llc", "llp", "ltd", "lp", "plc", "co", "corp", "corporation", "company",
+  "university", "campus", "careers", "recruiting", "group", "holdings",
+]);
+
+/** Spellings of the same word in job titles. */
+const TITLE_SYNONYMS: Record<string, string> = {
+  quantitative: "quant", quants: "quant",
+  researcher: "research", researchers: "research",
+  trader: "trading", traders: "trading",
+  developer: "development", developers: "development", dev: "development",
+  engineer: "engineering", engineers: "engineering",
+  internship: "intern", internships: "intern", interns: "intern", co: "intern", coop: "intern",
+  masters: "master", ms: "master", msc: "master",
+  analysts: "analyst", scientist: "science", scientists: "science",
+};
+
+/** Words that don't change the role: the season and year live in `term`. */
+const TITLE_NOISE = new Set([
+  "summer", "winter", "spring", "fall", "autumn", "program", "programme", "position", "role",
+  "the", "a", "an", "and", "of", "for", "in", "to", "s", "op",
+]);
+
+function words(s: string | null): string[] {
+  return String(s ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/summer analyst/g, "intern")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w && !/^\d{4}$/.test(w));
+}
+
+/**
+ * Firm + title, spelled one way: "Quantitative Researcher Internship" and
+ * "Quant Research Intern" at the same firm give the same key. Word order and
+ * the season/year don't count; the term is compared separately (sameTerm).
+ */
+export function roleKey(l: RoleLike): string {
+  const company = words(l.company).filter((w) => !COMPANY_NOISE.has(w)).join(" ");
+  const title = [...new Set(words(l.title).map((w) => TITLE_SYNONYMS[w] ?? w).filter((w) => !TITLE_NOISE.has(w)))]
+    .sort()
+    .join(" ");
+  return `${company}|${title}`;
+}
+
+/** Same term, or one source didn't name it. */
+export function sameTerm(a: string | null, b: string | null): boolean {
+  return !a || !b || a.toLowerCase() === b.toLowerCase();
+}
+
+/** Finds a role already seen, by link or by firm + title + term. */
+export class RoleIndex<T extends RoleLike & { url: string }> {
+  private byKey = new Map<string, T[]>();
+  private byUrl = new Map<string, T>();
+
+  find(l: RoleLike & { url: string }): T | undefined {
+    return this.byUrl.get(l.url) ?? this.byKey.get(roleKey(l))?.find((k) => sameTerm(k.term, l.term));
+  }
+
+  add(l: T): void {
+    this.byUrl.set(l.url, l);
+    const key = roleKey(l);
+    const list = this.byKey.get(key);
+    if (list) list.push(l);
+    else this.byKey.set(key, [l]);
+  }
 }
 
 /**
@@ -206,22 +272,19 @@ export function roleKey(l: Pick<Listing, "company" | "title" | "term">): string 
  * it has dates). A role posted once per city keeps every city.
  */
 export function dedupe(listings: Listing[]): Listing[] {
-  const byKey = new Map<string, Listing>();
-  const urls = new Set<string>();
+  const index = new RoleIndex<Listing>();
   const out: Listing[] = [];
   for (const l of listings) {
-    const key = roleKey(l);
-    const kept = byKey.get(key);
+    const kept = index.find(l);
     if (kept) {
       for (const loc of l.locations) {
         if (!kept.locations.includes(loc) && kept.locations.length < 12) kept.locations.push(loc);
       }
+      if (!kept.term && l.term) kept.term = l.term;
       continue;
     }
-    if (urls.has(l.url)) continue;
     const copy = { ...l, locations: [...l.locations] };
-    byKey.set(key, copy);
-    urls.add(l.url);
+    index.add(copy);
     out.push(copy);
   }
   return out;
