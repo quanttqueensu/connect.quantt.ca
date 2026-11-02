@@ -158,6 +158,31 @@ describe("Sign in with QUANTT", () => {
     expect(all(raw, `SELECT count(*) AS n FROM invites WHERE accepted_at IS NULL`)[0].n).toBe(0);
   });
 
+  it("keeps one account when a member signs in with their other Queen's address", async () => {
+    const { raw, db } = setup();
+    const emails = ["ann.lee@queensu.ca", "21al9@queensu.ca"];
+    const first = await profileForQuanttMember(db, { sub: "m_ann", email: "21al9@queensu.ca", emails, name: "Ann", role: "member" });
+    const again = await profileForQuanttMember(db, { sub: "m_ann", email: "ann.lee@queensu.ca", emails, name: "Ann", role: "member" });
+    expect(again).toEqual(first);
+    expect(all(raw, `SELECT email FROM profiles WHERE full_name = 'Ann'`)).toEqual([{ email: "21al9@queensu.ca" }]);
+  });
+
+  it("finds an account made before linking under any of the member's addresses, then links it", async () => {
+    const { raw, db } = setup();
+    const old = addMember(raw, { email: "bo.kim@queensu.ca" });
+    const out = await profileForQuanttMember(db, {
+      sub: "m_bo",
+      email: "22bk1@queensu.ca",
+      emails: ["bo.kim@queensu.ca", "22bk1@queensu.ca"],
+      name: "Bo",
+      role: "member",
+    });
+    expect(out).toEqual({ ok: true, profileId: old });
+    expect(all(raw, `SELECT directory_id, profile_id FROM member_links`)).toEqual([{ directory_id: "m_bo", profile_id: old }]);
+    // Even without the address list (an older auth Worker), the link finds it.
+    expect(await profileForQuanttMember(db, { sub: "m_bo", email: "22bk1@queensu.ca", name: "Bo", role: "member" })).toEqual(out);
+  });
+
   it("refuses an email that belongs to a firm account or firm invite", async () => {
     const { raw, db } = setup();
     const firm = addCompany(raw, "partner");

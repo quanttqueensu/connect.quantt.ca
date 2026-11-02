@@ -87,24 +87,80 @@ export type QuanttSigninOutcome =
   | { ok: true; profileId: string }
   | { ok: false; code: "quantt_signin_company" | "quantt_signin_failed" };
 
+export const MEMBER_LINKS_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS member_links (
+  directory_id text PRIMARY KEY,
+  profile_id text NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
+  linked_at text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+)`,
+  `CREATE INDEX IF NOT EXISTS member_links_profile_idx ON member_links (profile_id)`,
+];
+
+let linksReady = false;
+async function ensureMemberLinks(db: D1Database) {
+  if (linksReady) return;
+  await db.batch(MEMBER_LINKS_SCHEMA.map((s) => db.prepare(s)));
+  linksReady = true;
+}
+
+/** The member profile already linked to this directory member, if any. */
+async function linkedProfile(db: D1Database, directoryId: string) {
+  return db
+    .prepare(
+      `SELECT p.id, p.role, p.is_admin FROM member_links l JOIN profiles p ON p.id = l.profile_id
+        WHERE l.directory_id = ?`,
+    )
+    .bind(directoryId)
+    .first<ProfileRef>();
+}
+
+/** The oldest member profile under any of the member's addresses (an older account made before linking). */
+async function memberProfileByEmails(db: D1Database, emails: string[]) {
+  if (!emails.length) return null;
+  return db
+    .prepare(
+      `SELECT id, role, is_admin FROM profiles
+        WHERE role = 'member' AND lower(email) IN (${emails.map(() => "?").join(", ")})
+        ORDER BY created_at, id LIMIT 1`,
+    )
+    .bind(...emails)
+    .first<ProfileRef>();
+}
+
 /**
  * "Sign in with QUANTT" (auth.quantt.ca). Club members need no invite: the
  * directory already vouched for them. Its Connect role decides hub admin on
  * every sign-in. A company account with the same email is refused.
+ *
+ * One account per member: a Queen's student has two addresses for one mailbox
+ * (first.last@ and NetID@) and may sign in with either. The hub finds the member
+ * by the directory's stable id (`sub`), then by any of their addresses
+ * (`emails`, all of them as the directory knows them), and only then creates a
+ * profile. Whichever it finds is linked to `sub` so later sign-ins land on it.
  */
 export async function profileForQuanttMember(
   db: D1Database,
-  claims: { email: string; name: string | null; role: "admin" | "member" },
+  claims: { sub?: string | null; email: string; emails?: string[]; name: string | null; role: "admin" | "member" },
   now = new Date(),
 ): Promise<QuanttSigninOutcome> {
   const email = normalizeEmail(claims.email);
+  const emails = [...new Set([email, ...(claims.emails ?? []).map(normalizeEmail)].filter((e) => e.includes("@")))];
+  const sub = claims.sub?.trim() || null;
   const isAdmin = claims.role === "admin" ? 1 : 0;
-  const existing = await profileByEmail(db, email);
-  if (existing?.role === "company_user") return { ok: false, code: "quantt_signin_company" };
+
+  const byEmail = await profileByEmail(db, email);
+  if (byEmail?.role === "company_user") return { ok: false, code: "quantt_signin_company" };
+
+  if (sub) await ensureMemberLinks(db);
+  const existing =
+    (sub ? await linkedProfile(db, sub) : null) ?? (byEmail?.role === "member" ? byEmail : null) ?? (await memberProfileByEmails(db, emails));
   if (existing) {
+    const statements = [];
     if (existing.is_admin !== isAdmin) {
-      await db.prepare(`UPDATE profiles SET is_admin = ? WHERE id = ?`).bind(isAdmin, existing.id).run();
+      statements.push(db.prepare(`UPDATE profiles SET is_admin = ? WHERE id = ?`).bind(isAdmin, existing.id));
     }
+    if (sub) statements.push(linkStatement(db, sub, existing.id, now));
+    if (statements.length) await db.batch(statements);
     return { ok: true, profileId: existing.id };
   }
 
@@ -122,6 +178,16 @@ export async function profileForQuanttMember(
       .bind(id, email, name, isAdmin, at),
   ];
   if (invite) statements.push(db.prepare(`UPDATE invites SET accepted_at = ? WHERE id = ?`).bind(at, invite.id));
+  if (sub) statements.push(linkStatement(db, sub, id, now));
   await db.batch(statements);
   return { ok: true, profileId: id };
+}
+
+function linkStatement(db: D1Database, directoryId: string, profileId: string, now: Date) {
+  return db
+    .prepare(
+      `INSERT INTO member_links (directory_id, profile_id, linked_at) VALUES (?, ?, ?)
+       ON CONFLICT (directory_id) DO NOTHING`,
+    )
+    .bind(directoryId, profileId, now.toISOString());
 }
