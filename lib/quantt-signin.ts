@@ -27,6 +27,9 @@ export type QuanttClaims = {
 /** The quantt-auth RPC entrypoint (Directory) as this site sees it. */
 export type QuanttDirectory = {
   redeem(code: string, app: string): Promise<Record<string, unknown> | null>;
+  /** The member's headshot / resume uploaded on auth.quantt.ca (lib/directory-files.ts). */
+  photo?(who: string): Promise<{ type: string; data: ArrayBuffer } | null>;
+  resume?(who: string): Promise<{ type: string; data: ArrayBuffer } | null>;
 };
 
 export type SigninResult = { ok: true; claims: QuanttClaims } | { ok: false; reason: string };
