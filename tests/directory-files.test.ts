@@ -29,7 +29,7 @@ function setup() {
   return { raw, db: asD1(raw), id };
 }
 const row = (raw: ReturnType<typeof freshDb>, sql: string, ...args: unknown[]) =>
-  raw.prepare(sql).get(...args) as Record<string, unknown> | undefined;
+  raw.prepare(sql).get(...(args as (string | number | null)[])) as Record<string, unknown> | undefined;
 
 describe("copying directory headshots and resumes", () => {
   it("fills an empty profile with both", async () => {
