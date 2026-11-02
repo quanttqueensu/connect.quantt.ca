@@ -5,7 +5,8 @@ import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
-import { notify } from "@/lib/notify";
+import { notifyLater } from "@/lib/notify";
+import { notifyNewMessage } from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/server";
 import { markConversationRead } from "@/lib/message-read";
 import { denyRedirect } from "./deny";
@@ -126,12 +127,7 @@ export async function sendMessage(formData: FormData) {
     denyRedirect(deniedPath, "message_send_failed");
   }
 
-  await notify({
-    type: "message",
-    to: [],
-    subject: "New message on Connect by QUANTT",
-    body,
-  });
+  notifyLater("message", (db, send) => notifyNewMessage(db, send, conversationId, profile.id));
   revalidatePath("/messages");
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath("/company/messages");

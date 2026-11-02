@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { assertPdf, PDF_CONTENT_TYPE } from "@/lib/files";
 import { isPackagePdfPath, isSnapshotPath } from "@/lib/storage-paths";
-import { notify } from "@/lib/notify";
+import { notifyLater } from "@/lib/notify";
+import { notifyApplicationStage, notifyNewApplication } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isInAppJob, type Post } from "@/lib/types";
@@ -170,12 +171,7 @@ export async function applyToJob(formData: FormData) {
     }
     denyRedirect(feedPath, "application_submit_failed");
   }
-  await notify({
-    type: "application",
-    to: [],
-    subject: "New application",
-    body: `${profile.full_name} applied to ${post.title}`,
-  });
+  notifyLater("application", (db, send) => notifyNewApplication(db, send, postId, profile.full_name));
   revalidatePath("/feed");
   revalidatePath(`/feed/${postId}`);
   revalidatePath("/applications");
@@ -257,6 +253,7 @@ export async function updateApplicationStage(formData: FormData) {
   if (!data?.length) {
     denyRedirect(deniedPath, "application_update_failed");
   }
+  notifyLater("application stage", (db, send) => notifyApplicationStage(db, send, id, stage));
 
   revalidatePath("/applications");
   revalidatePath("/company");

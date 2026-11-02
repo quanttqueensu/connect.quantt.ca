@@ -20,11 +20,15 @@ import type { CapabilityKey } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/time";
 import { redirect } from "next/navigation";
+import NotificationSettings from "@/components/NotificationSettings";
+import { getCurrentProfile } from "@/lib/auth";
+import { hubEnv } from "@/lib/hub/env";
+import { DEFAULT_PREFS, getPrefs } from "@/lib/notifications";
 
 export default async function SponsorshipPage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string }>;
+  searchParams: Promise<{ denied?: string; notifications?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -43,6 +47,10 @@ export default async function SponsorshipPage({
         .maybeSingle(),
     ]);
 
+  const me = cu.preview ? null : await getCurrentProfile();
+  const prefs = me
+    ? await getPrefs((await hubEnv()).DB, me.id).catch(() => ({ ...DEFAULT_PREFS }))
+    : null;
   const display = assigned ?? effective;
   const grace = graceIsOpen(graceUntil);
 
@@ -149,6 +157,9 @@ export default async function SponsorshipPage({
           <PrimaryButton type="submit" disabled={cu.preview}>Save profile</PrimaryButton>
         </form>
       </section>
+      {prefs && (
+        <NotificationSettings prefs={prefs} role="company_user" saved={sp.notifications === "saved"} />
+      )}
     </>
   );
 }

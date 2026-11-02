@@ -15,11 +15,14 @@ import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { MemberDocuments, ProfileSection } from "@/lib/types";
 import { redirect } from "next/navigation";
+import NotificationSettings from "@/components/NotificationSettings";
+import { hubEnv } from "@/lib/hub/env";
+import { DEFAULT_PREFS, getPrefs } from "@/lib/notifications";
 
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string }>;
+  searchParams: Promise<{ denied?: string; notifications?: string }>;
 }) {
   const sp = await searchParams;
   const profile = await getCurrentProfile();
@@ -38,6 +41,7 @@ export default async function ProfilePage({
       .maybeSingle<MemberDocuments>(),
   ]);
 
+  const prefs = await getPrefs((await hubEnv()).DB, profile.id).catch(() => ({ ...DEFAULT_PREFS }));
   const photoUrl = profile.photo_path ? `/members/${profile.id}/photo` : null;
   const sectionRows = (sections as ProfileSection[] | null) ?? [];
   const nextSort =
@@ -203,6 +207,7 @@ export default async function ProfilePage({
           )}
         </form>
       </section>
+      <NotificationSettings prefs={prefs} role="member" saved={sp.notifications === "saved"} />
     </>
   );
 }
