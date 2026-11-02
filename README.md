@@ -95,7 +95,11 @@ Setup, once:
 2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
    `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
    same name (Settings → Secrets and variables → Actions).
-3. Actions → Opportunities → Run workflow, for the first fill.
+3. Keep workers.dev on for quantt-connect (Settings → Domains & Routes): the Action
+   posts to https://quantt-connect.quanttgroup.workers.dev, because connect.quantt.ca
+   answers GitHub's runners with a bot challenge. A repo variable `CONNECT_URL`
+   overrides the address.
+4. Actions → Opportunities → Run workflow, for the first fill.
 
 Preview locally with `node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run`.
 

@@ -4,8 +4,9 @@
 // Run by .github/workflows/opportunities.yml once a day. Locally:
 //   node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run
 // prints what it would send. Without --dry-run it needs OPPORTUNITIES_SYNC_TOKEN
-// (the same value as the quant-connect Worker secret) and, optionally,
-// CONNECT_URL (default https://connect.quantt.ca).
+// (the same value as the quantt-connect Worker secret) and CONNECT_URL, the
+// Worker's workers.dev address. connect.quantt.ca also works from places
+// Cloudflare's bot challenge lets through, but not from GitHub's runners.
 //
 // The parsing lives in lib/jobs/sources.ts so the tests cover it.
 import { dedupe, dropPastTerms, parseNwft, parseSimplify, SOURCES } from "../lib/jobs/sources.ts";
@@ -77,5 +78,12 @@ const res = await fetch(`${base}/api/opportunities/sync`, {
   body: JSON.stringify(payload),
 });
 const body = await res.text();
-console.log(`connect: ${res.status} ${body}`);
+if (/<html/i.test(body) && /challenge|Just a moment/i.test(body)) {
+  console.error(
+    `connect: ${res.status} from Cloudflare's bot challenge at ${base}. Set the repo variable CONNECT_URL ` +
+      "to the quantt-connect workers.dev address (Cloudflare → Workers → quantt-connect → Settings → Domains & Routes).",
+  );
+  process.exit(1);
+}
+console.log(`connect: ${res.status} ${body.slice(0, 500)}`);
 if (!res.ok) process.exit(1);
