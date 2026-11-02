@@ -99,7 +99,8 @@ const added = postAll
       String(b.posted_at ?? "").localeCompare(String(a.posted_at ?? "")),
     )
   : (JSON.parse(body).added ?? []);
-const discordToken = process.env.DISCORD_BOT_TOKEN;
+// Tolerates a pasted "Bot " prefix, quotes or a trailing newline in the secret.
+const discordToken = (process.env.DISCORD_BOT_TOKEN ?? "").trim().replace(/^["']|["']$/g, "").replace(/^Bot\s+/i, "");
 const channel = process.env.DISCORD_OPPORTUNITIES_CHANNEL;
 if (added.length && discordToken && channel) {
   try {
