@@ -13,10 +13,9 @@ type Props = {
   unread?: number;
   /** Granted hub products for a company contact. Member nav ignores this. */
   companyCaps?: string[];
-  sponsorMode?: boolean;
 };
 
-export default function HubNav({ profile, unread = 0, companyCaps, sponsorMode = false }: Props) {
+export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
   const pathname = usePathname();
   const isCompany = profile.role === "company_user";
   const caps = new Set(companyCaps ?? []);
@@ -83,7 +82,7 @@ export default function HubNav({ profile, unread = 0, companyCaps, sponsorMode =
               </Link>
             );
           })}
-          {profile.is_admin && !sponsorMode && <SponsorModeToggle />}
+          {profile.is_admin && <SponsorModeToggle />}
           <form action={logout} className="ml-1 shrink-0 border-l border-line pl-4">
             <button type="submit" className={buttonClass("nav")}>
               Log out

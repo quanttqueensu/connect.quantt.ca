@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse, type NextRequest } from "next/server";
 import { readSession, SESSION_COOKIE, type SessionProfile } from "@/lib/cf-auth/sessions";
 import type { D1Database } from "@/lib/db/d1";
+import { parseSponsorModeCookie, SPONSOR_MODE_COOKIE } from "@/lib/sponsor-mode-cookie";
 
 /**
  * Routes reachable without a session.
@@ -78,12 +79,12 @@ export async function middleware(request: NextRequest) {
   const user = { id: profile.id };
   const sponsorDemo = Boolean(
     profile.is_admin &&
-    request.cookies.get("connect-sponsor-mode")?.value === `${user.id}:demo`,
+    parseSponsorModeCookie(request.cookies.get(SPONSOR_MODE_COOKIE)?.value, user.id),
   );
 
-  // Stay in the fictional sponsor area until the admin exits demo mode.
-  // This also prevents direct URLs from showing normal admin/member data
-  // underneath a banner that says the information is fictional.
+  // Sponsor mode: stay where a sponsor would be (/company) until the admin
+  // exits, so every page reads with that sponsor's rules. The picker page is
+  // the one exception, to switch companies.
   if (
     sponsorDemo && !isPublic(pathname) &&
     pathname !== "/company" && !pathname.startsWith("/company/") &&

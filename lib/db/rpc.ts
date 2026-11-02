@@ -67,6 +67,7 @@ export async function callRpc(db: D1Database, principal: Principal, name: string
         return ok(row?.path ?? null);
       }
       case "close_own_post": {
+        if (v?.readOnly) return fail("Sponsor mode is read-only", "42501");
         const id = String(args.p_post ?? "");
         const post = await db.prepare(`SELECT id, company_id FROM posts WHERE id = ?`).bind(id).first<{ id: string; company_id: string | null }>();
         if (!post || !(principal.kind === "service" || canClosePost(v, post))) return ok(null);

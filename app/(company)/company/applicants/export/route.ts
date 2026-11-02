@@ -14,7 +14,7 @@ export async function GET() {
 
   const supabase = await createClient();
   const cu = await getCompanyContext();
-  if (!cu || cu.preview) return new NextResponse("Not found", { status: 404 });
+  if (!cu) return new NextResponse("Not found", { status: 404 });
 
   const { access } = await loadMyCompanyTier(cu.company_id);
   if (!can(access, "read_applicants")) {

@@ -24,7 +24,7 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
   let graceUntil: string | null = null;
   let assignedName: string | null = null;
   let companyCaps: string[] = [];
-  if (cu && !cu.preview) {
+  if (cu) {
     // Only the single newest message per conversation, ordered explicitly, so
     // the cost tracks conversations rather than total message volume.
     const { data: convos } = await supabase
@@ -45,10 +45,6 @@ export default async function CompanyLayout({ children }: { children: ReactNode 
     companyCaps = (access?.sponsor_tier_capabilities ?? []).map((c) => c.capability);
   }
 
-  if (cu?.preview) {
-    const { access } = await loadMyCompanyTier(cu.company_id);
-    companyCaps = (access?.sponsor_tier_capabilities ?? []).map((cap) => cap.capability);
-  }
   const showGrace = graceIsOpen(graceUntil);
 
   return (

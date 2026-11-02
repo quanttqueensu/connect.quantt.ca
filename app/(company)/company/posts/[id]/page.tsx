@@ -1,4 +1,3 @@
-import { DEMO_APPLICATIONS, DEMO_POSTS } from "@/lib/sponsor-demo";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import { startConversation } from "@/lib/actions/messages";
 import { updateApplicationStage } from "@/lib/actions/applications";
@@ -23,18 +22,16 @@ export default async function CompanyPostPage({
   const supabase = await createClient();
   const cu = await getCompanyContext();
   if (!cu) notFound();
-  const { data: post } = cu.preview ? { data: DEMO_POSTS.find((post) => post.id === id) } : await supabase.from("posts").select("*").eq("id", id).maybeSingle();
+  const { data: post } = await supabase.from("posts").select("*").eq("id", id).maybeSingle();
   if (!cu || !post || post.company_id !== cu.company_id) notFound();
   const p = post as Post;
 
   const [{ assigned, effective, access, overrides }, tiers] = await Promise.all([
     loadMyCompanyTier(cu.company_id),
-    loadTiers({ demo: cu.preview }),
+    loadTiers(),
   ]);
 
-  const { data: apps } = cu.preview
-    ? { data: DEMO_APPLICATIONS.filter((app) => app.post_id === id) }
-    : isPlatformJob(p) && can(access, "read_applicants")
+  const { data: apps } = isPlatformJob(p) && can(access, "read_applicants")
       ? await supabase.from("applications")
         .select("*, profiles(id, full_name, program, grad_year, linkedin_url)")
         .eq("post_id", id).eq("kind", "in_app").eq("company_id", cu.company_id)

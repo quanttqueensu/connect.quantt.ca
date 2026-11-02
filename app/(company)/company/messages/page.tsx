@@ -1,4 +1,3 @@
-import { DEMO_CONVERSATIONS } from "@/lib/sponsor-demo";
 import { getCompanyContext } from "@/lib/sponsor-mode";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
@@ -10,7 +9,7 @@ export default async function CompanyMessagesPage() {
   const supabase = await createClient();
   const cu = await getCompanyContext();
   if (!cu) redirect("/company");
-  const { data: convos } = cu.preview ? { data: DEMO_CONVERSATIONS } : await supabase
+  const { data: convos } = await supabase
     .from("conversations")
     .select("*, profiles(full_name)")
     .eq("company_id", cu.company_id)

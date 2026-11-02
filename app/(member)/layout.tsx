@@ -1,5 +1,4 @@
-import SponsorModeBanner from "@/components/SponsorModeBanner";
-import { getCompanyContext } from "@/lib/sponsor-mode";
+import { sponsorModeCompanyId } from "@/lib/sponsor-mode";
 import type { ReactNode } from "react";
 import HubNav from "@/components/HubNav";
 import { requireCurrentProfile } from "@/lib/auth";
@@ -11,7 +10,8 @@ import { hasChosenPrefs } from "@/lib/notifications";
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
   const profile = await requireCurrentProfile();
-  if (profile.role === "company_user") redirect("/company");
+  // Sponsors, and admins viewing as one, live under /company.
+  if (profile.role === "company_user" || (await sponsorModeCompanyId(profile))) redirect("/company");
   // Everyone picks their email notifications once before using Connect.
   if (!(await hasChosenPrefs((await hubEnv()).DB, profile.id))) redirect("/setup/notifications");
 
@@ -35,12 +35,9 @@ export default async function MemberLayout({ children }: { children: ReactNode }
     return !c.member_last_read_at || last > c.member_last_read_at;
   }).length;
 
-  const sponsorContext = profile.is_admin ? await getCompanyContext() : null;
-
   return (
     <>
-      <HubNav profile={profile} unread={unread} sponsorMode={sponsorContext?.preview} />
-      {sponsorContext?.preview && <SponsorModeBanner companyName={sponsorContext.company.name} />}
+      <HubNav profile={profile} unread={unread} />
       <main className="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">{children}</main>
     </>
   );
