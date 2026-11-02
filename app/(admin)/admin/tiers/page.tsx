@@ -125,9 +125,6 @@ export default async function AdminTiersPage({
           <Field label="Applicant delay (hours)">
             <TextInput name="embargo" type="number" min={0} max={8760} defaultValue="0" />
           </Field>
-          <Field label="Resume book delay (hours)">
-            <TextInput name="resume_book_embargo" type="number" min={0} max={8760} defaultValue="0" />
-          </Field>
           <div className="md:col-span-2">
             <Field label="Blurb">
               <TextArea name="blurb" rows={2} maxLength={400} />
@@ -183,15 +180,6 @@ export default async function AdminTiersPage({
                     min={0}
                     max={8760}
                     defaultValue={tier.applicant_embargo_hours}
-                  />
-                </Field>
-                <Field label="Resume book delay (hours)">
-                  <TextInput
-                    name="resume_book_embargo"
-                    type="number"
-                    min={0}
-                    max={8760}
-                    defaultValue={tier.resume_book_embargo_hours}
                   />
                 </Field>
                 <div className="md:col-span-2">

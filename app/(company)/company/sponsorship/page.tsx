@@ -115,12 +115,6 @@ export default async function SponsorshipPage({
           New applications appear {access.applicant_embargo_hours} hours after they are submitted.
         </p>
       )}
-      {access && access.resume_book_embargo_hours > 0 && can(access, "resume_book") && (
-        <p className="mt-3 text-sm text-copy">
-          New resume-book opt-ins appear {access.resume_book_embargo_hours} hours after a member
-          opts in.
-        </p>
-      )}
 
       <section className="mt-12 border-t border-line pt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Firm profile</h2>

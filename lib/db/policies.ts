@@ -120,11 +120,6 @@ export function applicantCutoff(v: Viewer): string {
   return hoursBefore(v.now, v.access?.applicantEmbargoHours ?? 0);
 }
 
-/** Members who opted in at or before this instant are past the firm's resume book delay. */
-export function resumeBookCutoff(v: Viewer): string {
-  return hoursBefore(v.now, v.access?.resumeBookEmbargoHours ?? 0);
-}
-
 // ---------------------------------------------------------------------------
 // Shared predicates
 // ---------------------------------------------------------------------------
@@ -147,8 +142,8 @@ export function visibleApplicantSql(v: MaybeViewer, memberColumn: string): Sql {
 
 /**
  * my_opted_in_member(member): I'm at a firm with the resume book, candidate
- * search, or message-any, and the member opted into the book before my
- * firm's delay.
+ * search, or message-any, and the member opted into the book. No delay:
+ * every tier sees a new opt-in straight away.
  */
 export function optedInMemberSql(v: MaybeViewer, memberColumn: string): Sql {
   if (!v?.companyId) return NONE;
@@ -160,8 +155,7 @@ export function optedInMemberSql(v: MaybeViewer, memberColumn: string): Sql {
   return sql(
     `EXISTS (SELECT 1 FROM profiles op WHERE op.id = ${memberColumn}
       AND op.role = 'member' AND op.resume_book_opt_in = 1
-      AND op.resume_book_opt_in_at IS NOT NULL AND op.resume_book_opt_in_at <= ?)`,
-    resumeBookCutoff(v),
+      AND op.resume_book_opt_in_at IS NOT NULL)`,
   );
 }
 

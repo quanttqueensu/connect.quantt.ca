@@ -126,20 +126,6 @@ export function graceIsOpen(until: string | null | undefined) {
   return until >= new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Resume-book delay hours, matching `my_resume_book_embargo_hours()` in
- * 0011: assigned package if that package includes the book, otherwise the
- * still-live (grace, else assigned) package. Applicant embargo stays on
- * the effective package — do not reuse this for that column.
- */
-export function resumeBookDelayHours(
-  assigned: TierWithCaps | null | undefined,
-  effective: TierWithCaps | null | undefined,
-) {
-  if (can(assigned, "resume_book")) return assigned?.resume_book_embargo_hours ?? 0;
-  return (effective ?? assigned)?.resume_book_embargo_hours ?? 0;
-}
-
 /** True if this firm's live access is `tierId` (assigned, or still in grace on it). */
 export function livesOnTier(
   company: {
@@ -224,7 +210,7 @@ export async function loadMyCompanyTier(companyId: string) {
   >[];
   const merged = resolveAccess(assigned, effective, overrides);
   const withBookDelay = merged
-    ? { ...merged, resume_book_embargo_hours: resumeBookDelayHours(assigned, effective) }
+    ? { ...merged, resume_book_embargo_hours: 0 }
     : null;
   const access =
     company.status === "active"

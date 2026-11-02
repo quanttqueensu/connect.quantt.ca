@@ -105,7 +105,6 @@ describe("firm access", () => {
     );
     expect(access.effectiveTierId).toBe("g");
     expect(access.applicantEmbargoHours).toBe(0);
-    expect(access.resumeBookEmbargoHours).toBe(168);
   });
 });
 
@@ -245,11 +244,11 @@ describe("resume book and candidate search", () => {
     expect(all(db, talentListSql(v, "resume_book")!).map((r) => r.id)).toEqual([member]);
   });
 
-  it("a partner firm waits out the book delay", () => {
-    const early = setup("partner", 1);
-    expect(all(early.db, talentListSql(early.v, "resume_book")!)).toEqual([]);
-    const late = setup("partner", 169);
-    expect(all(late.db, talentListSql(late.v, "resume_book")!).map((r) => r.id)).toEqual([late.member]);
+  it("a new opt-in shows in the book straight away, at every tier", () => {
+    for (const tier of ["partner", "leader", "principal"] as const) {
+      const fresh = setup(tier, 0);
+      expect(all(fresh.db, talentListSql(fresh.v, "resume_book")!).map((r) => r.id)).toEqual([fresh.member]);
+    }
   });
 
   it("candidate search is closed below leader and filters by text", () => {

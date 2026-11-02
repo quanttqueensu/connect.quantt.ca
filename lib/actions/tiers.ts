@@ -53,12 +53,10 @@ export async function createTier(formData: FormData) {
   const rank = Number(formData.get("rank"));
   const price = parsePriceCents(String(formData.get("price") ?? ""));
   const embargo = parseEmbargo(String(formData.get("embargo") ?? ""));
-  const bookEmbargo = parseEmbargo(String(formData.get("resume_book_embargo") ?? ""));
   if (!name) denyRedirect("/admin/tiers", "tier_name_required");
   if (!Number.isInteger(rank) || rank < 1) denyRedirect("/admin/tiers", "tier_rank_invalid");
   if (price === undefined) denyRedirect("/admin/tiers", "tier_price_invalid");
   if (embargo === undefined) denyRedirect("/admin/tiers", "tier_embargo_invalid");
-  if (bookEmbargo === undefined) denyRedirect("/admin/tiers", "tier_embargo_invalid");
 
   const { data, error } = await supabase
     .from("sponsor_tiers")
@@ -69,7 +67,6 @@ export async function createTier(formData: FormData) {
       price_cents: price,
       blurb: String(formData.get("blurb") ?? "").trim(),
       applicant_embargo_hours: embargo,
-      resume_book_embargo_hours: bookEmbargo,
     })
     .select("id")
     .maybeSingle();
@@ -100,7 +97,6 @@ export async function updateTier(formData: FormData) {
   const rank = Number(formData.get("rank"));
   const price = parsePriceCents(String(formData.get("price") ?? ""));
   const embargo = parseEmbargo(String(formData.get("embargo") ?? ""));
-  const bookEmbargo = parseEmbargo(String(formData.get("resume_book_embargo") ?? ""));
   if (!name) denyRedirect("/admin/tiers", "tier_name_required");
   const { data: existing } = await supabase
     .from("sponsor_tiers")
@@ -112,7 +108,6 @@ export async function updateTier(formData: FormData) {
   if (!Number.isInteger(rank) || rank < minRank) denyRedirect("/admin/tiers", "tier_rank_invalid");
   if (price === undefined) denyRedirect("/admin/tiers", "tier_price_invalid");
   if (embargo === undefined) denyRedirect("/admin/tiers", "tier_embargo_invalid");
-  if (bookEmbargo === undefined) denyRedirect("/admin/tiers", "tier_embargo_invalid");
 
   const { data, error } = await supabase
     .from("sponsor_tiers")
@@ -122,7 +117,6 @@ export async function updateTier(formData: FormData) {
       price_cents: price,
       blurb: String(formData.get("blurb") ?? "").trim(),
       applicant_embargo_hours: embargo,
-      resume_book_embargo_hours: bookEmbargo,
     })
     .eq("id", id)
     .select("id");
@@ -134,7 +128,7 @@ export async function updateTier(formData: FormData) {
     kind: "tier_updated",
     tier_id: id,
     actor_id: profile.id,
-    detail: { name, rank, price_cents: price, embargo, resume_book_embargo: bookEmbargo },
+    detail: { name, rank, price_cents: price, embargo },
   });
   revalidateTiers();
 }

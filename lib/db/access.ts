@@ -55,8 +55,6 @@ export type CompanyAccess = {
   value(cap: CapabilityKey): number | null;
   /** my_embargo_hours: from the effective (grace, else assigned) package. */
   applicantEmbargoHours: number;
-  /** my_resume_book_embargo_hours: assigned package if it includes the book, else effective. */
-  resumeBookEmbargoHours: number;
 };
 
 /** YYYY-MM-DD in UTC, the same calendar Postgres current_date used on Supabase. */
@@ -103,11 +101,6 @@ export function resolveCompanyAccess(rows: CompanyAccessRows, now: Date): Compan
   };
 
   const effectiveTier = tierOf(effectiveId);
-  const assignedTier = tierOf(assignedId);
-  const resumeBookEmbargoHours =
-    assignedTier && capOf(assignedId, "resume_book")
-      ? assignedTier.resume_book_embargo_hours
-      : (effectiveTier?.resume_book_embargo_hours ?? 0);
 
   return {
     companyId: company.id,
@@ -117,6 +110,5 @@ export function resolveCompanyAccess(rows: CompanyAccessRows, now: Date): Compan
     has,
     value,
     applicantEmbargoHours: effectiveTier?.applicant_embargo_hours ?? 0,
-    resumeBookEmbargoHours,
   };
 }
