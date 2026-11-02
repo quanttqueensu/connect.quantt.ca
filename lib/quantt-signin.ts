@@ -7,7 +7,7 @@
  * code carries the `state` this hub put in a cookie when it sent the member away,
  * so a code cannot be replayed into someone else's browser.
  *
- * Sponsors never use this; they keep the Supabase email and password login.
+ * Sponsors never use this; they sign in with an emailed code (lib/cf-auth/login-codes.ts).
  */
 export const QUANTT_STATE_COOKIE = "quantt_state";
 

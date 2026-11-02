@@ -1,7 +1,8 @@
 /**
  * Email sign-in codes, replacing Supabase's password login and reset emails.
  *
- * A person types their email; if it has an account or a pending invite, we
+ * Sponsors only: club members use "Sign in with QUANTT" (auth.quantt.ca).
+ * A sponsor types their email; if it has a company account or invite, we
  * email a six-digit code that works once, for 10 minutes, with 5 tries.
  * The page says the same thing whether or not the email is known, so it
  * cannot be used to find out who is a member or a sponsor.
@@ -96,6 +97,8 @@ export async function verifyLoginCode(
     .run();
   if (spent.meta.changes !== 1) return { ok: false, code: "login_code_invalid" };
 
+  // Codes are only sent to sponsors, but check again before creating anything.
+  if (!(await canSignIn(db, email))) return { ok: false, code: "login_account_missing" };
   const profile = await profileForSignIn(db, email, now);
   if (!profile) return { ok: false, code: "login_account_missing" };
   return { ok: true, profileId: profile.id, role: profile.role };

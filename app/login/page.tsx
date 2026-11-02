@@ -38,10 +38,9 @@ export default async function LoginPage({
             </p>
           </div>
         </div>
-        <LoginPanel>
+        <LoginPanel error={errorText} initial={codeStep || error?.startsWith("login_") ? "sponsor" : "member"}>
           {codeStep ? (
             <form action={verifyCode} className="mt-6 w-full space-y-5">
-              {errorText && <p className="text-sm text-red-700">{errorText}</p>}
               <p className="text-sm text-copy">
                 If <span className="font-medium text-ink">{pendingEmail}</span> has an account, a
                 six-digit code is on its way. It works for 10 minutes.
@@ -66,7 +65,6 @@ export default async function LoginPage({
             </form>
           ) : (
             <form action={requestCode} className="mt-6 w-full space-y-5">
-              {errorText && <p className="text-sm text-red-700">{errorText}</p>}
               <Field label="Email">
                 <TextInput name="email" type="email" required autoComplete="email" />
               </Field>

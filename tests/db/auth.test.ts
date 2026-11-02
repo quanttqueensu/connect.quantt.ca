@@ -21,6 +21,12 @@ function inviteRecruiter(raw: Db, email: string, companyId: string) {
   run(raw, `INSERT INTO invites (id, email, full_name, role, company_id) VALUES (?, ?, 'Rita', 'company_user', ?)`, uuid(), email, companyId);
 }
 
+function addSponsor(raw: Db, email: string) {
+  const id = addMember(raw, { email });
+  run(raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, id);
+  return id;
+}
+
 /** Request a code and capture what would have been emailed. */
 async function codeFor(db: ReturnType<typeof asD1>, email: string, now = NOW) {
   const sent: string[] = [];
@@ -31,20 +37,31 @@ async function codeFor(db: ReturnType<typeof asD1>, email: string, now = NOW) {
 describe("sign-in codes", () => {
   it("emails a code to an existing account and signs in with it once", async () => {
     const { raw, db } = setup();
-    const member = addMember(raw, { email: "ann@queensu.ca" });
-    const code = await codeFor(db, " Ann@Queensu.ca ");
+    const member = addSponsor(raw, "ann@acme.com");
+    const code = await codeFor(db, " Ann@Acme.com ");
     expect(code).toMatch(/^\d{6}$/);
-    expect(await verifyLoginCode(db, "ann@queensu.ca", code!, NOW)).toEqual({ ok: true, profileId: member, role: "member" });
-    expect(await verifyLoginCode(db, "ann@queensu.ca", code!, NOW)).toEqual({ ok: false, code: "login_code_invalid" });
+    expect(await verifyLoginCode(db, "ann@acme.com", code!, NOW)).toEqual({ ok: true, profileId: member, role: "company_user" });
+    expect(await verifyLoginCode(db, "ann@acme.com", code!, NOW)).toEqual({ ok: false, code: "login_code_invalid" });
   });
 
   it("stores only a hash of the code", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
-    const code = await codeFor(db, "ann@queensu.ca");
+    addSponsor(raw, "ann@acme.com");
+    const code = await codeFor(db, "ann@acme.com");
     const stored = all<{ code_hash: string }>(raw, `SELECT code_hash FROM login_codes`)[0].code_hash;
     expect(stored).not.toContain(code!);
     expect(stored).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("never emails a code to a club member: they use Sign in with QUANTT", async () => {
+    const { raw, db } = setup();
+    addMember(raw, { email: "ann@queensu.ca" });
+    inviteMember(raw, "new@queensu.ca");
+    const send = vi.fn();
+    await requestLoginCode(db, "ann@queensu.ca", send, NOW);
+    await requestLoginCode(db, "new@queensu.ca", send, NOW);
+    expect(send).not.toHaveBeenCalled();
+    expect(all(raw, `SELECT count(*) AS n FROM login_codes`)[0].n).toBe(0);
   });
 
   it("sends nothing to an unknown email, and says nothing different", async () => {
@@ -56,48 +73,48 @@ describe("sign-in codes", () => {
 
   it("expires codes after 10 minutes", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
-    const code = await codeFor(db, "ann@queensu.ca");
+    addSponsor(raw, "ann@acme.com");
+    const code = await codeFor(db, "ann@acme.com");
     const later = new Date(NOW.getTime() + 11 * 60_000);
-    expect((await verifyLoginCode(db, "ann@queensu.ca", code!, later)).ok).toBe(false);
+    expect((await verifyLoginCode(db, "ann@acme.com", code!, later)).ok).toBe(false);
   });
 
   it("burns a code after too many wrong guesses", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
-    const code = await codeFor(db, "ann@queensu.ca");
+    addSponsor(raw, "ann@acme.com");
+    const code = await codeFor(db, "ann@acme.com");
     const wrong = code === "000000" ? "111111" : "000000";
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
-      expect((await verifyLoginCode(db, "ann@queensu.ca", wrong, NOW)).ok).toBe(false);
+      expect((await verifyLoginCode(db, "ann@acme.com", wrong, NOW)).ok).toBe(false);
     }
-    expect((await verifyLoginCode(db, "ann@queensu.ca", code!, NOW)).ok).toBe(false);
+    expect((await verifyLoginCode(db, "ann@acme.com", code!, NOW)).ok).toBe(false);
   });
 
   it("only the newest code works", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
-    const first = await codeFor(db, "ann@queensu.ca");
-    const second = await codeFor(db, "ann@queensu.ca", new Date(NOW.getTime() + 1000));
-    if (first !== second) expect((await verifyLoginCode(db, "ann@queensu.ca", first!, NOW)).ok).toBe(false);
-    expect((await verifyLoginCode(db, "ann@queensu.ca", second!, NOW)).ok).toBe(true);
+    addSponsor(raw, "ann@acme.com");
+    const first = await codeFor(db, "ann@acme.com");
+    const second = await codeFor(db, "ann@acme.com", new Date(NOW.getTime() + 1000));
+    if (first !== second) expect((await verifyLoginCode(db, "ann@acme.com", first!, NOW)).ok).toBe(false);
+    expect((await verifyLoginCode(db, "ann@acme.com", second!, NOW)).ok).toBe(true);
   });
 
   it("limits how many codes one email can be sent per hour", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
+    addSponsor(raw, "ann@acme.com");
     const send = vi.fn(async () => {});
     for (let i = 0; i < CODES_PER_HOUR + 3; i++) {
-      await requestLoginCode(db, "ann@queensu.ca", send, new Date(NOW.getTime() + i * 1000));
+      await requestLoginCode(db, "ann@acme.com", send, new Date(NOW.getTime() + i * 1000));
     }
     expect(send).toHaveBeenCalledTimes(CODES_PER_HOUR);
   });
 
   it("a code for one email does not work for another", async () => {
     const { raw, db } = setup();
-    addMember(raw, { email: "ann@queensu.ca" });
-    addMember(raw, { email: "bob@queensu.ca" });
-    const code = await codeFor(db, "ann@queensu.ca");
-    expect((await verifyLoginCode(db, "bob@queensu.ca", code!, NOW)).ok).toBe(false);
+    addSponsor(raw, "ann@acme.com");
+    addSponsor(raw, "bob@acme.com");
+    const code = await codeFor(db, "ann@acme.com");
+    expect((await verifyLoginCode(db, "bob@acme.com", code!, NOW)).ok).toBe(false);
   });
 });
 

@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createHmac } from "node:crypto";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
-import { sendInviteEmail } from "@/lib/cf-auth/email";
+import { sendInviteEmail, type InviteAudience } from "@/lib/cf-auth/email";
 import { hubEnv } from "@/lib/hub/env";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -51,18 +51,20 @@ function slugify(name: string) {
 
 /**
  * Tell an invited person how to sign in. There's no account to create: their
- * profile is made from the pending invites row the first time they sign in
- * with an emailed code (lib/cf-auth/accounts.ts).
+ * profile is made from the pending invites row the first time they sign in:
+ * members through auth.quantt.ca, sponsors with an emailed code
+ * (lib/cf-auth/accounts.ts).
  */
 async function sendAuthInvite(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
   name: string,
+  audience: InviteAudience,
 ): Promise<InviteResult> {
   const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
   if (existing) throw new AlreadyRegisteredError();
   try {
-    await sendInviteEmail(await hubEnv(), email, name, `${siteUrl()}/login`);
+    await sendInviteEmail(await hubEnv(), email, name, `${siteUrl()}/login`, audience);
     return { via: "email" };
   } catch (e) {
     console.error("invite email not sent", e);
@@ -207,7 +209,7 @@ export async function invitePerson(formData: FormData) {
       insertedInviteId = row?.id ?? null;
     }
 
-    result = await sendAuthInvite(admin, email, fullName);
+    result = await sendAuthInvite(admin, email, fullName, kind === "company" ? "sponsor" : "member");
   } catch (e) {
     if (isControlFlowError(e)) throw e;
     // Nothing was invited, so do not leave a row sitting in "Waiting to join"
@@ -308,7 +310,7 @@ export async function reviewJoinRequest(formData: FormData) {
 
     let invite: InviteResult | null = null;
     try {
-      invite = await sendAuthInvite(admin, req.contact_email, req.contact_name);
+      invite = await sendAuthInvite(admin, req.contact_email, req.contact_name, "sponsor");
     } catch (e) {
       if (!(e instanceof AlreadyRegisteredError)) throw e;
       // The contact already has an account, so there is nothing to invite and

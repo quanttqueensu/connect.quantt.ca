@@ -71,12 +71,12 @@ const MESSAGES = {
   login_code_invalid: "That code didn't work. Check it, or ask for a new one.",
   login_code_expired: "That code expired. Enter your email to get a new one.",
   login_account_missing:
-    "This email is not set up in Connect yet. Ask a QUANTT exec to check your invite.",
+    "This email doesn't have a sponsor account. QUANTT members: use Sign in with your Queen's email.",
 
   // app/auth/quantt/callback/route.ts
   quantt_signin_failed: "QUANTT sign-in didn't go through. Try again, or ask a QUANTT exec.",
-  quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca. Use an emailed code here.",
-  quantt_signin_company: "That email belongs to a company account. Log in with an emailed code instead.",
+  quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca.",
+  quantt_signin_company: "That email belongs to a sponsor account. Use Sponsor login instead.",
 
   // lib/actions/admin.ts
   join_request_reject_failed:

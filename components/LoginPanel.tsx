@@ -2,8 +2,21 @@
 
 import { useState, type ReactNode } from "react";
 
-export default function LoginPanel({ children }: { children: ReactNode }) {
-  const [audience, setAudience] = useState<"member" | "sponsor">("member");
+/**
+ * Members sign in through auth.quantt.ca, the same Queen's sign-in as the
+ * calendar and the other QUANTT sites. Sponsors get an emailed code
+ * (`children`, the code form).
+ */
+export default function LoginPanel({
+  children,
+  error,
+  initial = "member",
+}: {
+  children: ReactNode;
+  error?: string;
+  initial?: "member" | "sponsor";
+}) {
+  const [audience, setAudience] = useState<"member" | "sponsor">(initial);
 
   return (
     <div className="p-6 sm:p-10 lg:min-h-[43rem] lg:p-12">
@@ -29,9 +42,10 @@ export default function LoginPanel({ children }: { children: ReactNode }) {
       </h2>
       <p className="mt-2 text-sm leading-6 text-copy">
         {audience === "member"
-          ? "Sign in to your Connect member account."
-          : "Sign in with your invited company account."}
+          ? "Use the same Queen's sign-in as the other QUANTT sites."
+          : "We'll email a sign-in code to your invited company address."}
       </p>
+      {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       {audience === "member" && (
         <div className="mt-6">
           {/* The route handler redirects off-site, so this stays a plain link. */}
@@ -41,12 +55,9 @@ export default function LoginPanel({ children }: { children: ReactNode }) {
           >
             Sign in with your Queen&apos;s email
           </a>
-          <p className="mt-6 border-t border-line pt-5 text-xs text-muted">
-            Or get a sign-in code by email
-          </p>
         </div>
       )}
-      {children}
+      {audience === "sponsor" && children}
     </div>
   );
 }

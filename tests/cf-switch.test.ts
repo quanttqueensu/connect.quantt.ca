@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import type { R2BucketLike } from "@/lib/db/storage";
 import { signFileLink } from "@/lib/db/storage";
 
-import { addMember, all, asD1, freshDb, type Db } from "./db/sqlite";
+import { addMember, all, asD1, freshDb, run, type Db } from "./db/sqlite";
 
 const state = vi.hoisted(() => ({
   raw: null as unknown as Db,
@@ -76,26 +76,33 @@ beforeEach(() => {
 });
 
 describe("emailed-code sign-in", () => {
-  it("signs a member in with the emailed code and out again", async () => {
-    const member = addMember(state.raw, { email: "Jane@QueensU.ca" });
-    await expect(requestCode(form({ email: " jane@queensu.ca " }))).rejects.toThrow("redirect:/login?step=code");
+  it("signs a sponsor in with the emailed code and out again", async () => {
+    const member = addMember(state.raw, { email: "Jane@Acme.com" });
+    run(state.raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, member);
+    await expect(requestCode(form({ email: " jane@acme.com " }))).rejects.toThrow("redirect:/login?step=code");
     expect(state.sent).toHaveLength(1);
     const code = /\b(\d{6})\b/.exec(state.sent[0].text)![1];
 
     await expect(verifyCode(form({ code: "000000" === code ? "111111" : "000000" }))).rejects.toThrow(
       "redirect:/login?step=code&error=login_code_invalid",
     );
-    await expect(verifyCode(form({ code }))).rejects.toThrow("redirect:/feed");
+    await expect(verifyCode(form({ code }))).rejects.toThrow("redirect:/company");
     const token = state.jar.get("connect_session")!;
     expect(token).toMatch(/^[\w-]{40,}$/);
     expect(state.jar.has("connect_login_email")).toBe(false);
     expect(all(state.raw, `SELECT profile_id FROM sessions`)).toEqual([{ profile_id: member }]);
 
     const signedIn = await middleware(new NextRequest("https://connect.test/login", { headers: { cookie: `connect_session=${token}` } }));
-    expect(signedIn.headers.get("location")).toBe("https://connect.test/feed");
+    expect(signedIn.headers.get("location")).toBe("https://connect.test/company");
 
     await expect(logout()).rejects.toThrow("redirect:/login");
     expect(all(state.raw, `SELECT count(*) AS n FROM sessions`)[0].n).toBe(0);
+  });
+
+  it("sends no code to a club member", async () => {
+    addMember(state.raw, { email: "ann@queensu.ca" });
+    await expect(requestCode(form({ email: "ann@queensu.ca" }))).rejects.toThrow("redirect:/login?step=code");
+    expect(state.sent).toHaveLength(0);
   });
 
   it("answers the same way for an unknown email and sends nothing", async () => {

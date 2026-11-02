@@ -38,18 +38,27 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-export function inviteEmail(name: string, loginUrl: string) {
+export type InviteAudience = "member" | "sponsor";
+
+function howToSignIn(audience: InviteAudience) {
+  return audience === "member"
+    ? `choose "Sign in with your Queen's email", the same sign-in as the other QUANTT sites. There's no password to set.`
+    : "choose Sponsor and enter this email address. We'll email you a one-time code; there's no password to set.";
+}
+
+export function inviteEmail(name: string, loginUrl: string, audience: InviteAudience = "sponsor") {
   const subject = "You're invited to QUANTT Connect";
   const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
+  const how = howToSignIn(audience);
   const text = [
     greeting,
     "",
     "You've been invited to QUANTT Connect.",
-    `To sign in, go to ${loginUrl} and enter this email address. We'll email you a one-time code; there's no password to set.`,
+    `To sign in, go to ${loginUrl} and ${how}`,
   ].join("\n");
   const html = `<p>${escapeHtml(greeting)}</p>
 <p>You've been invited to QUANTT Connect.</p>
-<p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and enter this email address. We'll email you a one-time code; there's no password to set.</p>`;
+<p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and ${escapeHtml(how)}</p>`;
   return { subject, text, html };
 }
 
@@ -59,10 +68,11 @@ export async function sendInviteEmail(
   to: string,
   name: string,
   loginUrl: string,
+  audience: InviteAudience = "sponsor",
   fetchImpl: typeof fetch = fetch,
 ) {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
-  const { subject, text, html } = inviteEmail(name, loginUrl);
+  const { subject, text, html } = inviteEmail(name, loginUrl, audience);
   const res = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
