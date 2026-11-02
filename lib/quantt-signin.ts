@@ -28,8 +28,10 @@ export type QuanttClaims = {
 export type QuanttDirectory = {
   redeem(code: string, app: string): Promise<Record<string, unknown> | null>;
   /** The member's headshot / resume uploaded on auth.quantt.ca (lib/directory-files.ts). */
-  photo?(who: string): Promise<{ type: string; data: ArrayBuffer } | null>;
-  resume?(who: string): Promise<{ type: string; data: ArrayBuffer } | null>;
+  photo?(who: string): Promise<{ type: string; data: ArrayBuffer; updated?: string } | null>;
+  resume?(who: string): Promise<{ type: string; data: ArrayBuffer; updated?: string } | null>;
+  /** Upload times of the headshot and resume, without the files. */
+  files?(who: string): Promise<{ photo: string | null; resume: string | null } | null>;
 };
 
 export type SigninResult = { ok: true; claims: QuanttClaims } | { ok: false; reason: string };

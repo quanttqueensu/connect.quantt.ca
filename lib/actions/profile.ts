@@ -13,6 +13,45 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { denyRedirect } from "./deny";
+import { getDirectorySync, setDirectorySync, syncDirectoryFiles, type DirectoryFiles } from "@/lib/directory-files";
+import { hubEnv } from "@/lib/hub/env";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+/** While a member keeps sync on, auth.quantt.ca owns their photo and resume (lib/directory-files.ts). */
+async function refuseIfSynced(profileId: string) {
+  const { DB } = await hubEnv();
+  if (await getDirectorySync(DB, profileId)) denyRedirect("/profile", "profile_files_synced");
+}
+
+function revalidateFiles(profileId: string) {
+  revalidatePath("/profile");
+  revalidatePath("/members");
+  revalidatePath(`/members/${profileId}`);
+  revalidatePath("/feed/[id]", "page");
+  revalidatePath("/company/resume-book");
+  revalidatePath("/company/search");
+}
+
+/** "Keep in sync" on the profile page. Turning it on copies the directory's files right away. */
+export async function setDirectorySyncSetting(formData: FormData) {
+  const profile = await requireProfile();
+  if (profile.role !== "member") throw new Error("Members only");
+  const enabled = formData.get("enabled") === "true";
+  const { DB, FILES } = await hubEnv();
+  try {
+    await setDirectorySync(DB, profile.id, enabled);
+  } catch {
+    denyRedirect("/profile", "profile_sync_failed");
+  }
+  if (enabled) {
+    const { env } = await getCloudflareContext({ async: true });
+    const auth = (env as unknown as { AUTH?: DirectoryFiles }).AUTH ?? {};
+    await syncDirectoryFiles(DB, FILES, auth, profile.id, profile.email).catch((e) =>
+      console.warn("directory files: sync failed", e instanceof Error ? e.message : e),
+    );
+  }
+  revalidateFiles(profile.id);
+}
 
 export async function updateProfile(formData: FormData) {
   const profile = await requireProfile();
@@ -148,6 +187,7 @@ export async function deleteSection(formData: FormData) {
 export async function uploadPhoto(formData: FormData) {
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
+  await refuseIfSynced(profile.id);
   const file = formData.get("photo") as File | null;
   if (!file || file.size === 0) denyRedirect("/profile", "profile_photo_invalid");
   if (file.size > MAX_IMAGE_BYTES) denyRedirect("/profile", "profile_photo_invalid");
@@ -229,6 +269,7 @@ export async function saveProfileDocument(kind: "resume" | "cover", formData: Fo
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
   if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
+  if (kind === "resume") await refuseIfSynced(profile.id);
   const file = formData.get("document");
   if (!(file instanceof File) || file.size === 0) {
     denyRedirect("/profile", "profile_document_invalid");
@@ -270,6 +311,7 @@ export async function removeProfileDocument(kind: "resume" | "cover") {
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
   if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
+  if (kind === "resume") await refuseIfSynced(profile.id);
   const supabase = await createClient();
   const column = kind === "resume" ? "resume_path" : "cover_letter_path";
   const { data, error } = await supabase.from("member_documents").update({

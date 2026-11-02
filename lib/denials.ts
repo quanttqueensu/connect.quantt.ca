@@ -168,6 +168,9 @@ const MESSAGES = {
   profile_section_missing: "That section no longer exists.",
   profile_photo_attach_failed:
     "The photo uploaded but could not be attached to your profile. Sign out and back in, then try again.",
+  profile_files_synced:
+    "Your photo and resume are kept in sync with auth.quantt.ca. Change them there, or turn off Keep in sync to use different files here.",
+  profile_sync_failed: "Your sync setting was not saved. Try again.",
   profile_photo_invalid:
     "That photo was not saved. Use a JPEG, PNG, or WebP under 2MB.",
   resume_book_opt_in_failed:

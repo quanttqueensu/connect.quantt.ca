@@ -4,7 +4,7 @@ import { profileForQuanttMember } from "@/lib/cf-auth/accounts";
 import { createSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/cf-auth/sessions";
 import type { D1Database } from "@/lib/db/d1";
 import type { R2BucketLike } from "@/lib/db/storage";
-import { copyDirectoryFiles } from "@/lib/directory-files";
+import { syncDirectoryFiles } from "@/lib/directory-files";
 import { siteUrl } from "@/lib/site-url";
 import { QUANTT_STATE_COOKIE, redeemSignin } from "@/lib/quantt-signin";
 
@@ -13,8 +13,8 @@ import { QUANTT_STATE_COOKIE, redeemSignin } from "@/lib/quantt-signin";
  * signs the member in, creating their profile the first time (using a pending
  * invite if there is one). The directory decides hub admin: its Connect role
  * is copied onto is_admin on every sign-in. A company account with the same
- * email is refused. A headshot or resume on file in the directory is copied
- * into the profile when it has none yet (lib/directory-files.ts).
+ * email is refused. The headshot and resume on file in the directory are
+ * copied in when newer, unless the member turned sync off (lib/directory-files.ts).
  */
 function back(code: string) {
   const res = NextResponse.redirect(`${siteUrl()}/login?error=${code}`);
@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
   const files = (env as unknown as { FILES?: R2BucketLike }).FILES;
   if (files) {
     // Never blocks sign-in: a failed copy just leaves the profile as it was.
-    await copyDirectoryFiles(db, files, env.AUTH, outcome.profileId, email).catch((e) =>
-      console.warn("directory files: copy failed", e instanceof Error ? e.message : e),
+    await syncDirectoryFiles(db, files, env.AUTH, outcome.profileId, email).catch((e) =>
+      console.warn("directory files: sync failed", e instanceof Error ? e.message : e),
     );
   }
 

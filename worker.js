@@ -4,14 +4,16 @@
 // middleware: the GitHub Action (.github/workflows/opportunities.yml) sends the
 // day's listings with a bearer token (lib/jobs/store.ts).
 //
-// The cron in wrangler.jsonc runs `scheduled` once a day to delete expired
-// sessions, sign-in codes and join-form admission rows from D1. (It used to
-// keep the free Supabase project from pausing.)
+// The hourly cron in wrangler.jsonc: copy headshots and resumes changed on
+// auth.quantt.ca into the profiles of members who keep sync on
+// (lib/directory-files.ts); at 08:00 UTC, also delete expired sessions,
+// sign-in codes and join-form admission rows from D1.
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
 import handler from "./.open-next/worker.js";
 import { handleSync } from "./lib/jobs/store";
+import { syncAllDirectoryFiles } from "./lib/directory-files";
 
 const worker = {
   fetch(request, env, ctx) {
@@ -21,11 +23,20 @@ const worker = {
     return handler.fetch(request, env, ctx);
   },
 
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
     if (!env.DB) {
       console.error("cleanup: the DB binding is missing");
       return;
     }
+    if (env.FILES && env.AUTH) {
+      ctx.waitUntil(
+        syncAllDirectoryFiles(env.DB, env.FILES, env.AUTH).then(
+          (r) => console.log("directory sync", JSON.stringify(r)),
+          (err) => console.error("directory sync failed", err),
+        ),
+      );
+    }
+    if (new Date(controller.scheduledTime).getUTCHours() !== 8) return;
     const now = new Date().toISOString();
     const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
     ctx.waitUntil(
