@@ -21,6 +21,12 @@ import type { D1Database } from "@/lib/db/d1";
  *                            club members: there is no session until the
  *                            callback redeems auth.quantt.ca's code
  *                            (lib/quantt-signin.ts).
+ *  - `/alumni`             — the alumni area. Alumni have their own accounts,
+ *                            cookie (`connect_alumni`) and tables, kept apart
+ *                            from members and sponsors. Every alumni page
+ *                            checks that session in app/alumni/(hub)/layout.tsx
+ *                            and every alumni action checks it again
+ *                            (lib/alumni/current.ts).
  */
 const PUBLIC_PATHS = [
   "/",
@@ -30,6 +36,7 @@ const PUBLIC_PATHS = [
   "/files",
   "/auth/quantt/start",
   "/auth/quantt/callback",
+  "/alumni",
 ];
 
 function isPublic(pathname: string) {
@@ -102,6 +109,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/applications") ||
       pathname.startsWith("/profile") ||
       pathname.startsWith("/messages") ||
+      pathname.startsWith("/alumni-network") ||
       (pathname.startsWith("/admin") && !profile.is_admin) ||
       pathname === "/";
     if (blocked) {

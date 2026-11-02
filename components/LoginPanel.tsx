@@ -58,6 +58,12 @@ export default function LoginPanel({
         </div>
       )}
       {audience === "sponsor" && children}
+      <p className="mt-6 text-sm text-copy">
+        QUANTT alumni?{" "}
+        <a href="/alumni/login" className="font-medium text-primary hover:underline">
+          Alumni login
+        </a>
+      </p>
     </div>
   );
 }

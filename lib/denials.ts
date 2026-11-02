@@ -73,6 +73,16 @@ const MESSAGES = {
   login_account_missing:
     "This email doesn't have a sponsor account. QUANTT members: use Sign in with your Queen's email.",
 
+  // lib/actions/alumni.ts
+  alumni_account_missing: "This email doesn't have an alumni account. Ask a QUANTT exec for an invite.",
+  alumni_profile_invalid: "Check your profile: a name is required, and links must start with https://.",
+  alumni_post_invalid: "Add a title (and a valid https:// link, if you gave one), then post again.",
+  alumni_post_failed: "That post could not be changed. It may not be yours, or it's already closed.",
+  alumni_message_failed: "That message was not sent. Keep it under 4,000 characters and try again.",
+  alumni_conversation_failed: "That conversation could not be opened.",
+  alumni_invite_exists: "That email already has an alumni account.",
+  alumni_invite_invalid: "Enter a name and a valid email to invite an alum.",
+
   // app/auth/quantt/callback/route.ts
   quantt_signin_failed: "QUANTT sign-in didn't go through. Try again, or ask a QUANTT exec.",
   quantt_signin_unconfigured: "QUANTT sign-in only works on connect.quantt.ca.",
