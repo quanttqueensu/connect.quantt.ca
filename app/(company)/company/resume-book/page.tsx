@@ -35,7 +35,6 @@ export default async function ResumeBookPage({
         })
       : { data: [] as TalentRow[] };
 
-  const delay = access?.resume_book_embargo_hours ?? 0;
 
   return (
     <>
@@ -56,11 +55,6 @@ export default async function ResumeBookPage({
               {assigned?.name} package takes effect.
             </p>
           )}
-        {delay > 0 && (
-          <p className="mb-6 text-sm text-copy">
-            New opt-ins appear after {delay} hours at your tier.
-          </p>
-        )}
         {yearInvalid && (
           <p role="alert" className="mb-6 text-sm text-ink">
             Grad year must be a whole number between 1900 and 2100.

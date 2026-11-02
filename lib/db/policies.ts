@@ -86,10 +86,6 @@ export function iso(d: Date) {
   return d.toISOString();
 }
 
-function hoursBefore(now: Date, hours: number) {
-  return iso(new Date(now.getTime() - hours * 3_600_000));
-}
-
 // ---------------------------------------------------------------------------
 // Viewer helpers (is_member, is_admin, my_company_id, my_capability)
 // ---------------------------------------------------------------------------
@@ -115,15 +111,6 @@ export function myCapabilityValue(v: MaybeViewer, cap: CapabilityKey): number | 
   return v?.access ? v.access.value(cap) : null;
 }
 
-/** Applications created at or before this instant are past the firm's applicant embargo. */
-export function applicantCutoff(v: Viewer): string {
-  return hoursBefore(v.now, v.access?.applicantEmbargoHours ?? 0);
-}
-
-/** Members who opted in at or before this instant are past the firm's resume book delay. */
-export function resumeBookCutoff(v: Viewer): string {
-  return hoursBefore(v.now, v.access?.resumeBookEmbargoHours ?? 0);
-}
 
 // ---------------------------------------------------------------------------
 // Shared predicates
@@ -131,24 +118,23 @@ export function resumeBookCutoff(v: Viewer): string {
 
 /**
  * my_visible_applicant(member): the member applied in-app to one of my
- * firm's posts, my firm can read applicants, and that application is past
- * the applicant embargo.
+ * firm's posts and my firm can read applicants. No delay: a firm sees an
+ * application as soon as it is submitted.
  */
 export function visibleApplicantSql(v: MaybeViewer, memberColumn: string): Sql {
   if (!v?.companyId || !myCapability(v, "read_applicants")) return NONE;
   return sql(
     `EXISTS (SELECT 1 FROM applications va JOIN posts vp ON vp.id = va.post_id
       WHERE va.member_id = ${memberColumn} AND va.kind = 'in_app'
-        AND vp.company_id = ? AND va.created_at <= ?)`,
+        AND vp.company_id = ?)`,
     v.companyId,
-    applicantCutoff(v),
   );
 }
 
 /**
  * my_opted_in_member(member): I'm at a firm with the resume book, candidate
- * search, or message-any, and the member opted into the book before my
- * firm's delay.
+ * search, or message-any, and the member opted into the book. No delay:
+ * every tier sees a new opt-in straight away.
  */
 export function optedInMemberSql(v: MaybeViewer, memberColumn: string): Sql {
   if (!v?.companyId) return NONE;
@@ -160,8 +146,7 @@ export function optedInMemberSql(v: MaybeViewer, memberColumn: string): Sql {
   return sql(
     `EXISTS (SELECT 1 FROM profiles op WHERE op.id = ${memberColumn}
       AND op.role = 'member' AND op.resume_book_opt_in = 1
-      AND op.resume_book_opt_in_at IS NOT NULL AND op.resume_book_opt_in_at <= ?)`,
-    resumeBookCutoff(v),
+      AND op.resume_book_opt_in_at IS NOT NULL)`,
   );
 }
 
@@ -255,10 +240,8 @@ export function companyApplicationsSql(v: Viewer, a: string): Sql {
   if (!v.companyId || !myCapability(v, "read_applicants")) return NONE;
   return sql(
     `${col(a, "kind")} = 'in_app'
-      AND ${col(a, "post_id")} IN (SELECT id FROM posts WHERE company_id = ?)
-      AND ${col(a, "created_at")} <= ?`,
+      AND ${col(a, "post_id")} IN (SELECT id FROM posts WHERE company_id = ?)`,
     v.companyId,
-    applicantCutoff(v),
   );
 }
 

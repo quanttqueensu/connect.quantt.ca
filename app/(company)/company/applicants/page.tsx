@@ -32,8 +32,6 @@ export default async function ApplicantsPage({
     .eq("company_id", cu.company_id)
     .order("created_at", { ascending: false }) : { data: [] };
 
-  const embargo = access?.applicant_embargo_hours ?? 0;
-
   return (
     <>
       <PageHeader kicker="Hiring" title="Applicants" />
@@ -45,11 +43,6 @@ export default async function ApplicantsPage({
         title="Applicant pipeline"
         description="Your current access does not include seeing who applied through Connect."
       >
-        {can(access, "read_applicants") && embargo > 0 && (
-          <p className="mb-6 text-sm text-copy">
-            New applications appear after {embargo} hours at your tier.
-          </p>
-        )}
         {graceOnlyCap(assigned, effective, overrides, "read_applicants") && (
             <p className="mb-6 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
               This pipeline is still open during grandfathering. It will lock when your{" "}

@@ -146,11 +146,11 @@ describe("reads", () => {
     const firm = addCompany(raw, "partner");
     const other = addCompany(raw, "partner");
     const post = addPost(raw, firm.companyId, firm.userId);
-    addApplication(raw, member, post, hoursAgo(1)); // inside the 72h embargo
+    addApplication(raw, member, post, hoursAgo(1));
     const { data } = await user(member).from("applications").select("*, posts(title), profiles(full_name)");
     expect((data as { profiles: unknown }[])[0].profiles).not.toBeNull();
-    const firmView = await user(firm.userId).from("applications").select("*");
-    expect(firmView.data).toEqual([]);
+    const otherApps = await user(other.userId).from("applications").select("*");
+    expect(otherApps.data).toEqual([]);
     const otherView = await user(other.userId).from("posts").select("*").eq("id", post);
     expect(otherView.data).toEqual([]);
   });

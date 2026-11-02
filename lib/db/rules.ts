@@ -45,7 +45,6 @@ import {
   profileUpdate,
   sectionsScope,
   visibleApplicantSql,
-  applicantCutoff,
   type MaybeViewer,
   type PostShape,
   type ProfileRow,
@@ -288,8 +287,7 @@ function firmSeesApplication(v: MaybeViewer, row: Row) {
     v?.companyId &&
       row.kind === "in_app" &&
       row.company_id === v.companyId &&
-      myCapability(v, "read_applicants") &&
-      String(row.created_at) <= applicantCutoff(v),
+      myCapability(v, "read_applicants"),
   );
 }
 

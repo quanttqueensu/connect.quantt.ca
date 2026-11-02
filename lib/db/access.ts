@@ -53,10 +53,6 @@ export type CompanyAccess = {
   has(cap: CapabilityKey): boolean;
   /** company_capability_value: override value, else assigned package, else effective package. */
   value(cap: CapabilityKey): number | null;
-  /** my_embargo_hours: from the effective (grace, else assigned) package. */
-  applicantEmbargoHours: number;
-  /** my_resume_book_embargo_hours: assigned package if it includes the book, else effective. */
-  resumeBookEmbargoHours: number;
 };
 
 /** YYYY-MM-DD in UTC, the same calendar Postgres current_date used on Supabase. */
@@ -83,7 +79,6 @@ export function resolveCompanyAccess(rows: CompanyAccessRows, now: Date): Compan
   const capOf = (tierId: string, cap: string) =>
     rows.tierCapabilities.find((c) => c.tier_id === tierId && c.capability === cap);
   const overrideOf = (cap: string) => rows.overrides.find((o) => o.capability === cap);
-  const tierOf = (tierId: string) => rows.tiers.find((t) => t.id === tierId);
 
   const active = company.status === "active";
 
@@ -102,12 +97,6 @@ export function resolveCompanyAccess(rows: CompanyAccessRows, now: Date): Compan
     return capOf(effectiveId, cap)?.value ?? null;
   };
 
-  const effectiveTier = tierOf(effectiveId);
-  const assignedTier = tierOf(assignedId);
-  const resumeBookEmbargoHours =
-    assignedTier && capOf(assignedId, "resume_book")
-      ? assignedTier.resume_book_embargo_hours
-      : (effectiveTier?.resume_book_embargo_hours ?? 0);
 
   return {
     companyId: company.id,
@@ -116,7 +105,5 @@ export function resolveCompanyAccess(rows: CompanyAccessRows, now: Date): Compan
     effectiveTierId: effectiveId,
     has,
     value,
-    applicantEmbargoHours: effectiveTier?.applicant_embargo_hours ?? 0,
-    resumeBookEmbargoHours,
   };
 }
