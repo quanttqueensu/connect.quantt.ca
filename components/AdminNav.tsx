@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/admin/requests", label: "Requests" },
   { href: "/admin/posts", label: "Posts" },
   { href: "/admin/applications", label: "Applications" },
+  { href: "/admin/alumni", label: "Alumni" },
 ];
 
 export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolean }) {

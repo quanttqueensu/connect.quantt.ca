@@ -290,3 +290,38 @@ export async function quietly(label: string, task: () => Promise<void>) {
   }
 }
 
+/** A message in an alumni conversation: email the other side. */
+export async function notifyAlumniMessage(
+  db: D1Database,
+  send: SendEmails,
+  conversationId: string,
+  sender: "alumni" | "member",
+  now = new Date(),
+) {
+  const c = await db
+    .prepare(
+      `SELECT c.member_id, p.email AS member_email, p.full_name AS member_name,
+              c.alumni_id, a.email AS alumni_email, a.full_name AS alumni_name, a.email_messages
+         FROM alumni_conversations c JOIN profiles p ON p.id = c.member_id JOIN alumni a ON a.id = c.alumni_id
+        WHERE c.id = ?`,
+    )
+    .bind(conversationId)
+    .first<{
+      member_id: string; member_email: string; member_name: string;
+      alumni_id: string; alumni_email: string; alumni_name: string; email_messages: number;
+    }>();
+  if (!c) return;
+  const topic = `alumni-conversation:${conversationId}`;
+  if (sender === "alumni") {
+    const [to] = await wanting(db, "messages", [{ id: c.member_id, email: c.member_email }]);
+    if (to && (await claimSlot(db, to.id, topic, MESSAGE_QUIET_MINUTES, now))) {
+      await send([
+        notificationEmail(to.email, "New message on QUANTT Connect", `${c.alumni_name || "A QUANTT alum"} (alumni) sent you a message on Connect.`, `/alumni-network/messages/${conversationId}`),
+      ]);
+    }
+  } else if (c.email_messages === 1 && (await claimSlot(db, `alumni:${c.alumni_id}`, topic, MESSAGE_QUIET_MINUTES, now))) {
+    await send([
+      notificationEmail(c.alumni_email, "New message on QUANTT Connect", `${c.member_name || "A QUANTT member"} sent you a message on Connect.`, `/alumni/messages/${conversationId}`),
+    ]);
+  }
+}

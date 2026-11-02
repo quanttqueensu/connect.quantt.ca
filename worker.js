@@ -38,6 +38,17 @@ const worker = {
         (err) => console.error("cleanup failed", err),
       ),
     );
+    // Separate batch: the alumni tables are created on first use, so they may
+    // not exist yet, and that must not stop the cleanup above.
+    ctx.waitUntil(
+      env.DB.batch([
+        env.DB.prepare("DELETE FROM alumni_sessions WHERE expires_at <= ?").bind(now),
+        env.DB.prepare("DELETE FROM alumni_login_codes WHERE expires_at <= ?").bind(dayAgo),
+      ]).then(
+        () => console.log("cleanup: expired alumni rows removed"),
+        (err) => console.error("alumni cleanup skipped", err),
+      ),
+    );
   },
 };
 

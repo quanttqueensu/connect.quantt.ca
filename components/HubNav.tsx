@@ -42,6 +42,7 @@ export default function HubNav({ profile, unread = 0, companyCaps, sponsorMode =
         { href: "/applications", label: "Applications" },
         { href: "/members", label: "Members" },
         { href: "/messages", label: "Messages" },
+        { href: "/alumni-network", label: "Alumni" },
         { href: "/profile", label: "Profile" },
       ];
 

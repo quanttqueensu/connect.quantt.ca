@@ -105,6 +105,15 @@ Club members sign in only one way, the same as the calendar and the other QUANTT
 
 If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://localhost:3000` with `npm run preview`), list that origin in `CONNECT_ORIGINS` on `quantt-auth`.
 
+## Alumni
+
+Alumni have their own area at `/alumni`, kept apart from members and sponsors: their own tables (`alumni*`, `db/migrations/0006_alumni.sql`, also created on first use by `lib/alumni/schema.ts`), their own invites, sign-in codes and session cookie (`connect_alumni`). A member or sponsor session never opens the alumni area, and an alumni session never opens the member or company app.
+
+- **Invite:** Admin → Alumni. The alum gets an email and signs in at `/alumni/login` with a six-digit code (10 minutes, 5 tries, 5 codes an hour). Removing an alum deletes their account, posts, messages and sessions.
+- **Alumni can:** post jobs and mentorship offers (and close their own), browse current members and other alumni, message members, and edit their profile, including whether to get an email when a member messages them (off until they turn it on).
+- **Members can:** see alumni posts and the alumni directory at `/alumni-network`, and message alumni. Alumni messages follow the member's normal Messages email setting.
+- `/alumni` is public in `middleware.ts` because the member/sponsor session doesn't apply there; `app/alumni/(hub)/layout.tsx` and every alumni action check the alumni session instead (`lib/alumni/current.ts`).
+
 ## Sponsor tiers and company overrides
 
 Use **Admin → Sponsor tiers** to edit the features shared by a tier. Use
@@ -171,10 +180,11 @@ push and pull request.
 
 | Who | Paths |
 | --- | --- |
-| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links). `POST /api/opportunities/sync` is answered by `worker.js` with a bearer token, before the middleware. |
-| Member | `/feed`, `/opportunities`, `/applications`, `/profile`, `/members`, `/messages` |
+| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links), `/alumni/*` (checks its own session). `POST /api/opportunities/sync` is answered by `worker.js` with a bearer token, before the middleware. |
+| Member | `/feed`, `/opportunities`, `/applications`, `/profile`, `/members`, `/messages`, `/alumni-network` |
+| Alumni | `/alumni/login`, then `/alumni` (posts), `/alumni/members`, `/alumni/directory`, `/alumni/messages`, `/alumni/profile`, with the separate alumni session |
 | Company | `/company`, `/company/posts/new`, `/company/applicants`, `/company/messages` |
-| Admin | `/admin` panel (invite, people, companies, requests, posts, applications). Admins are also members and use the member app separately. |
+| Admin | `/admin` panel (invite, people, companies, requests, posts, applications, alumni). Admins are also members and use the member app separately. |
 
 Public routes are listed explicitly in `PUBLIC_PATHS` in `middleware.ts`. A new
 `/auth/*` route is **private until it is added there deliberately** — there is

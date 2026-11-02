@@ -38,12 +38,16 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-export type InviteAudience = "member" | "sponsor";
+export type InviteAudience = "member" | "sponsor" | "alumni";
 
 function howToSignIn(audience: InviteAudience) {
-  return audience === "member"
-    ? `choose "Sign in with your Queen's email", the same sign-in as the other QUANTT sites. There's no password to set.`
-    : "choose Sponsor and enter this email address. We'll email you a one-time code; there's no password to set.";
+  if (audience === "member") {
+    return `choose "Sign in with your Queen's email", the same sign-in as the other QUANTT sites. There's no password to set.`;
+  }
+  if (audience === "alumni") {
+    return "enter this email address. We'll email you a one-time code; there's no password to set.";
+  }
+  return "choose Sponsor and enter this email address. We'll email you a one-time code; there's no password to set.";
 }
 
 export function inviteEmail(name: string, loginUrl: string, audience: InviteAudience = "sponsor") {
