@@ -23,21 +23,31 @@ function setup() {
   const recruiter = all<{ email: string }>(raw, `SELECT email FROM profiles WHERE id = ?`, firm.userId)[0].email;
   const convo = uuid();
   run(raw, `INSERT INTO conversations (id, member_id, company_id) VALUES (?, ?, ?)`, convo, member, firm.companyId);
-  return { raw, db, sent, send, member, firm, recruiter, convo };
+  const allOn = { messages: true, applications: true, application_updates: true, new_jobs: true };
+  return { raw, db, sent, send, member, firm, recruiter, convo, allOn };
 }
 
 describe("notification settings", () => {
-  it("defaults to everything on except new jobs, and saves changes", async () => {
+  it("defaults to everything off, and saves changes", async () => {
     const { db, member } = setup();
-    expect(await getPrefs(db, member)).toEqual({ messages: true, applications: true, application_updates: true, new_jobs: false });
+    expect(await getPrefs(db, member)).toEqual({ messages: false, applications: false, application_updates: false, new_jobs: false });
     await savePrefs(db, member, { messages: false, applications: true, application_updates: true, new_jobs: true });
     expect(await getPrefs(db, member)).toMatchObject({ messages: false, new_jobs: true });
   });
 });
 
 describe("message emails", () => {
+  it("sends nothing until someone turns emails on", async () => {
+    const { db, sent, send, member, firm, convo } = setup();
+    await notifyNewMessage(db, send, convo, member, NOW);
+    await notifyNewMessage(db, send, convo, firm.userId, NOW);
+    expect(sent).toHaveLength(0);
+  });
+
   it("emails the other side, without the message text, at most once per quiet period", async () => {
-    const { db, sent, send, member, firm, recruiter, convo } = setup();
+    const { db, sent, send, member, firm, recruiter, convo, allOn } = setup();
+    await savePrefs(db, member, allOn);
+    await savePrefs(db, firm.userId, allOn);
     await notifyNewMessage(db, send, convo, member, NOW);
     expect(sent.map((e) => e.to)).toEqual([recruiter]);
     expect(sent[0].text).toContain(`/company/messages/${convo}`);
@@ -53,8 +63,8 @@ describe("message emails", () => {
   });
 
   it("sends nothing to someone who turned message emails off", async () => {
-    const { db, sent, send, member, firm, convo } = setup();
-    await savePrefs(db, member, { messages: false, applications: true, application_updates: true, new_jobs: false });
+    const { db, sent, send, member, firm, convo, allOn } = setup();
+    await savePrefs(db, member, { ...allOn, messages: false });
     await notifyNewMessage(db, send, convo, firm.userId, NOW);
     expect(sent).toHaveLength(0);
   });
@@ -62,7 +72,9 @@ describe("message emails", () => {
 
 describe("application and job emails", () => {
   it("tells the firm about an application and the member about a stage change", async () => {
-    const { raw, db, sent, send, member, firm, recruiter } = setup();
+    const { raw, db, sent, send, member, firm, recruiter, allOn } = setup();
+    await savePrefs(db, member, allOn);
+    await savePrefs(db, firm.userId, allOn);
     const post = uuid();
     run(raw, `INSERT INTO posts (id, author_id, company_id, kind, title, role_type, term_season, term_year) VALUES (?, ?, ?, 'job', 'Quant Intern', 'internship', 'summer', 2027)`, post, firm.userId, firm.companyId);
     await notifyNewApplication(db, send, post, "Ann");

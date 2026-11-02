@@ -133,7 +133,7 @@ push and pull request.
   fails, the invite still works and the admin screen says to tell the person to sign in.
   Notification emails (`lib/notifications.ts`): new messages (both sides, at most one
   per conversation every 15 minutes), new applications (sponsors), application stage
-  changes and, if turned on, new jobs (members). Each person switches them on or off
+  changes and, if turned on, new jobs (members). They are all off until each person turns them on
   under Profile (members) or Sponsorship (sponsors). Emails never include message text.
 - Resumes: PDF, 5MB. Photos: ~2MB.
 

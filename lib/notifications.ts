@@ -4,7 +4,11 @@
  *  - messages:            a new message in one of your conversations
  *  - applications:        sponsors: someone applied to your firm's job
  *  - application_updates: members: a firm moved your application to a new stage
- *  - new_jobs:            members: a new job was posted (off by default)
+ *  - new_jobs:            members: a new job was posted
+ *
+ * Everything is OFF until the person turns it on (Ethan, 2026-11-02). The
+ * column defaults in the tables don't matter: a saved row always has all four,
+ * and a person with no row gets DEFAULT_PREFS.
  *
  * Emails never include message text or application details, only who and a
  * link, so nothing private sits in an inbox. Message emails are throttled to
@@ -23,9 +27,9 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export type NotificationPrefs = Record<NotificationKind, boolean>;
 
 export const DEFAULT_PREFS: NotificationPrefs = {
-  messages: true,
-  applications: true,
-  application_updates: true,
+  messages: false,
+  applications: false,
+  application_updates: false,
   new_jobs: false,
 };
 
@@ -285,3 +289,4 @@ export async function quietly(label: string, task: () => Promise<void>) {
     console.error(`notification not sent (${label})`, e);
   }
 }
+
