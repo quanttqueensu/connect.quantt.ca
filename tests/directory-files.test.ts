@@ -28,7 +28,7 @@ function setup() {
   const id = addMember(raw, { email: "ann@queensu.ca" });
   return { raw, db: asD1(raw), id };
 }
-const row = (raw: ReturnType<typeof freshDb>, sql: string, ...args: unknown[]) =>
+const row = (raw: ReturnType<typeof freshDb>, sql: string, ...args: string[]) =>
   raw.prepare(sql).get(...args) as Record<string, unknown> | undefined;
 
 describe("copying directory headshots and resumes", () => {
