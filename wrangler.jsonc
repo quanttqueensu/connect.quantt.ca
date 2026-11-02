@@ -19,7 +19,7 @@
     {
       "binding": "DB",
       "database_name": "connect-db",
-      "database_id": "REPLACE_WITH_CONNECT_DB_ID",
+      "database_id": "960deba4-5448-4059-92d6-baf9e533b957",
       "migrations_dir": "db/migrations"
     }
   ],
