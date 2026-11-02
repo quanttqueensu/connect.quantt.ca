@@ -127,6 +127,8 @@ Alumni have their own area at `/alumni`, kept apart from members and sponsors: t
 - **Invite:** Admin → Alumni. The alum gets an email and signs in at `/alumni/login` with a six-digit code (10 minutes, 5 tries, 5 codes an hour). Removing an alum deletes their account, posts, messages and sessions.
 - **Alumni can:** post jobs and mentorship offers (and close their own), browse current members and other alumni, message members, and edit their profile, including whether to get an email when a member messages them (off until they turn it on).
 - **Members can:** see alumni posts and the alumni directory at `/alumni-network`, and message alumni. Alumni messages follow the member's normal Messages email setting.
+- **Discord:** `/alumni/discord` has "Join the QUANTT Discord". The alum links their Discord account (Discord's consent screen, `identify guilds.join`) and the QUANTT Bot adds them to the server with the **Alumni** role and their name as nickname (`lib/alumni/discord.ts`, link stored in `alumni_discord`, `db/migrations/0007_alumni_discord.sql`). Removing an alum in Admin takes the Alumni role away; they stay in the server but see only #welcome. Only goes connect -> Discord, and the bot never touches member roles (auth.quantt.ca manages those). The Alumni role sees #welcome, #rules, #announcements, #events (read-only) and the Alumni Network category: #alumni-lounge, #alumni-jobs and Coffee Chats (shared with members) plus #alumni (alumni only).
+  Setup: in the Discord developer portal, "QUANTT Bot" app -> OAuth2 -> Redirects, add `https://connect.quantt.ca/alumni/discord/callback`. On the `quantt-connect` Worker add secrets `DISCORD_CLIENT_SECRET` (same value as on `quantt-auth`) and `DISCORD_BOT_TOKEN`. `DISCORD_CLIENT_ID` and `DISCORD_GUILD_ID` are vars in `wrangler.jsonc`.
 - `/alumni` is public in `middleware.ts` because the member/sponsor session doesn't apply there; `app/alumni/(hub)/layout.tsx` and every alumni action check the alumni session instead (`lib/alumni/current.ts`).
 
 ## Sponsor tiers and company overrides
@@ -197,7 +199,7 @@ push and pull request.
 | --- | --- |
 | Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links), `/alumni/*` (checks its own session). `POST /api/opportunities/sync` is answered by `worker.js` with a bearer token, before the middleware. |
 | Member | `/feed`, `/opportunities`, `/applications`, `/profile`, `/members`, `/messages`, `/alumni-network` |
-| Alumni | `/alumni/login`, then `/alumni` (posts), `/alumni/members`, `/alumni/directory`, `/alumni/messages`, `/alumni/profile`, with the separate alumni session |
+| Alumni | `/alumni/login`, then `/alumni` (posts), `/alumni/members`, `/alumni/directory`, `/alumni/messages`, `/alumni/discord`, `/alumni/profile`, with the separate alumni session |
 | Company | `/company`, `/company/posts/new`, `/company/applicants`, `/company/messages` |
 | Admin | `/admin` panel (invite, people, companies, requests, posts, applications, alumni). Admins are also members and use the member app separately. |
 

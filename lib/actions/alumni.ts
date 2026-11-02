@@ -13,6 +13,7 @@ import {
   verifyAlumniCode,
 } from "@/lib/alumni/auth";
 import { requireAlumnus } from "@/lib/alumni/current";
+import { removeAlumnusFromDiscord } from "@/lib/alumni/discord";
 import {
   cancelAlumniInvite,
   closeAlumniPost,
@@ -231,10 +232,15 @@ export async function inviteAlumniAction(formData: FormData) {
 export async function removeAlumniAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const { DB } = await hubEnv();
+  const env = await hubEnv();
+  const { DB } = env;
   if (UUID_RE.test(id)) {
     if (formData.get("what") === "invite") await cancelAlumniInvite(DB, id);
-    else await removeAlumnus(DB, id);
+    else {
+      // Before the row goes: the Discord link is deleted with it.
+      await removeAlumnusFromDiscord(DB, env, id);
+      await removeAlumnus(DB, id);
+    }
   }
   revalidatePath("/admin/alumni");
 }

@@ -27,6 +27,9 @@
   // Secrets (RESEND_API_KEY, FILES_SIGNING_KEY, OPPORTUNITIES_SYNC_TOKEN) and NEXT_PUBLIC_SITE_URL are set in the dashboard (see README);
   // keep them on deploy.
   "keep_vars": true,
+  // Alumni in the QUANTT Discord (lib/alumni/discord.ts): the "QUANTT Bot" app and the QUANTT server. Public ids, not secrets;
+  // DISCORD_CLIENT_SECRET and DISCORD_BOT_TOKEN are dashboard secrets.
+  "vars": { "DISCORD_CLIENT_ID": "1566263102331289740", "DISCORD_GUILD_ID": "1566258427808972810" },
   "observability": { "enabled": true },
   // Every hub page makes several D1 calls one after another. Smart Placement lets Cloudflare run the
   // Worker next to the database instead of next to the visitor, so each of those calls is short.

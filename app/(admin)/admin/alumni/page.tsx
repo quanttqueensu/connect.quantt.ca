@@ -70,7 +70,7 @@ export default async function AdminAlumniPage({
               </span>
               <form action={removeAlumniAction}>
                 <input type="hidden" name="id" value={a.id} />
-                <ConfirmSubmitButton variant="danger" confirmMessage={`Remove ${a.full_name}? Their posts and messages are deleted.`}>
+                <ConfirmSubmitButton variant="danger" confirmMessage={`Remove ${a.full_name}? Their posts and messages are deleted, and they lose the Alumni role in Discord.`}>
                   Remove
                 </ConfirmSubmitButton>
               </form>

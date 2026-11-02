@@ -79,9 +79,19 @@ export const ALUMNI_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS alumni_messages_convo_idx ON alumni_messages (conversation_id, created_at)`,
 ];
 
+/** The Discord account each alumnus linked (lib/alumni/discord.ts). Mirrors db/migrations/0007_alumni_discord.sql. */
+export const ALUMNI_DISCORD_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS alumni_discord (
+  alumni_id text PRIMARY KEY REFERENCES alumni (id) ON DELETE CASCADE,
+  discord_id text NOT NULL UNIQUE,
+  username text NOT NULL DEFAULT '',
+  linked_at text NOT NULL DEFAULT ${NOW}
+)`,
+];
+
 let ready = false;
 export async function ensureAlumniTables(db: D1Database) {
   if (ready) return;
-  await db.batch(ALUMNI_SCHEMA.map((s) => db.prepare(s)));
+  await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA].map((s) => db.prepare(s)));
   ready = true;
 }
