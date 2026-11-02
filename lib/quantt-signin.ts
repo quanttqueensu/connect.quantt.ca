@@ -18,6 +18,8 @@ export function quanttAuthUrl() {
 export type QuanttClaims = {
   sub: string;
   email: string;
+  /** Every address the directory has for this member (first.last@ and NetID@). Older auth Workers don't send it. */
+  emails: string[];
   name: string | null;
   team: string | null;
   /** "admin" or "member", from the Connect role on auth.quantt.ca. */
@@ -54,6 +56,9 @@ export async function redeemSignin(
     claims: {
       sub: c.sub,
       email: c.email.toLowerCase(),
+      emails: Array.isArray(c.emails)
+        ? c.emails.filter((e): e is string => typeof e === "string" && e.includes("@")).map((e) => e.toLowerCase())
+        : [],
       name: typeof c.name === "string" ? c.name : null,
       team: typeof c.team === "string" ? c.team : null,
       role: c.role === "admin" ? "admin" : "member",

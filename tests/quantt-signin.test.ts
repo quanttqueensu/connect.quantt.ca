@@ -19,7 +19,7 @@ function directory(entries: Record<string, Record<string, unknown>>): QuanttDire
 describe("Sign in with QUANTT codes", () => {
   it("accepts a code carrying this browser's state", async () => {
     const r = await redeemSignin(directory({ ok: claims }), "ok", STATE);
-    expect(r).toEqual({ ok: true, claims: { sub: "m_1", email: "a.member@queensu.ca", name: "A Member", team: "Co-Chairs", role: "member" } });
+    expect(r).toEqual({ ok: true, claims: { sub: "m_1", email: "a.member@queensu.ca", emails: [], name: "A Member", team: "Co-Chairs", role: "member" } });
   });
   it("reads the admin role", async () => {
     const r = await redeemSignin(directory({ ok: { ...claims, role: "admin" } }), "ok", STATE);

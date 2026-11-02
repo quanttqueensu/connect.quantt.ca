@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
   }
   const db = (env as unknown as { DB?: D1Database }).DB;
   if (!db) return back("quantt_signin_unconfigured");
-  const { email, name, role } = result.claims;
-  const outcome = await profileForQuanttMember(db, { email, name, role });
+  const { sub, email, emails, name, role } = result.claims;
+  const outcome = await profileForQuanttMember(db, { sub, email, emails, name, role });
   if (!outcome.ok) return back(outcome.code);
 
   const files = (env as unknown as { FILES?: R2BucketLike }).FILES;
