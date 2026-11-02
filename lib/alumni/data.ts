@@ -12,7 +12,7 @@
  *    request accepts it. Declined requests drop out of the alum's inbox.
  */
 import type { D1Database } from "@/lib/db/d1";
-import { ensureAlumniTables } from "@/lib/alumni/schema";
+import { ensureAlumniTables, notGraduated, notSuspended } from "@/lib/alumni/schema";
 
 export type AlumniViewer = { kind: "alumni"; id: string } | { kind: "member"; id: string };
 
@@ -26,6 +26,7 @@ export type AlumniProfile = {
   location: string | null;
   linkedin_url: string | null;
   bio: string | null;
+  has_photo?: number | null;
 };
 
 export type AlumniPost = {
@@ -51,7 +52,10 @@ export type MemberCardForAlumni = {
   linkedin_url: string | null;
 };
 
-const PROFILE_COLS = "id, full_name, grad_year, program, firm, title, location, linkedin_url, bio";
+// has_photo: a graduate's headshot copied from their member profile (lib/alumni/graduates.ts), served at /alumni/photo/<id>.
+const PROFILE_COLS =
+  "id, full_name, grad_year, program, firm, title, location, linkedin_url, bio, " +
+  "(SELECT CASE WHEN g.photo_path IS NULL THEN 0 ELSE 1 END FROM alumni_graduation g WHERE g.alumni_id = alumni.id) AS has_photo";
 
 function likeTerm(q: string) {
   return `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
@@ -64,11 +68,12 @@ export async function listAlumni(db: D1Database, q = "") {
     ? db
         .prepare(
           `SELECT ${PROFILE_COLS} FROM alumni
-            WHERE full_name LIKE ?1 ESCAPE '\\' OR firm LIKE ?1 ESCAPE '\\' OR program LIKE ?1 ESCAPE '\\'
+            WHERE (full_name LIKE ?1 ESCAPE '\\' OR firm LIKE ?1 ESCAPE '\\' OR program LIKE ?1 ESCAPE '\\')
+              AND ${notSuspended("alumni.id")}
             ORDER BY full_name LIMIT 200`,
         )
         .bind(likeTerm(term))
-    : db.prepare(`SELECT ${PROFILE_COLS} FROM alumni ORDER BY full_name LIMIT 200`);
+    : db.prepare(`SELECT ${PROFILE_COLS} FROM alumni WHERE ${notSuspended("alumni.id")} ORDER BY full_name LIMIT 200`);
   return (await stmt.all<AlumniProfile>()).results;
 }
 
@@ -95,17 +100,18 @@ export async function updateAlumnus(db: D1Database, viewer: AlumniViewer, input:
 
 export async function listMembersForAlumni(db: D1Database, viewer: AlumniViewer, q = "") {
   if (viewer.kind !== "alumni") throw new Error("Alumni only");
+  await ensureAlumniTables(db);
   const term = q.trim().slice(0, 80);
   const cols = "id, full_name, program, grad_year, bio, linkedin_url";
   const stmt = term
     ? db
         .prepare(
-          `SELECT ${cols} FROM profiles WHERE role = 'member'
+          `SELECT ${cols} FROM profiles WHERE role = 'member' AND ${notGraduated("profiles.id")}
               AND (full_name LIKE ?1 ESCAPE '\\' OR program LIKE ?1 ESCAPE '\\')
             ORDER BY full_name LIMIT 200`,
         )
         .bind(likeTerm(term))
-    : db.prepare(`SELECT ${cols} FROM profiles WHERE role = 'member' ORDER BY full_name LIMIT 200`);
+    : db.prepare(`SELECT ${cols} FROM profiles WHERE role = 'member' AND ${notGraduated("profiles.id")} ORDER BY full_name LIMIT 200`);
   return (await stmt.all<MemberCardForAlumni>()).results;
 }
 
