@@ -15,8 +15,8 @@ INSERT INTO sponsor_tiers (id, key, name, rank, price_cents, blurb, applicant_em
   ('00000000-0000-4000-8000-000000000999', 'grandfathered', 'Grandfathered (legacy access)', 999, NULL, 'Holds the access every firm had before tiers. Hidden from new assignments.', 0, 0, 0, 1),
   ('00000000-0000-4000-8000-000000000010', 'supporter', 'Supporter', 10, 50000, 'Basic platform access and the opt-in resume book.', 0, 0, 1, 0),
   ('00000000-0000-4000-8000-000000000020', 'partner', 'Partner', 20, 200000, 'Job posting privileges, the applicant pipeline, and the resume book.', 0, 0, 1, 0),
-  ('00000000-0000-4000-8000-000000000030', 'leader', 'Leader', 30, 500000, 'Everything in Partner, plus candidate search, events, and faster applicant access.', 0, 0, 1, 0),
-  ('00000000-0000-4000-8000-000000000040', 'principal', 'Principal', 40, 1000000, 'Priority access to every applicant the moment they apply, plus everything in Leader.', 0, 0, 1, 0);
+  ('00000000-0000-4000-8000-000000000030', 'leader', 'Leader', 30, 500000, 'Everything in Partner, plus candidate search and events.', 0, 0, 1, 0),
+  ('00000000-0000-4000-8000-000000000040', 'principal', 'Principal', 40, 1000000, 'Everything in Leader, as our top sponsor.', 0, 0, 1, 0);
 
 INSERT INTO sponsor_tier_capabilities (tier_id, capability, value) VALUES
   ('00000000-0000-4000-8000-000000000010', 'resume_book', NULL),
