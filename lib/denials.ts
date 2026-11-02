@@ -177,6 +177,10 @@ const MESSAGES = {
     "That photo was not saved. Use a JPEG, PNG, or WebP under 2MB.",
   resume_book_opt_in_failed:
     "Your resume book opt-in was not saved. You are still opted out.",
+  personal_email_invalid:
+    "Your profile was saved, but not the personal email: use a full address that isn't a Queen's one (it stops working after you graduate).",
+  graduation_sync_failed:
+    "Your profile was saved, but your grad year and personal email couldn't be sent to auth.quantt.ca. Try saving again.",
   profile_invalid:
     "Your profile was not saved. Check that your name is filled in, that your graduation year is a real year, and that no field is unreasonably long.",
   profile_section_invalid:

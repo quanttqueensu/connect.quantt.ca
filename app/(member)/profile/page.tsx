@@ -13,6 +13,7 @@ import {
   setDirectorySyncSetting,
 } from "@/lib/actions/profile";
 import { getDirectorySync, syncDirectoryFiles } from "@/lib/directory-files";
+import { syncGradYear } from "@/lib/graduation-sync";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,17 @@ export default async function ProfilePage({
     await syncDirectoryFiles(DB, FILES, env.AUTH, profile.id, profile.email).catch((e) =>
       console.warn("directory files: sync failed", e instanceof Error ? e.message : e),
     );
+  }
+  // Grad year and personal email are shared with auth.quantt.ca (lib/graduation-sync.ts).
+  let personal: string | null = null;
+  if (profile.role === "member") {
+    const { env } = await getCloudflareContext({ async: true });
+    const g = await syncGradYear(DB, env.AUTH, profile.id, profile.email, profile.grad_year).catch((e) => {
+      console.warn("graduation sync failed", e instanceof Error ? e.message : e);
+      return null;
+    });
+    if (g?.gradYear) profile.grad_year = g.gradYear;
+    personal = g?.personal ?? null;
   }
   const supabase = await createClient();
   const [{ data: sections }, { data: documents, error: documentsError }] = await Promise.all([
@@ -129,6 +141,15 @@ export default async function ProfilePage({
             defaultValue={profile.grad_year ?? ""}
           />
         </Field>
+        {profile.role === "member" && (
+          <Field label="Personal email (for after you graduate)">
+            <TextInput name="personal_email" type="email" defaultValue={personal ?? ""} maxLength={200} placeholder="you@gmail.com" />
+            <span className="mt-1 block text-xs text-muted">
+              On May 1 of your grad year you become a QUANTT alum, and your profile, headshot and resume move to an alumni
+              account at this address. Synced with auth.quantt.ca.
+            </span>
+          </Field>
+        )}
         <Field label="Bio">
           <TextArea name="bio" rows={4} defaultValue={profile.bio ?? ""} maxLength={2000} />
         </Field>

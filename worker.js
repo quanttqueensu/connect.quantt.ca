@@ -17,6 +17,7 @@ import handler from "./.open-next/worker.js";
 import { handleSync } from "./lib/jobs/store";
 import { syncAllDirectoryFiles } from "./lib/directory-files";
 import { syncGraduates, remindPersonalEmail } from "./lib/alumni/graduates";
+import { syncAllGradYears } from "./lib/graduation-sync";
 import { sendEmail, graduationEmail, personalEmailReminder } from "./lib/cf-auth/email";
 
 const SITE = "https://connect.quantt.ca";
@@ -42,10 +43,11 @@ const worker = {
         ),
       );
     }
-    // Members who graduated on auth.quantt.ca become alumni here (lib/alumni/graduates.ts).
+    // Members who graduated on auth.quantt.ca become alumni here (lib/alumni/graduates.ts), after grad years
+    // are brought in step with auth (lib/graduation-sync.ts).
     if (env.FILES && env.AUTH) {
       ctx.waitUntil(
-        syncGraduates(env.DB, env.FILES, env.AUTH, (to, name) => sendEmail(env, to, graduationEmail(name, `${SITE}/alumni/login`))).then(
+        syncAllGradYears(env.DB, env.AUTH).catch((err) => console.error("grad year sync failed", err)).then(() => syncGraduates(env.DB, env.FILES, env.AUTH, (to, name) => sendEmail(env, to, graduationEmail(name, `${SITE}/alumni/login`)))).then(
           (r) => console.log("graduates", JSON.stringify(r)),
           (err) => console.error("graduates sync failed", err),
         ),

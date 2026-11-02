@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { denyRedirect } from "./deny";
 import { getDirectorySync, setDirectorySync, syncDirectoryFiles, type DirectoryFiles } from "@/lib/directory-files";
 import { hubEnv } from "@/lib/hub/env";
+import type { GraduationAuth } from "@/lib/graduation-sync";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 /** While a member keeps sync on, auth.quantt.ca owns their photo and resume (lib/directory-files.ts). */
@@ -110,6 +111,23 @@ export async function updateProfile(formData: FormData) {
   revalidatePath("/profile");
   revalidatePath("/members");
   revalidatePath(`/members/${profile.id}`);
+
+  // Grad year and personal email live on auth.quantt.ca, which turns graduates into alumni (lib/graduation-sync.ts).
+  if (profile.role === "member" && formData.has("personal_email")) {
+    const personal = String(formData.get("personal_email") ?? "").trim().toLowerCase();
+    const { env } = await getCloudflareContext({ async: true });
+    let failed: "personal_email_invalid" | "graduation_sync_failed" | null = null;
+    try {
+      const auth = (env as unknown as { AUTH?: GraduationAuth }).AUTH;
+      if (!auth?.setGraduation) throw new Error("auth.quantt.ca has no setGraduation");
+      await auth.setGraduation(profile.email, { gradYear, personal });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      failed = /personal|email/i.test(msg) ? "personal_email_invalid" : "graduation_sync_failed";
+      console.warn("graduation sync failed", msg);
+    }
+    if (failed) denyRedirect("/profile", failed);
+  }
 }
 
 export async function addSection(formData: FormData) {
