@@ -34,6 +34,9 @@ export type QuanttDirectory = {
   resume?(who: string): Promise<{ type: string; data: ArrayBuffer; updated?: string } | null>;
   /** Upload times of the headshot and resume, without the files. */
   files?(who: string): Promise<{ photo: string | null; resume: string | null } | null>;
+  /** Grad year and personal email (lib/graduation-sync.ts). */
+  graduation?(email: string): Promise<{ id: string; gradYear: number | null; personal: string | null } | null>;
+  setGraduation?(email: string, fields: { gradYear?: number | null; personal?: string | null }): Promise<unknown>;
 };
 
 export type SigninResult = { ok: true; claims: QuanttClaims } | { ok: false; reason: string };
