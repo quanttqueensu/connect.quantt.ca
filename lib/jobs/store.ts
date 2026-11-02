@@ -10,7 +10,7 @@
  * Relative imports only: worker.js bundles this through wrangler, outside Next.
  */
 import type { D1Database } from "../db/d1";
-import { normalizeUrl, roleKey, type Listing, type ListingSource } from "./sources";
+import { normalizeUrl, RoleIndex, type Listing, type ListingSource } from "./sources";
 
 /** What the Action sends. A source is null when its fetch failed. */
 export type SyncPayload = { sources: Partial<Record<ListingSource, Listing[] | null>> };
@@ -74,13 +74,7 @@ SELECT lower(hex(randomblob(16))),
        coalesce(json_extract(value, '$.posted_at'), ?1),
        ?1, ?1, 1
   FROM json_each(?2)
- WHERE NOT EXISTS (
-   SELECT 1 FROM job_listings j
-    WHERE j.active = 1
-      AND j.url <> json_extract(value, '$.url')
-      AND lower(j.company) = lower(json_extract(value, '$.company'))
-      AND lower(j.title) = lower(json_extract(value, '$.title'))
-      AND coalesce(j.term, '') = coalesce(json_extract(value, '$.term'), ''))
+ WHERE true -- SQLite needs a WHERE before ON CONFLICT in INSERT ... SELECT
 ON CONFLICT (url) DO UPDATE SET
   company = excluded.company,
   title = excluded.title,
@@ -93,35 +87,47 @@ ON CONFLICT (url) DO UPDATE SET
 export async function storeListings(db: D1Database, payload: SyncPayload, now = new Date()): Promise<SyncResult> {
   const at = now.toISOString();
   const statements = [];
-  const fresh: ListingSource[] = [];
   const skipped: string[] = [];
-  const seen = new Set<string>();
   let stored = 0;
 
+  const { results: open } = await db
+    .prepare("SELECT url, source, company, title, term FROM job_listings WHERE active = 1")
+    .all<{ url: string; source: string; company: string; title: string; term: string | null }>();
+  // Roles that were open before this run: a role that only changed link isn't "new" for Discord.
+  const before = new RoleIndex<(typeof open)[number]>();
+  for (const row of open) before.add(row);
+
+  // Which sources are fresh this run. A failed or empty fetch must not close
+  // every listing from that source, so its open listings stay as they are.
+  const lists = new Map<ListingSource, Listing[]>();
   for (const source of SOURCES) {
     const list = payload.sources?.[source];
-    // A failed or empty fetch must not close every listing from that source.
-    if (!Array.isArray(list) || list.length === 0) {
-      skipped.push(source);
-      continue;
+    const clean = Array.isArray(list)
+      ? list.slice(0, MAX_PER_SOURCE).map((raw) => sanitize(raw, source)).filter((l): l is Listing => l !== null)
+      : [];
+    if (clean.length === 0) skipped.push(source);
+    else lists.set(source, clean);
+  }
+
+  // One row per role. The listings a stale source keeps open count as already
+  // taken; then each fresh source in order (Simplify first, it has dates).
+  const seen = new RoleIndex<{ url: string; company: string; title: string; term: string | null }>();
+  for (const row of open) if (!lists.has(row.source as ListingSource)) seen.add(row);
+  const fresh: ListingSource[] = [];
+  const newRoles: string[] = [];
+  for (const [source, list] of lists) {
+    const keep: Listing[] = [];
+    for (const l of list) {
+      if (seen.find(l)) continue;
+      seen.add(l);
+      keep.push(l);
+      if (!before.find(l)) newRoles.push(l.url);
     }
-    const clean: Listing[] = [];
-    for (const raw of list.slice(0, MAX_PER_SOURCE)) {
-      const l = sanitize(raw, source);
-      if (l && !seen.has(l.url) && !seen.has(roleKey(l))) {
-        seen.add(l.url);
-        seen.add(roleKey(l));
-        clean.push(l);
-      }
-    }
-    if (clean.length === 0) {
-      skipped.push(source);
-      continue;
-    }
+    // Still "fresh" when every listing was a duplicate: its old rows should close.
     fresh.push(source);
-    stored += clean.length;
-    for (let i = 0; i < clean.length; i += CHUNK) {
-      statements.push(db.prepare(UPSERT).bind(at, JSON.stringify(clean.slice(i, i + CHUNK))));
+    stored += keep.length;
+    for (let i = 0; i < keep.length; i += CHUNK) {
+      statements.push(db.prepare(UPSERT).bind(at, JSON.stringify(keep.slice(i, i + CHUNK))));
     }
   }
 
@@ -144,10 +150,10 @@ export async function storeListings(db: D1Database, payload: SyncPayload, now = 
   const { results: rows } = await db
     .prepare(
       `SELECT company, title, url, locations, role_type, term FROM job_listings
-        WHERE first_seen_at = ? AND active = 1 AND hidden = 0
+        WHERE url IN (SELECT value FROM json_each(?)) AND active = 1 AND hidden = 0
         ORDER BY posted_at DESC LIMIT 200`,
     )
-    .bind(at)
+    .bind(JSON.stringify(newRoles))
     .all<{ company: string; title: string; url: string; locations: string; role_type: Listing["role_type"]; term: string | null }>();
   const added = rows.map((r) => ({ ...r, locations: JSON.parse(r.locations || "[]") as string[] }));
   return { stored, closed, skipped, added };

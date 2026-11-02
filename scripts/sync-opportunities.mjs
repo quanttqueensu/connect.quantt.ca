@@ -9,7 +9,7 @@
 // Cloudflare's bot challenge lets through, but not from GitHub's runners.
 //
 // The parsing lives in lib/jobs/sources.ts so the tests cover it.
-import { dedupe, dropPastTerms, parseNwft, parseSimplify, roleKey, SOURCES } from "../lib/jobs/sources.ts";
+import { dedupe, dropPastTerms, parseNwft, parseSimplify, RoleIndex, SOURCES } from "../lib/jobs/sources.ts";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -45,12 +45,13 @@ const simplify = await source("simplify", async () => {
 const nwft = await source("nwft", async () => dropPastTerms(parseNwft(await get(SOURCES.nwftInternships))));
 
 // A role on both lists is stored once, under Simplify (it has the posting date):
-// same link, or same firm + title + term.
-const onSimplify = new Set((simplify ?? []).flatMap((l) => [l.url, roleKey(l)]));
+// same link, or same firm + title + term (see roleKey in lib/jobs/sources.ts).
+const onSimplify = new RoleIndex();
+for (const l of simplify ?? []) onSimplify.add(l);
 const payload = {
   sources: {
     simplify,
-    nwft: nwft && nwft.filter((l) => !onSimplify.has(l.url) && !onSimplify.has(roleKey(l))),
+    nwft: nwft && dedupe(nwft).filter((l) => !onSimplify.find(l)),
   },
 };
 
@@ -91,13 +92,19 @@ if (!res.ok) process.exit(1);
 
 // New listings go to the QUANTT Discord's #opportunities as one short digest.
 // Skipped when DISCORD_BOT_TOKEN isn't set; a Discord failure never fails the sync.
-const added = JSON.parse(body).added ?? [];
+// POST_ALL=1 (the "Post all open roles" box on Run workflow) posts every open role instead.
+const postAll = process.env.POST_ALL === "true" || process.env.POST_ALL === "1";
+const added = postAll
+  ? [...(payload.sources.simplify ?? []), ...(payload.sources.nwft ?? [])].sort((a, b) =>
+      String(b.posted_at ?? "").localeCompare(String(a.posted_at ?? "")),
+    )
+  : (JSON.parse(body).added ?? []);
 const discordToken = process.env.DISCORD_BOT_TOKEN;
 const channel = process.env.DISCORD_OPPORTUNITIES_CHANNEL;
 if (added.length && discordToken && channel) {
   try {
-    await postDigest(added, discordToken, channel);
-    console.log(`discord: posted ${added.length} new listings`);
+    await postDigest(added, discordToken, channel, postAll ? "open" : "new");
+    console.log(`discord: posted ${added.length} ${postAll ? "open" : "new"} listings`);
   } catch (err) {
     console.error(`discord: post failed (${err.message})`);
   }
@@ -113,9 +120,9 @@ function line(l) {
 }
 
 /** At most 40 lines, split into messages under Discord's 2000-character limit. */
-async function postDigest(list, token, channelId) {
+async function postDigest(list, token, channelId, kind) {
   const shown = list.slice(0, 40);
-  const head = `**${list.length} new quant role${list.length === 1 ? "" : "s"}** · all open roles: <https://connect.quantt.ca/opportunities>`;
+  const head = `**${list.length} ${kind} quant role${list.length === 1 ? "" : "s"}** · all open roles: <https://connect.quantt.ca/opportunities>`;
   const tail = list.length > shown.length ? `…and ${list.length - shown.length} more on Connect.` : "";
   const messages = [];
   let cur = head;
