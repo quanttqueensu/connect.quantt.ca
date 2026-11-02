@@ -32,8 +32,15 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
   for 10 minutes. The session is an HttpOnly cookie `connect_session`; D1 keeps only its
   hash, for 30 days. Nobody has a password. An invite is just an `invites` row: the
   person's profile is created the first time they sign in with that email.
-- **Cron:** `worker.js` `scheduled` deletes expired sessions, codes and join-form
-  counters daily.
+- **Cron:** `worker.js` `scheduled` runs hourly: it syncs headshots and resumes from
+  auth.quantt.ca (below), and at 08:00 UTC also deletes expired sessions, codes and
+  join-form counters.
+- **Headshots and resumes:** uploaded once on auth.quantt.ca. Each member's profile has
+  **Keep in sync** (on by default): while on, Connect copies a newer upload from the
+  directory at sign-in, when they open their profile, and hourly, and locks its own photo and
+  resume upload; turned off, the member uploads their own files here. Copies go to new R2
+  keys, so nothing earlier is deleted. Table `directory_sync` (`db/migrations/0007`, also
+  created on first use). Code: `lib/directory-files.ts`.
 
 ## Setup (a new copy)
 

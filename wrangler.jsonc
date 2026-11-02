@@ -31,6 +31,7 @@
   // Every hub page makes several D1 calls one after another. Smart Placement lets Cloudflare run the
   // Worker next to the database instead of next to the visitor, so each of those calls is short.
   "placement": { "mode": "smart" },
-  // Cleanup of expired sessions and codes (worker.js `scheduled`): 08:00 UTC daily.
-  "triggers": { "crons": ["0 8 * * *"] }
+  // worker.js `scheduled`, hourly: headshot/resume sync with auth.quantt.ca; the 08:00 UTC run also
+  // cleans up expired sessions and codes. One trigger, so it fits the account's cron limit.
+  "triggers": { "crons": ["0 * * * *"] }
 }

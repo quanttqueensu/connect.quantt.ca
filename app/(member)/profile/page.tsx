@@ -10,7 +10,10 @@ import {
   uploadPhoto,
   saveProfileDocument,
   removeProfileDocument,
+  setDirectorySyncSetting,
 } from "@/lib/actions/profile";
+import { getDirectorySync, syncDirectoryFiles } from "@/lib/directory-files";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { MemberDocuments, ProfileSection } from "@/lib/types";
@@ -27,6 +30,15 @@ export default async function ProfilePage({
   const sp = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
+  const { DB, FILES } = await hubEnv();
+  const synced = profile.role === "member" ? await getDirectorySync(DB, profile.id).catch(() => true) : false;
+  if (synced) {
+    // Pick up a headshot or resume changed on auth.quantt.ca since the last check, before showing them.
+    const { env } = await getCloudflareContext({ async: true });
+    await syncDirectoryFiles(DB, FILES, env.AUTH, profile.id, profile.email).catch((e) =>
+      console.warn("directory files: sync failed", e instanceof Error ? e.message : e),
+    );
+  }
   const supabase = await createClient();
   const [{ data: sections }, { data: documents, error: documentsError }] = await Promise.all([
     supabase
@@ -41,8 +53,12 @@ export default async function ProfilePage({
       .maybeSingle<MemberDocuments>(),
   ]);
 
-  const prefs = await getPrefs((await hubEnv()).DB, profile.id).catch(() => ({ ...DEFAULT_PREFS }));
-  const photoUrl = profile.photo_path ? `/members/${profile.id}/photo` : null;
+  // Re-read the photo pointer: the sync above may have just changed it.
+  const photoPath = synced
+    ? ((await DB.prepare(`SELECT photo_path FROM profiles WHERE id = ?`).bind(profile.id).first<{ photo_path: string | null }>())?.photo_path ?? null)
+    : profile.photo_path;
+  const prefs = await getPrefs(DB, profile.id).catch(() => ({ ...DEFAULT_PREFS }));
+  const photoUrl = photoPath ? `/members/${profile.id}/photo?v=${encodeURIComponent(photoPath)}` : null;
   const sectionRows = (sections as ProfileSection[] | null) ?? [];
   const nextSort =
     sectionRows.reduce((max, s) => Math.max(max, s.sort_order), -1) + 1;
@@ -61,14 +77,42 @@ export default async function ProfilePage({
           className="mb-6 h-24 w-24 object-cover"
         />
       )}
-      <form action={uploadPhoto} className="mb-8 flex flex-wrap items-end gap-3">
-        <div className="min-w-0 max-w-full">
-          <Field label="Photo">
-            <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
-          </Field>
-        </div>
-        <PrimaryButton type="submit">Upload photo</PrimaryButton>
-      </form>
+      <section id="sync" className="mb-8 max-w-xl scroll-mt-40">
+        <h2 className="text-sm font-medium text-ink">Photo and resume</h2>
+        {synced ? (
+          <p className="mt-2 text-sm text-copy">
+            Kept in sync with your QUANTT directory profile. To change them, upload new files on{" "}
+            <a href="https://auth.quantt.ca" className="text-primary hover:text-ink">auth.quantt.ca</a>; Connect picks them up within the hour.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-copy">
+            Not synced. The photo and resume you upload here are used on Connect only.
+          </p>
+        )}
+        <form action={setDirectorySyncSetting} className="mt-3">
+          <input type="hidden" name="enabled" value={synced ? "false" : "true"} />
+          {synced ? (
+            <QuietDangerButton type="submit">Turn off Keep in sync</QuietDangerButton>
+          ) : (
+            <ConfirmSubmitButton
+              variant="primary"
+              confirmMessage="Use your photo and resume from auth.quantt.ca? They will replace the ones on Connect now and whenever you change them there."
+            >
+              Keep in sync with auth.quantt.ca
+            </ConfirmSubmitButton>
+          )}
+        </form>
+      </section>
+      {!synced && (
+        <form action={uploadPhoto} className="mb-8 flex flex-wrap items-end gap-3">
+          <div className="min-w-0 max-w-full">
+            <Field label="Photo">
+              <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
+            </Field>
+          </div>
+          <PrimaryButton type="submit">Upload photo</PrimaryButton>
+        </form>
+      )}
       <form action={updateProfile} className="grid max-w-xl gap-4">
         <Field label="Name">
           <TextInput name="full_name" defaultValue={profile.full_name} required maxLength={120} />
@@ -118,6 +162,7 @@ export default async function ProfilePage({
               const label = kind === "resume" ? "Resume" : "Cover letter";
               const path = kind === "resume" ? documents?.resume_path : documents?.cover_letter_path;
               const hasText = kind === "cover" && documents?.cover_letter;
+              const locked = kind === "resume" && synced;
               return (
                 <div key={kind}>
                   <h3 className="text-sm font-medium text-ink">{label}</h3>
@@ -125,19 +170,23 @@ export default async function ProfilePage({
                     {path ? (
                       <a href={`/profile/documents/${kind}`} className="text-primary hover:text-ink">View saved {label.toLowerCase()}</a>
                     ) : <p>{hasText ? "Saved cover letter" : `No ${label.toLowerCase()} uploaded.`}</p>}
-                    {(path || hasText) && (
+                    {(path || hasText) && !locked && (
                       <form action={removeProfileDocument.bind(null, kind)}>
                         <QuietDangerButton type="submit">Remove {label.toLowerCase()}</QuietDangerButton>
                       </form>
                     )}
                   </div>
                   {hasText && !path ? <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{documents?.cover_letter}</p> : null}
+                  {locked ? (
+                    <p className="mt-2 text-sm text-copy">Synced from auth.quantt.ca.</p>
+                  ) : (
                   <form action={saveProfileDocument.bind(null, kind)} className="mt-3 flex flex-wrap items-end gap-3">
                     <Field label={`${path || hasText ? "Replace" : "Upload"} ${label.toLowerCase()}`}>
                       <FileInput name="document" accept="application/pdf" required />
                     </Field>
                     <PrimaryButton type="submit">Save {label.toLowerCase()}</PrimaryButton>
                   </form>
+                  )}
                 </div>
               );
             })}
