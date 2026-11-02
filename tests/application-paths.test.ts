@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({ redirect: (url: string) => {
   throw Object.assign(new Error(url), { digest: "NEXT_REDIRECT" });
 } }));
 vi.mock("@/lib/auth", () => ({ requireProfile: async () => ({ id: state.member, role: "member", linkedin_url: "https://linkedin.com/in/member" }) }));
-vi.mock("@/lib/notify", () => ({ notify: vi.fn() }));
+vi.mock("@/lib/notify", () => ({ notifyLater: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
   storage: { from: () => ({ download: state.download, upload: state.upload, remove: state.remove }) },
 }) }));

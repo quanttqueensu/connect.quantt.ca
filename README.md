@@ -131,8 +131,10 @@ push and pull request.
 - Member feed is global. Companies see **only their own posts**.
 - Email: sign-in codes and invite notices go through Resend. If an invite email
   fails, the invite still works and the admin screen says to tell the person to sign in.
-  Application status changes and message notifications still go through
-  `lib/notify.ts`, which is a no-op stub.
+  Notification emails (`lib/notifications.ts`): new messages (both sides, at most one
+  per conversation every 15 minutes), new applications (sponsors), application stage
+  changes and, if turned on, new jobs (members). Each person switches them on or off
+  under Profile (members) or Sponsorship (sponsors). Emails never include message text.
 - Resumes: PDF, 5MB. Photos: ~2MB.
 
 ## Routes

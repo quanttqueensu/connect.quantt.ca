@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 import { can, capValue, loadMyCompanyTier } from "@/lib/tiers";
 import type { PostKind, RoleType, TermSeason } from "@/lib/types";
 import { denyRedirect } from "./deny";
+import { notifyLater } from "@/lib/notify";
+import { notifyNewJob } from "@/lib/notifications";
 
 const COMPANY_POST_KINDS: PostKind[] = ["job", "job_link", "event", "announcement"];
 const ADMIN_POST_KINDS: PostKind[] = ["job", "job_link", "event", "announcement", "connection"];
@@ -110,7 +112,7 @@ export async function createPost(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from("posts").insert({
+  const { data: created, error } = await supabase.from("posts").insert({
     author_id: profile.id,
     company_id: companyId,
     kind,
@@ -124,8 +126,8 @@ export async function createPost(formData: FormData) {
     term_season: isInApp ? termSeason : null,
     term_year: isInApp ? termYear : null,
     external_url: kind === "job_link" || kind === "job" ? externalUrl : null,
-  });
-  if (error) {
+  }).select("id").single();
+  if (error || !created) {
     // Pre-checks already mapped capability/quota. A remaining in-app insert
     // failure is almost always a quota race; anything else is a save failure.
     // Never surface Postgres/RLS text in the hub chrome.
@@ -133,6 +135,9 @@ export async function createPost(formData: FormData) {
       denyRedirect(postFormPath, "post_quota_reached");
     }
     denyRedirect(postFormPath, "post_save_failed");
+  }
+  if (kind === "job" || kind === "job_link") {
+    notifyLater("new job", (db, send) => notifyNewJob(db, send, created.id));
   }
   revalidatePath("/feed");
   revalidatePath("/company");

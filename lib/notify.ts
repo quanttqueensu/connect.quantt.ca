@@ -1,11 +1,19 @@
+import { after } from "next/server";
+
+import type { D1Database } from "@/lib/db/d1";
+import { hubEnv } from "@/lib/hub/env";
+import { quietly, resendSender, type SendEmails } from "@/lib/notifications";
+
 /**
- * Email hook for later. v1 does not send mail.
+ * Send notification emails after the response, so the person who acted
+ * isn't kept waiting and a Resend hiccup never fails their action.
+ * The rules for who gets what are in lib/notifications.ts.
  */
-export async function notify(_event: {
-  type: "application" | "join_request" | "message";
-  to: string | string[];
-  subject: string;
-  body: string;
-}) {
-  void _event;
+export function notifyLater(label: string, task: (db: D1Database, send: SendEmails) => Promise<void>) {
+  after(() =>
+    quietly(label, async () => {
+      const env = await hubEnv();
+      await task(env.DB, resendSender(env));
+    }),
+  );
 }
