@@ -216,6 +216,11 @@ export function catalogScope(v: MaybeViewer): Sql {
   return v ? ALL : NONE;
 }
 
+/** Opportunities (job_listings): club members and admins; sponsors don't see them. */
+export function jobListingsScope(v: MaybeViewer): Sql {
+  return v && (v.role === "member" || v.isAdmin) ? ALL : NONE;
+}
+
 /** sponsor_tier_events_admin_read, invites_admin, join_requests_admin */
 export function adminOnlyScope(v: MaybeViewer): Sql {
   return isAdmin(v) ? ALL : NONE;

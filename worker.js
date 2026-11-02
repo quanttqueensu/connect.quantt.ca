@@ -1,5 +1,9 @@
 // The Worker's entry point: OpenNext's generated handler, plus a cron job.
 //
+// POST /api/opportunities/sync is answered here, before Next and its sign-in
+// middleware: the GitHub Action (.github/workflows/opportunities.yml) sends the
+// day's listings with a bearer token (lib/jobs/store.ts).
+//
 // The cron in wrangler.jsonc runs `scheduled` once a day to delete expired
 // sessions, sign-in codes and join-form admission rows from D1. (It used to
 // keep the free Supabase project from pausing.)
@@ -7,9 +11,15 @@
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
 import handler from "./.open-next/worker.js";
+import { handleSync } from "./lib/jobs/store";
 
 const worker = {
-  fetch: handler.fetch,
+  fetch(request, env, ctx) {
+    if (new URL(request.url).pathname === "/api/opportunities/sync") {
+      return handleSync(request, env);
+    }
+    return handler.fetch(request, env, ctx);
+  },
 
   async scheduled(_controller, env, ctx) {
     if (!env.DB) {

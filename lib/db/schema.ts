@@ -18,6 +18,7 @@ export type TableName =
   | "conversations"
   | "hiring_packages"
   | "invites"
+  | "job_listings"
   | "member_documents"
   | "messages"
   | "post_comments"
@@ -95,6 +96,15 @@ export const TABLES: Record<TableName, TableInfo> = {
     key: ["id"],
     booleans: ["is_admin"],
     generatedId: true,
+  },
+  job_listings: {
+    columns: [
+      "id", "url", "source", "company", "title", "locations", "role_type", "term", "posted_at", "first_seen_at",
+      "last_seen_at", "active", "hidden",
+    ],
+    key: ["id"],
+    booleans: ["active", "hidden"],
+    json: ["locations"],
   },
   member_documents: {
     columns: ["member_id", "resume_path", "cover_letter_path", "cover_letter", "updated_at"],
