@@ -2,8 +2,8 @@ import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import CopyLink from "@/components/CopyLink";
 import CompanyCapabilityControl from "@/components/CompanyCapabilityControl";
-import { Field, GhostButton, PrimaryButton, buttonClass } from "@/components/Form";
-import { resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
+import { Field, GhostButton, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
+import { addCompany, resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
 import {
   graceIsOpen,
   liveCan,
@@ -24,7 +24,7 @@ type CompanyRow = Company;
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string }>;
+  searchParams: Promise<{ denied?: string; added?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -57,6 +57,39 @@ export default async function CompaniesPage({
           Edit tier defaults
         </Link>
       </div>
+      {sp.added && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
+          Company added. Invite a contact whenever you&rsquo;re ready.
+        </p>
+      )}
+      <details className="mb-6 border border-line p-5" open={Boolean(sp.denied?.startsWith("company_"))}>
+        <summary className="cursor-pointer font-heading text-lg font-bold text-ink">Add a company</summary>
+        <p className="mt-2 text-sm text-copy">No contact needed. Invite people to it later from Invite someone.</p>
+        <form action={addCompany} className="mt-4 grid gap-3 md:grid-cols-2">
+          <Field label="Company name">
+            <TextInput name="name" required maxLength={120} />
+          </Field>
+          <Field label="Sponsorship level">
+            <select name="sponsor_tier_id" required defaultValue="" className="w-full rounded px-3 py-2 text-sm">
+              <option value="" disabled>Choose a level</option>
+              {tiers
+                .filter((t) => t.is_active)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+            </select>
+          </Field>
+          <Field label="Website (optional)">
+            <TextInput name="website" type="url" placeholder="https://" />
+          </Field>
+          <Field label="Logo URL (optional)">
+            <TextInput name="logo_url" type="url" placeholder="https://" />
+          </Field>
+          <div>
+            <PrimaryButton type="submit">Add company</PrimaryButton>
+          </div>
+        </form>
+      </details>
       <div className="mb-10 border border-line p-5">
         <p className="text-[11px] uppercase tracking-[2px] text-copy">Public signup link</p>
         <p className="mt-2 text-sm text-copy">

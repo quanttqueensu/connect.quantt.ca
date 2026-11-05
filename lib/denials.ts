@@ -112,6 +112,9 @@ const MESSAGES = {
   company_tier_assign_failed:
     "That firm's tier could not be changed. The firm may have been removed, or your account may no longer have admin rights.",
   company_status_invalid: "Choose whether this firm is active or inactive.",
+  company_name_required: "Enter the company's name.",
+  company_exists: "A company with that name already exists. Find it in the list below.",
+  company_add_failed: "That company could not be added. Try again, or check that your account still has admin rights.",
   company_access_save_failed:
     "That firm's Connect access could not be saved. The firm may have been removed, or your account may no longer have admin rights.",
   company_capability_value_invalid:
