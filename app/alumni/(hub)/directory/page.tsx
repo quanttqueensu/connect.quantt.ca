@@ -10,7 +10,7 @@ export default async function AlumniDirectoryPage({ searchParams }: { searchPara
   const alumni = await listAlumni((await hubEnv()).DB, q);
   return (
     <>
-      <PageHeader kicker="Network" title="Alumni" />
+      <PageHeader title="Alumni" />
       <AlumniDirectory alumni={alumni} q={q} />
     </>
   );

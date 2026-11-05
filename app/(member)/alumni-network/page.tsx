@@ -28,7 +28,7 @@ export default async function AlumniNetworkPage({
   ]);
   return (
     <>
-      <PageHeader kicker="Network" title="Alumni">
+      <PageHeader title="Alumni">
         Jobs and mentorship from QUANTT alumni. Send any alum a message request; once they accept, message freely.
       </PageHeader>
       <Notice message={sp.denied} />
@@ -51,13 +51,13 @@ export default async function AlumniNetworkPage({
       </section>
 
       {conversations.length > 0 && (
-        <section className="mt-12 border-t border-line pt-8">
+        <section className="mt-6 border-t border-line pt-5">
           <h2 className="mb-2 font-heading text-lg font-bold text-ink">Your alumni conversations</h2>
           <AlumniInbox side="member" conversations={conversations} base="/alumni-network/messages" empty="" />
         </section>
       )}
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="mb-4 font-heading text-lg font-bold text-ink">Alumni directory</h2>
         <AlumniDirectory alumni={alumni} q={q} messageAction={startAlumniConversation} />
       </section>

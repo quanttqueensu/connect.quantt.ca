@@ -39,7 +39,7 @@ export default async function CandidateSearchPage({
 
   return (
     <>
-      <PageHeader kicker="Talent" title="Candidate search">
+      <PageHeader title="Candidate search">
         Search opted-in members by name, program, year, or interests.
       </PageHeader>
       <Notice message={sp.denied} />

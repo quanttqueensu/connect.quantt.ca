@@ -23,7 +23,7 @@ export default async function AdminPostsPage({
 
   return (
     <>
-      <PageHeader kicker="Feed" title="Posts">
+      <PageHeader title="Posts">
         Everything on the club feed, newest first.
       </PageHeader>
       <Notice message={sp.denied} />

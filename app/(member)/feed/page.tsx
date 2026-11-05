@@ -112,11 +112,11 @@ export default async function FeedPage({
 
   return (
     <>
-      <PageHeader kicker="Connect" title="Feed">
+      <PageHeader title="Feed">
         Jobs, events, connections, and listings from QUANTT and partner firms.
       </PageHeader>
       <Notice message={sp.denied} />
-      <form className="mb-4 grid items-end gap-3 rounded border border-line bg-surface p-5 md:grid-cols-5">
+      <form className="mb-2 grid grid-cols-2 items-center gap-2 rounded border border-line bg-surface p-3 md:grid-cols-4 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto_auto]">
         <select
           name="kind"
           aria-label="Post type"
@@ -176,7 +176,7 @@ export default async function FeedPage({
           placeholder="Location"
           className="rounded px-3 py-2 text-sm"
         />
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-copy">
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-copy">
           <input
             type="checkbox"
             name="sponsor"
@@ -186,10 +186,10 @@ export default async function FeedPage({
           />
           Sponsors only
         </label>
-        <PrimaryButton type="submit">Apply filters</PrimaryButton>
+        <PrimaryButton type="submit">Apply</PrimaryButton>
         {hasFilters && (
           <Link href="/feed" className={buttonClass("ghost")}>
-            Clear filters
+            Clear
           </Link>
         )}
       </form>
@@ -230,7 +230,7 @@ export default async function FeedPage({
         </nav>
       )}
 
-      <p className="mt-10 text-sm text-copy">
+      <p className="mt-6 text-sm text-copy">
         Applied off-platform?{" "}
         <Link href="/applications" className="text-primary">
           Log it

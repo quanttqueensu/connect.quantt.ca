@@ -25,7 +25,7 @@ export default async function AdminHome() {
 
   return (
     <>
-      <PageHeader kicker="Exec" title="Admin">
+      <PageHeader title="Admin">
         This panel is only for execs. Invite people, approve firms, and post to the club feed.
         Use Member area in the nav to go back to the member area.
       </PageHeader>

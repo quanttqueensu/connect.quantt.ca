@@ -20,7 +20,7 @@ export default async function AdminNewPost({
 
   return (
     <>
-      <PageHeader kicker="Feed" title="New post">
+      <PageHeader title="New post">
         Members will see this on the global feed. Companies only see it if you attach their firm.
       </PageHeader>
       <Notice message={sp.denied} />

@@ -17,7 +17,7 @@ export default async function AdminAlumniPage({
   const [invites, accounts] = await Promise.all([listAlumniInvites(DB), listAlumniAccounts(DB)]);
   return (
     <>
-      <PageHeader kicker="Admin" title="Alumni">
+      <PageHeader title="Alumni">
         Alumni have their own login at /alumni/login, separate from members and sponsors. They can post jobs and
         mentorship and message members.
       </PageHeader>
@@ -39,7 +39,7 @@ export default async function AdminAlumniPage({
         <PrimaryButton type="submit">Invite alum</PrimaryButton>
       </form>
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="mb-4 font-heading text-lg font-bold text-ink">Waiting to join ({invites.length})</h2>
         <ul>
           {invites.map((i) => (
@@ -57,7 +57,7 @@ export default async function AdminAlumniPage({
         </ul>
       </section>
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="mb-4 font-heading text-lg font-bold text-ink">Alumni ({accounts.length})</h2>
         <ul>
           {accounts.map((a) => (

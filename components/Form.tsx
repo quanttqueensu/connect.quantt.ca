@@ -8,7 +8,7 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block min-w-0 space-y-1.5">
+    <label className="block min-w-0 space-y-1">
       <span className="text-sm font-medium text-copy">{label}</span>
       {children}
     </label>
@@ -19,7 +19,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`min-h-11 w-full min-w-0 rounded px-3 py-2 text-sm ${props.className ?? ""}`}
+      className={`min-h-11 w-full min-w-0 rounded px-3 py-2 sm:min-h-10 sm:py-1.5 text-sm ${props.className ?? ""}`}
     />
   );
 }
@@ -29,7 +29,7 @@ export function FileInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, "ty
     <input
       {...props}
       type="file"
-      className={`block min-h-11 w-full min-w-0 max-w-full rounded p-1 text-sm text-copy file:mr-3 file:min-h-8 file:cursor-pointer file:rounded file:border file:border-line file:bg-surface file:px-3 file:py-1 file:text-sm file:font-medium file:text-copy hover:file:bg-line ${props.className ?? ""}`}
+      className={`block min-h-11 w-full min-w-0 max-w-full rounded p-1 sm:min-h-10 text-sm text-copy file:mr-3 file:min-h-8 file:cursor-pointer file:rounded file:border file:border-line file:bg-surface file:px-3 file:py-1 file:text-sm file:font-medium file:text-copy hover:file:bg-line ${props.className ?? ""}`}
     />
   );
 }
@@ -50,11 +50,11 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "min-h-11 border-primary bg-primary px-5 py-2.5 text-sm text-white hover:border-primary-hover hover:bg-primary-hover",
+    "min-h-11 sm:min-h-10 border-primary bg-primary px-5 py-2  text-sm text-white hover:border-primary-hover hover:bg-primary-hover",
   ghost:
-    "min-h-11 border-line-strong bg-white px-4 py-2.5 text-sm text-copy hover:border-primary hover:bg-surface hover:text-primary",
+    "min-h-11 sm:min-h-10 border-line-strong bg-white px-4 py-2 text-sm text-copy hover:border-primary hover:bg-surface hover:text-primary",
   danger:
-    "min-h-11 border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 hover:border-red-300 hover:bg-red-100",
+    "min-h-11 sm:min-h-10 border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 hover:border-red-300 hover:bg-red-100",
   quiet:
     "min-h-10 border-line bg-white px-3 py-1.5 text-sm text-copy hover:border-primary hover:bg-surface hover:text-primary",
   quietDanger:

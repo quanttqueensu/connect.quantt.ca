@@ -13,7 +13,7 @@ export default async function PeoplePage() {
 
   return (
     <>
-      <PageHeader kicker="Roster" title="People">
+      <PageHeader title="People">
         Club members and execs who have already joined.
       </PageHeader>
       <div className="mb-6">

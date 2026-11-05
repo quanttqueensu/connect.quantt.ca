@@ -45,7 +45,7 @@ export default async function MessagesPage({
 
   return (
     <>
-      <PageHeader kicker="Inbox" title="Messages" />
+      <PageHeader title="Messages" />
       <Notice message={sp.denied} />
       {convosError ? (
         <p className="text-sm text-copy">Messages could not be loaded. Try again.</p>

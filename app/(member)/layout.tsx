@@ -38,7 +38,7 @@ export default async function MemberLayout({ children }: { children: ReactNode }
   return (
     <>
       <HubNav profile={profile} unread={unread} />
-      <main className="mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-14">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-8">{children}</main>
     </>
   );
 }

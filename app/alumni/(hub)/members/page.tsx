@@ -17,7 +17,7 @@ export default async function AlumniMembersPage({
   const members = await listMembersForAlumni((await hubEnv()).DB, { kind: "alumni", id: me.id }, q);
   return (
     <>
-      <PageHeader kicker="Club" title="Current members">
+      <PageHeader title="Current members">
         Message a member to offer advice, a referral or a coffee chat.
       </PageHeader>
       <Notice message={sp.denied} />

@@ -27,7 +27,7 @@ export default async function InvitePage({
 
   return (
     <>
-      <PageHeader kicker="Access" title="Invite someone">
+      <PageHeader title="Invite someone">
         Pick whether they’re a club member, an exec admin, or a company contact. We’ll email them
         to say they can sign in at connect.quantt.ca with that address.
       </PageHeader>
@@ -44,7 +44,7 @@ export default async function InvitePage({
         initialKind={initialKind}
         sent={Boolean(sent)}
       />
-      <section className="mt-14">
+      <section className="mt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Waiting to join</h2>
         {!(pending ?? []).length ? (
           <p className="mt-3 text-sm text-copy">No outstanding invites.</p>

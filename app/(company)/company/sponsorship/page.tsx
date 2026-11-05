@@ -56,27 +56,27 @@ export default async function SponsorshipPage({
 
   return (
     <>
-      <PageHeader kicker="Package" title="Sponsorship">
+      <PageHeader title="Sponsorship">
         What your firm bought, and what Connect currently unlocks for your contacts. You do not
         see the member feed — that stays with QUANTT members.
       </PageHeader>
       <Notice message={sp.denied} />
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-heading text-2xl font-bold text-ink">{display?.name ?? "Unassigned"}</h2>
+        <h2 className="font-heading text-xl font-bold text-ink">{display?.name ?? "Unassigned"}</h2>
         <TierBadge tier={display} />
       </div>
-      <p className="mt-2 text-sm text-copy">
+      <p className="mt-1 text-sm text-copy">
         {formatPrice(display?.price_cents ?? null)}
         {display?.blurb ? ` · ${display.blurb}` : ""}
       </p>
       {grace && graceUntil && assigned && effective && assigned.id !== effective.id && (
-        <p className="mt-4 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
+        <p className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-ink">
           Until {formatDate(`${graceUntil}T12:00:00`)} you still have {effective.name} access. After
           that, {assigned.name} applies.
         </p>
       )}
 
-      <ul className="mt-8 space-y-4">
+      <ul className="mt-4 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
         {capabilities.map((cap) => {
           const key = cap.key as CapabilityKey;
           const included = can(access, key);
@@ -85,7 +85,7 @@ export default async function SponsorshipPage({
           const needed = included ? null : lowestTierWith(tiers, key);
           const quota = cap.kind === "quota" ? capValue(access, key) : null;
           return (
-            <li key={cap.key} className="border-t border-line py-4">
+            <li key={cap.key} className="border-t border-line py-3">
               <p className="text-ink">
                 {cap.label}{" "}
                 <span className="text-xs uppercase tracking-wider text-muted">
@@ -102,21 +102,21 @@ export default async function SponsorshipPage({
                       : "not included"}
                 </span>
               </p>
-              <p className="mt-1 text-sm text-muted">{cap.description}</p>
+              <p className="mt-0.5 text-sm text-muted">{cap.description}</p>
               {!included && needed && (
-                <p className="mt-2 text-xs text-primary">Included from {needed.name}.</p>
+                <p className="mt-1 text-xs text-primary">Included from {needed.name}.</p>
               )}
             </li>
           );
         })}
       </ul>
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="font-heading text-lg font-bold text-ink">Firm profile</h2>
         <p className="mt-1 text-sm text-copy">
           Your logo appears next to posts on the member feed.
         </p>
-        <form action={updateCompanyProfile} className="mt-4 grid max-w-xl gap-4">
+        <form action={updateCompanyProfile} className="mt-3 grid max-w-3xl gap-3 md:grid-cols-2">
           <Field label="Website">
             <TextInput
               name="website"
@@ -135,15 +135,17 @@ export default async function SponsorshipPage({
               placeholder="https://"
             />
           </Field>
-          <Field label="Description">
-            <TextArea
-              name="description"
-              rows={3}
-              defaultValue={company?.description ?? ""}
-              maxLength={500}
-            />
-          </Field>
-          <PrimaryButton type="submit" disabled={cu.preview}>Save profile</PrimaryButton>
+          <div className="md:col-span-2">
+            <Field label="Description">
+              <TextArea
+                name="description"
+                rows={3}
+                defaultValue={company?.description ?? ""}
+                maxLength={500}
+              />
+            </Field>
+          </div>
+          <PrimaryButton type="submit" disabled={cu.preview} className="justify-self-start">Save profile</PrimaryButton>
         </form>
       </section>
       {prefs && (

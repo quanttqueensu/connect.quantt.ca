@@ -68,22 +68,26 @@ export default async function MembersPage({
 
   return (
     <>
-      <PageHeader kicker="Club" title="Members">
+      <PageHeader
+        title="Members"
+        actions={
+          <form method="get" className="flex w-full max-w-sm items-stretch gap-2 sm:w-80">
+            <input
+              type="search"
+              name="q"
+              aria-label="Search members by name or program"
+              defaultValue={q}
+              placeholder="Search by name or program"
+              maxLength={80}
+              className="min-w-0 w-full border border-line bg-transparent min-h-10 px-3 py-1.5 text-sm text-ink placeholder:text-muted"
+            />
+            <PrimaryButton type="submit">Search</PrimaryButton>
+          </form>
+        }
+      >
         {total > 0 && `${total} member${total === 1 ? "" : "s"}`}
       </PageHeader>
 
-      <form method="get" className="mb-8 flex max-w-md items-stretch gap-2">
-        <input
-          type="search"
-          name="q"
-          aria-label="Search members by name or program"
-          defaultValue={q}
-          placeholder="Search by name or program"
-          maxLength={80}
-          className="min-w-0 w-full border border-line bg-transparent px-3 py-2 text-sm text-ink placeholder:text-muted"
-        />
-        <PrimaryButton type="submit">Search</PrimaryButton>
-      </form>
 
       {membersError ? (
         <p className="border border-line p-6 text-sm text-copy">
@@ -96,24 +100,24 @@ export default async function MembersPage({
             : "No members yet. Once an exec invites members, they will show up here."}
         </p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {cards.map((m) => (
             <Link
               key={m.id}
               href={`/members/${m.id}`}
-              className="min-w-0 border border-line p-5 hover:border-line-strong"
+              className="min-w-0 border border-line px-3 py-2.5 hover:border-line-strong sm:p-4"
             >
-              <div className="flex gap-4">
+              <div className="flex gap-3">
                 {m.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={m.photoUrl} alt="" width={48} height={48} loading="lazy" decoding="async" className="h-12 w-12 shrink-0 object-cover" />
                 ) : null}
                 <div className="min-w-0 [overflow-wrap:anywhere]">
-                  <p className="font-heading text-lg font-bold text-ink">{m.full_name}</p>
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="font-heading text-base font-semibold text-ink">{m.full_name}</p>
+                  <p className="mt-0.5 text-sm text-muted">
                     {[m.program, m.grad_year].filter(Boolean).join(" · ")}
                   </p>
-                  {m.bio && <p className="mt-2 line-clamp-2 text-sm text-copy">{m.bio}</p>}
+                  {m.bio && <p className="mt-1.5 hidden text-sm text-copy sm:line-clamp-2">{m.bio}</p>}
                 </div>
               </div>
             </Link>
@@ -122,7 +126,7 @@ export default async function MembersPage({
       )}
 
       {(hasPrev || hasNext) && (
-        <nav className="mt-8 flex items-center justify-between gap-3">
+        <nav className="mt-6 flex items-center justify-between gap-3">
           {hasPrev ? (
             <Link href={pageHref(q, page - 1)} className={buttonClass("quiet")}>
               Previous

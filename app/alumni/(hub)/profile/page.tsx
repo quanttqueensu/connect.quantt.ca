@@ -21,7 +21,7 @@ export default async function AlumniProfilePage({
   if (!a) notFound();
   return (
     <>
-      <PageHeader kicker="You" title="Profile">
+      <PageHeader title="Profile">
         Members see this in the alumni directory. Your email is never shown.
       </PageHeader>
       <Notice message={sp.denied} />
@@ -53,7 +53,7 @@ export default async function AlumniProfilePage({
         </Field>
         <PrimaryButton type="submit">Save profile</PrimaryButton>
       </form>
-      <section id="notifications" className="mt-10 max-w-xl scroll-mt-40 border-t border-line pt-8">
+      <section id="notifications" className="mt-6 max-w-xl scroll-mt-40 border-t border-line pt-5">
         <h2 className="font-heading text-lg font-bold text-ink">Email notifications</h2>
         <p className="mt-1 text-sm text-copy">Emails link back to Connect and never include message text.</p>
         <div className="mt-4">

@@ -127,11 +127,11 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
 
   return (
     <>
-      <PageHeader kicker="Connect" title="Opportunities">
+      <PageHeader title="Opportunities">
         Jobs from QUANTT sponsors, plus open quant internships and new-grad roles from public lists, refreshed daily.
       </PageHeader>
 
-      <nav aria-label="Opportunity type" className="mb-6 flex gap-2">
+      <nav aria-label="Opportunity type" className="mb-4 flex gap-2">
         <Link
           href="/opportunities?view=sponsors"
           aria-current={view === "sponsors" ? "page" : undefined}
@@ -165,7 +165,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         </div>
       ) : (
       <>
-      <form className="mb-4 grid items-end gap-3 rounded border border-line bg-surface p-5 md:grid-cols-4">
+      <form className="mb-2 grid grid-cols-2 items-center gap-2 rounded border border-line bg-surface p-3 md:grid-cols-4">
         <input type="hidden" name="view" value="all" />
         <TextInput
           name="q"
@@ -201,20 +201,20 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
             <option value="yes">Applied</option>
           </select>
         )}
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-copy">
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-copy">
           <input type="checkbox" name="canada" value="1" defaultChecked={sp.canada === "1"} className="h-4 w-4" />
           Canada only
         </label>
         {isAdmin && (
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-copy">
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-copy">
             <input type="checkbox" name="hidden" value="1" defaultChecked={showHidden} className="h-4 w-4" />
             Hidden listings
           </label>
         )}
-        <PrimaryButton type="submit">Apply filters</PrimaryButton>
+        <PrimaryButton type="submit">Apply</PrimaryButton>
         {(hasFilters || showHidden) && (
           <Link href="/opportunities?view=all" className={buttonClass("ghost")}>
-            Clear filters
+            Clear
           </Link>
         )}
       </form>
@@ -228,19 +228,18 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
           </p>
         ) : (
           list.map((l) => (
-            <article key={l.id} className="flex flex-col gap-3 border-b border-line py-6 sm:flex-row sm:items-start sm:justify-between">
+            <article key={l.id} className="flex flex-col gap-2 border-b border-line py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <p className="text-xs font-medium text-primary">
                   {l.role_type === "internship" ? "Internship" : "New grad"}
                   {l.term ? ` · ${l.term}` : ""}
                 </p>
-                <h2 className="mt-1.5 font-heading text-lg font-semibold text-ink">{l.title}</h2>
-                <p className="mt-1 text-sm text-muted">
+                <h2 className="mt-0.5 font-heading text-base font-semibold text-ink">{l.title}</h2>
+                <p className="mt-0.5 text-sm text-muted">
                   {[l.company, (l.locations ?? []).slice(0, 3).join(", ") + ((l.locations?.length ?? 0) > 3 ? ` +${l.locations!.length - 3}` : "")]
                     .filter(Boolean)
                     .join(" · ")}
-                </p>
-                <p className="mt-1 text-[11px] text-muted">
+                  {" · "}
                   {l.source === "nwft" ? "Listed" : "Posted"} <time dateTime={l.posted_at}>{formatDate(l.posted_at)}</time>
                 </p>
               </div>
@@ -302,7 +301,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
       </>
       )}
 
-      <p className="mt-10 text-xs text-muted">
+      <p className="mt-6 text-xs text-muted">
         Listings from{" "}
         <a href="https://github.com/SimplifyJobs/Summer2027-Internships" target="_blank" rel="noopener noreferrer" className="text-primary">
           Simplify

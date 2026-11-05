@@ -12,7 +12,7 @@ export default function PostCard({ post }: { post: Post }) {
   return (
     <Link
       href={`/feed/${post.id}`}
-      className="group block border-b border-line py-7 transition-colors hover:bg-surface/60"
+      className="group block border-b border-line py-4 transition-colors hover:bg-surface/60"
     >
       <div className="flex items-baseline gap-3">
         {logo && /^https?:\/\//i.test(logo) ? (
@@ -25,8 +25,8 @@ export default function PostCard({ post }: { post: Post }) {
           <span className="text-[10px] uppercase tracking-wider text-muted">Closed</span>
         )}
       </div>
-      <h2 className="mt-2 font-heading text-xl font-semibold text-ink group-hover:text-primary">{post.title}</h2>
-      <p className="mt-1 text-sm text-muted">
+      <h2 className="mt-1 font-heading text-lg font-semibold text-ink group-hover:text-primary">{post.title}</h2>
+      <p className="mt-0.5 text-sm text-muted">
         {[
           company?.name,
           roleTypeLabel(post.role_type),
@@ -36,12 +36,12 @@ export default function PostCard({ post }: { post: Post }) {
           .filter(Boolean)
           .join(" · ")}
       </p>
-      <p className="mt-3 line-clamp-2 text-sm leading-6 text-copy">{post.body}</p>
-      <p className="mt-4 text-xs font-medium text-primary">
-        {job ? "Apply through Connect" : closed ? "Closed" : post.external_url ? "External listing" : "Post"}
-      </p>
-      <p className="mt-1 text-[11px] text-muted">
-        Posted <time dateTime={post.created_at}>{formatDate(post.created_at)}</time>
+      <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-copy">{post.body}</p>
+      <p className="mt-2 text-xs text-muted">
+        <span className="font-medium text-primary">
+          {job ? "Apply through Connect" : closed ? "Closed" : post.external_url ? "External listing" : "Post"}
+        </span>
+        {" · "}Posted <time dateTime={post.created_at}>{formatDate(post.created_at)}</time>
       </p>
     </Link>
   );
