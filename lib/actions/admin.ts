@@ -370,6 +370,49 @@ function revalidateCompanyAccess() {
   revalidatePath("/company/applicants");
 }
 
+/** Create a sponsor firm on its own, with no contact invited yet. */
+export async function addCompany(formData: FormData) {
+  const profile = await requireProfile();
+  if (!profile.is_admin) denyRedirect("/feed", "admins_only");
+  const name = String(formData.get("name") ?? "").trim();
+  const tierId = emptyToNull(formData.get("sponsor_tier_id"));
+  const website = httpUrlOrNull(formData.get("website"));
+  const logoUrl = httpUrlOrNull(formData.get("logo_url"));
+  if (!name || name.length > 120) denyRedirect("/admin/companies", "company_name_required");
+  if (!tierId) denyRedirect("/admin/companies", "invite_tier_required");
+  if (website === INVALID_URL || logoUrl === INVALID_URL) {
+    denyRedirect("/admin/companies", "company_url_invalid");
+  }
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("companies").select("id, name");
+  if ((existing ?? []).some((c) => String(c.name).trim().toLowerCase() === name.toLowerCase())) {
+    denyRedirect("/admin/companies", "company_exists");
+  }
+  const { data, error } = await supabase
+    .from("companies")
+    .insert({
+      name,
+      slug: (slugify(name) || "company") + "-" + Math.random().toString(36).slice(2, 6),
+      sponsor_tier_id: tierId,
+      status: "active",
+      website,
+      logo_url: logoUrl,
+    })
+    .select("id")
+    .single();
+  if (error || !data) denyRedirect("/admin/companies", "company_add_failed");
+  await supabase.from("sponsor_tier_events").insert({
+    kind: "company_assigned",
+    tier_id: tierId,
+    company_id: data.id,
+    actor_id: profile.id,
+    detail: { from: null, to: tierId },
+  });
+  revalidateCompanyAccess();
+  revalidatePath("/admin/invite");
+  redirect(`/admin/companies?added=1#company-${data.id}`);
+}
+
 export async function setCompanyTier(formData: FormData) {
   const profile = await requireProfile();
   if (!profile.is_admin) denyRedirect("/feed", "admins_only");

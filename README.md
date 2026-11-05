@@ -143,7 +143,8 @@ Alumni have their own area at `/alumni`, kept apart from members and sponsors: t
 
 ## Sponsor tiers and company overrides
 
-Use **Admin → Sponsor tiers** to edit the features shared by a tier. Use
+Add a firm without inviting anyone yet with **Admin → Companies → Add a company** (name,
+sponsorship level, optional website and logo). Use **Admin → Sponsor tiers** to edit the features shared by a tier. Use
 **Admin → Companies → Company feature overrides** for exceptions:
 
 - **Follow tier** inherits the assigned tier and any current grandfathered access.
