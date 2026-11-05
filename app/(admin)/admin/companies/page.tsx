@@ -2,8 +2,8 @@ import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import CopyLink from "@/components/CopyLink";
 import CompanyCapabilityControl from "@/components/CompanyCapabilityControl";
-import { Field, GhostButton, PrimaryButton, buttonClass } from "@/components/Form";
-import { resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
+import { Field, GhostButton, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
+import { addCompany, resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
 import {
   graceIsOpen,
   liveCan,
@@ -24,7 +24,7 @@ type CompanyRow = Company;
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string }>;
+  searchParams: Promise<{ denied?: string; added?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -60,6 +60,42 @@ export default async function CompaniesPage({
         Overrides beat tier defaults and stay when the level changes. Inactive firms are hidden and lose their features.
       </PageHeader>
       <Notice message={sp.denied} />
+      {sp.added && (
+        <p className="mb-4 border-l-2 border-primary pl-4 text-sm text-copy">
+          Company added. Invite a contact whenever you&rsquo;re ready.
+        </p>
+      )}
+      <details className="group mb-4 border border-line px-4 py-3" open={Boolean(sp.denied?.startsWith("company_"))}>
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-ink">
+          <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-90">›</span>
+          Add a company
+          <span className="font-normal text-muted">no contact needed</span>
+        </summary>
+        <form action={addCompany} className="mt-3 grid gap-3 md:grid-cols-4">
+          <Field label="Company name">
+            <TextInput name="name" required maxLength={120} />
+          </Field>
+          <Field label="Sponsorship level">
+            <select name="sponsor_tier_id" required defaultValue="" className="w-full rounded px-3 py-2 text-sm">
+              <option value="" disabled>Choose a level</option>
+              {tiers
+                .filter((t) => t.is_active)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+            </select>
+          </Field>
+          <Field label="Website (optional)">
+            <TextInput name="website" type="url" placeholder="https://" />
+          </Field>
+          <Field label="Logo URL (optional)">
+            <TextInput name="logo_url" type="url" placeholder="https://" />
+          </Field>
+          <div>
+            <PrimaryButton type="submit">Add company</PrimaryButton>
+          </div>
+        </form>
+      </details>
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border border-line px-4 py-3">
         <p className="text-sm text-copy">
           <span className="font-medium text-ink">Public signup link.</span> Requests land in Join requests.
