@@ -13,15 +13,39 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { denyRedirect } from "./deny";
-import { getDirectorySync, setDirectorySync, syncDirectoryFiles, type DirectoryFiles } from "@/lib/directory-files";
+import {
+  getDirectorySync,
+  pushToDirectory,
+  removeFromDirectory,
+  setDirectorySync,
+  syncDirectoryFiles,
+  type DirectoryFiles,
+} from "@/lib/directory-files";
 import { hubEnv } from "@/lib/hub/env";
 import type { GraduationAuth } from "@/lib/graduation-sync";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-/** While a member keeps sync on, auth.quantt.ca owns their photo and resume (lib/directory-files.ts). */
-async function refuseIfSynced(profileId: string) {
+/** While a member keeps sync on, their photo and resume live on auth.quantt.ca (lib/directory-files.ts). */
+async function isSynced(profileId: string) {
   const { DB } = await hubEnv();
-  if (await getDirectorySync(DB, profileId)) denyRedirect("/profile", "profile_files_synced");
+  return getDirectorySync(DB, profileId);
+}
+
+async function directory(): Promise<DirectoryFiles> {
+  const { env } = await getCloudflareContext({ async: true });
+  return (env as unknown as { AUTH?: DirectoryFiles }).AUTH ?? {};
+}
+
+/** Synced: send the upload to auth.quantt.ca, which then syncs it back here. */
+async function uploadToDirectory(profile: { id: string; email: string }, kind: "photo" | "resume", file: File) {
+  const { DB, FILES } = await hubEnv();
+  try {
+    await pushToDirectory(DB, FILES, await directory(), profile.id, profile.email, kind, await file.arrayBuffer(), file.name || "");
+  } catch (e) {
+    console.warn("directory files: upload failed", e instanceof Error ? e.message : e);
+    denyRedirect("/profile", "profile_directory_upload_failed");
+  }
+  revalidateFiles(profile.id);
 }
 
 function revalidateFiles(profileId: string) {
@@ -205,12 +229,12 @@ export async function deleteSection(formData: FormData) {
 export async function uploadPhoto(formData: FormData) {
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
-  await refuseIfSynced(profile.id);
   const file = formData.get("photo") as File | null;
   if (!file || file.size === 0) denyRedirect("/profile", "profile_photo_invalid");
   if (file.size > MAX_IMAGE_BYTES) denyRedirect("/profile", "profile_photo_invalid");
   const kind = await imageKind(file);
   if (!kind) denyRedirect("/profile", "profile_photo_invalid");
+  if (await isSynced(profile.id)) return uploadToDirectory(profile, "photo", file);
   const supabase = await createClient();
   const ext = imageExtension(kind);
   const contentType = imageContentType(kind);
@@ -287,7 +311,6 @@ export async function saveProfileDocument(kind: "resume" | "cover", formData: Fo
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
   if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
-  if (kind === "resume") await refuseIfSynced(profile.id);
   const file = formData.get("document");
   if (!(file instanceof File) || file.size === 0) {
     denyRedirect("/profile", "profile_document_invalid");
@@ -297,6 +320,7 @@ export async function saveProfileDocument(kind: "resume" | "cover", formData: Fo
   } catch {
     denyRedirect("/profile", "profile_document_invalid");
   }
+  if (kind === "resume" && (await isSynced(profile.id))) return uploadToDirectory(profile, "resume", file);
   const supabase = await createClient();
   // Keep the established owner-scoped storage format. Unique keys prevent an
   // upload from changing a file while an application is taking its snapshot.
@@ -329,7 +353,15 @@ export async function removeProfileDocument(kind: "resume" | "cover") {
   const profile = await requireProfile();
   if (profile.role !== "member") throw new Error("Members only");
   if (kind !== "resume" && kind !== "cover") throw new Error("Invalid document");
-  if (kind === "resume") await refuseIfSynced(profile.id);
+  if (kind === "resume" && (await isSynced(profile.id))) {
+    // Remove it on auth.quantt.ca too, or the next sync would never clear it there.
+    try {
+      await removeFromDirectory(await directory(), profile.email, "resume");
+    } catch (e) {
+      console.warn("directory files: remove failed", e instanceof Error ? e.message : e);
+      denyRedirect("/profile", "profile_directory_upload_failed");
+    }
+  }
   const supabase = await createClient();
   const column = kind === "resume" ? "resume_path" : "cover_letter_path";
   const { data, error } = await supabase.from("member_documents").update({

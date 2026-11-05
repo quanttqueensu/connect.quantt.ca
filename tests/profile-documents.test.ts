@@ -4,17 +4,19 @@ const state = vi.hoisted(() => ({
   member: "11111111-1111-4111-8111-111111111111", role: "member",
   upload: vi.fn(), remove: vi.fn(), upsert: vi.fn(), update: vi.fn(),
   saved: [] as { member_id: string }[], error: null as { message: string } | null, synced: false,
+  push: vi.fn(), pull: vi.fn(),
 }));
 vi.mock("@/lib/hub/env", () => ({ hubEnv: async () => ({ DB: {}, FILES: {} }) }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: async () => ({ env: {} }) }));
 vi.mock("@/lib/directory-files", () => ({
   getDirectorySync: async () => state.synced, setDirectorySync: vi.fn(), syncDirectoryFiles: vi.fn(),
+  pushToDirectory: state.push, removeFromDirectory: state.pull,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (url: string) => {
   throw Object.assign(new Error(url), { digest: "NEXT_REDIRECT" });
 } }));
-vi.mock("@/lib/auth", () => ({ requireProfile: async () => ({ id: state.member, role: state.role }) }));
+vi.mock("@/lib/auth", () => ({ requireProfile: async () => ({ id: state.member, role: state.role, email: "ann@queensu.ca" }) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
   storage: { from: () => ({ remove: state.remove }) },
 }) }));
@@ -39,6 +41,8 @@ describe("profile document writes", () => {
     state.upload.mockReset().mockResolvedValue({ error: null });
     state.remove.mockReset().mockResolvedValue({ error: null });
     state.upsert.mockReset(); state.update.mockReset();
+    state.push.mockReset().mockResolvedValue({ photo: false, resume: true });
+    state.pull.mockReset().mockResolvedValue(undefined);
   });
   it("replaces the resume without overwriting the cover", async () => {
     await saveProfileDocument("resume", form());
@@ -56,13 +60,41 @@ describe("profile document writes", () => {
     expect(row.cover_letter).toBeNull();
     expect(row).not.toHaveProperty("resume_path");
   });
-  it("refuses resume changes while the member keeps sync on, but not the cover", async () => {
+  it("sends a synced member's resume to auth.quantt.ca, not straight into Connect", async () => {
     state.synced = true;
-    await expect(saveProfileDocument("resume", form())).rejects.toThrow("profile_files_synced");
-    await expect(removeProfileDocument("resume")).rejects.toThrow("profile_files_synced");
+    await saveProfileDocument("resume", form());
+    expect(state.push).toHaveBeenCalledOnce();
+    const [, , , id, email, kind, data, name] = state.push.mock.calls[0];
+    expect([id, email, kind, name]).toEqual([state.member, "ann@queensu.ca", "resume", "resume.pdf"]);
+    expect(new TextDecoder().decode(data)).toBe("%PDF-1.7\n");
     expect(state.upload).not.toHaveBeenCalled();
+    expect(state.upsert).not.toHaveBeenCalled();
+    // The cover letter is never synced.
     await saveProfileDocument("cover", form());
+    expect(state.push).toHaveBeenCalledOnce();
     expect(state.upsert).toHaveBeenCalledOnce();
+  });
+  it("checks a synced resume is a real PDF before sending it to auth.quantt.ca", async () => {
+    state.synced = true;
+    await expect(saveProfileDocument("resume", form("<html>"))).rejects.toThrow("profile_document_invalid");
+    expect(state.push).not.toHaveBeenCalled();
+  });
+  it("says so when auth.quantt.ca refuses a synced upload", async () => {
+    state.synced = true;
+    state.push.mockRejectedValue(new Error("nope"));
+    await expect(saveProfileDocument("resume", form())).rejects.toThrow("profile_directory_upload_failed");
+  });
+  it("removes a synced resume on auth.quantt.ca and here", async () => {
+    state.synced = true;
+    await removeProfileDocument("resume");
+    expect(state.pull).toHaveBeenCalledWith(expect.anything(), "ann@queensu.ca", "resume");
+    expect(state.update.mock.calls[0][0]).toMatchObject({ resume_path: null });
+  });
+  it("keeps the resume here when auth.quantt.ca can't remove it", async () => {
+    state.synced = true;
+    state.pull.mockRejectedValue(new Error("nope"));
+    await expect(removeProfileDocument("resume")).rejects.toThrow("profile_directory_upload_failed");
+    expect(state.update).not.toHaveBeenCalled();
   });
   it("rejects a PDF with spoofed MIME before uploading", async () => {
     await expect(saveProfileDocument("resume", form("<html>"))).rejects.toThrow("profile_document_invalid");
