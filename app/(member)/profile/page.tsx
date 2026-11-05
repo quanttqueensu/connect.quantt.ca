@@ -13,6 +13,7 @@ import {
   setDirectorySyncSetting,
 } from "@/lib/actions/profile";
 import { getDirectorySync, syncDirectoryFiles } from "@/lib/directory-files";
+import { HeadshotUpload } from "@/components/HeadshotUpload";
 import { syncGradYear } from "@/lib/graduation-sync";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getCurrentProfile } from "@/lib/auth";
@@ -200,14 +201,7 @@ export default async function ProfilePage({
                 </form>
               </section>
           </div>
-          <form action={uploadPhoto} className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-0 max-w-full">
-              <Field label="Photo">
-                <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
-              </Field>
-            </div>
-            <PrimaryButton type="submit">Upload photo</PrimaryButton>
-          </form>
+          <HeadshotUpload action={uploadPhoto} />
           <section id="documents" className="mt-6 scroll-mt-40 border-t border-line pt-5">
             <h2 className="font-heading text-lg font-bold text-ink">Application documents</h2>
             <p className="mt-2 text-sm text-copy">
