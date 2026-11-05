@@ -25,7 +25,7 @@ export default async function RequestsPage({
 
   return (
     <>
-      <PageHeader kicker="Queue" title="Join requests" />
+      <PageHeader title="Join requests" />
       <Notice message={denied} />
       <ul>
         {(requests as QueueRequest[] | null)?.slice(0, pageSize).map((r) => (

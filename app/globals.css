@@ -48,6 +48,12 @@
     max-width: 100%;
   }
 
+  @media (min-width: 40rem) {
+    select {
+      min-height: 2.5rem;
+    }
+  }
+
   select option,
   select optgroup {
     background: white;

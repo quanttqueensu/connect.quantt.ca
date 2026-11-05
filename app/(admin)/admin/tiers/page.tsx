@@ -84,20 +84,16 @@ export default async function AdminTiersPage({
 
   return (
     <>
-      <PageHeader kicker="Packages" title="Sponsor tiers">
-        Edit the default features, pricing, and delays shared by companies on each tier.
-        Company-specific feature overrides take priority over these defaults.
-      </PageHeader>
-      <Notice message={sp.denied} />
-      <p className="mb-8 text-sm text-copy">
-        To change access for just one sponsor, use{" "}
+      <PageHeader title="Sponsor tiers">
+        Defaults for every company on a tier. For one sponsor only, use{" "}
         <Link href="/admin/companies" className="text-primary underline">
           company feature overrides
         </Link>.
-      </p>
+      </PageHeader>
+      <Notice message={sp.denied} />
 
       {warnings.length > 0 && (
-        <div className="mb-8 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
+        <div className="mb-6 border border-primary/20 bg-primary/5 p-4 text-sm text-ink">
           <p className="text-[11px] uppercase tracking-[2px] text-primary">Check the ladder</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {warnings.map((w) => (
@@ -107,12 +103,15 @@ export default async function AdminTiersPage({
         </div>
       )}
 
-      <section className="mb-12 border border-line p-5">
-        <h2 className="font-heading text-lg font-bold text-ink">New package</h2>
-        <p className="mt-1 text-sm text-copy">
+      <details className="group mb-6 border border-line px-4 py-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-ink">
+          <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-90">›</span>
+          New package
+        </summary>
+        <p className="mt-2 text-xs text-muted">
           Rank is display order. Leave gaps (15, 25) so a new package can sit between existing ones.
         </p>
-        <form action={createTier} className="mt-4 grid gap-4 md:grid-cols-2">
+        <form action={createTier} className="mt-3 grid gap-3 md:grid-cols-3">
           <Field label="Name">
             <TextInput name="name" required maxLength={80} />
           </Field>
@@ -122,7 +121,7 @@ export default async function AdminTiersPage({
           <Field label="Price (CAD, blank if none)">
             <TextInput name="price" inputMode="decimal" placeholder="2500" />
           </Field>
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <Field label="Blurb">
               <TextArea name="blurb" rows={2} maxLength={400} />
             </Field>
@@ -131,15 +130,15 @@ export default async function AdminTiersPage({
             <PrimaryButton type="submit">Create package</PrimaryButton>
           </div>
         </form>
-      </section>
+      </details>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tiers.map((tier) => {
           const n = firmCount.get(tier.id) ?? 0;
           return (
-            <article key={tier.id} className="border border-line p-5">
+            <article key={tier.id} className="flex min-w-0 flex-col border border-line p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="font-heading text-xl font-bold text-ink">{tier.name}</h2>
+                <h2 className="font-heading text-lg font-bold text-ink">{tier.name}</h2>
                 <p className="text-xs uppercase tracking-wider text-muted">
                   {formatPrice(tier.price_cents)} · rank {tier.rank}
                   {tier.is_system ? " · system" : ""}
@@ -147,9 +146,14 @@ export default async function AdminTiersPage({
                   {n ? ` · ${n} ${n === 1 ? "firm" : "firms"}` : ""}
                 </p>
               </div>
-              {tier.blurb && <p className="mt-2 text-sm text-copy">{tier.blurb}</p>}
+              {tier.blurb && <p className="mt-1 text-sm text-copy">{tier.blurb}</p>}
 
-              <form action={updateTier} className="mt-4 grid gap-3 md:grid-cols-2">
+              <details className="group mt-3">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm text-primary">
+                  <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+                  Edit name, rank, price
+                </summary>
+              <form action={updateTier} className="mt-3 grid gap-3 grid-cols-2">
                 <input type="hidden" name="tier_id" value={tier.id} />
                 <Field label="Name">
                   <TextInput name="name" required defaultValue={tier.name} maxLength={80} />
@@ -170,12 +174,12 @@ export default async function AdminTiersPage({
                     defaultValue={priceDollars(tier.price_cents)}
                   />
                 </Field>
-                <div className="md:col-span-2">
+                <div className="col-span-2">
                   <Field label="Blurb">
                     <TextArea name="blurb" rows={2} maxLength={400} defaultValue={tier.blurb} />
                   </Field>
                 </div>
-                <div className="flex flex-wrap gap-3 md:col-span-2">
+                <div className="col-span-2 flex flex-wrap gap-3">
                   <PrimaryButton type="submit">Save package</PrimaryButton>
                 </div>
               </form>
@@ -195,20 +199,18 @@ export default async function AdminTiersPage({
                   )}
                 </form>
               )}
+              </details>
 
-              <form action={saveTierCapabilities} className="mt-6 border-t border-line pt-4">
+              <form action={saveTierCapabilities} className="mt-3 border-t border-line pt-3">
                 <input type="hidden" name="tier_id" value={tier.id} />
-                <p className="text-[11px] uppercase tracking-[2px] text-copy">Tier default features</p>
-                <p className="mt-2 text-xs text-muted">
-                  Applies to companies following this tier. Explicit company overrides stay in place.
-                </p>
-                <ul className="mt-3 space-y-3">
+                <p className="text-[11px] uppercase tracking-[2px] text-copy">Default features</p>
+                <ul className="mt-2 space-y-1.5">
                   {capabilities.map((cap) => {
                     const granted = can(tier, cap.key as CapabilityKey);
                     const value = capValue(tier, cap.key as CapabilityKey);
                     return (
                       <li key={cap.key}>
-                        <label className="flex items-start gap-2 text-sm text-ink">
+                        <label title={cap.description} className="flex items-start gap-2 text-sm text-ink">
                           <input
                             type="checkbox"
                             name={`grant_${cap.key}`}
@@ -222,14 +224,11 @@ export default async function AdminTiersPage({
                                 commitment only
                               </span>
                             )}
-                            <span className="mt-0.5 block text-xs text-muted">
-                              {cap.description}
-                            </span>
                           </span>
                         </label>
                         {cap.kind === "quota" && (
-                          <div className="ml-6 mt-2">
-                            <Field label="Open in-app jobs (blank = unlimited)">
+                          <div className="ml-6 mt-1.5">
+                            <Field label="Open jobs (blank = unlimited)">
                               <TextInput
                                 name={`value_${cap.key}`}
                                 inputMode="numeric"
@@ -244,7 +243,7 @@ export default async function AdminTiersPage({
                   })}
                 </ul>
                 {n > 0 && (
-                  <label className="mt-4 flex items-start gap-2 text-sm text-copy">
+                  <label className="mt-3 flex items-start gap-2 text-xs text-copy">
                     <input type="checkbox" name="confirmed" className="mt-1 h-4 w-4" />
                     <span>
                       I understand this can remove access from {n}{" "}
@@ -252,7 +251,7 @@ export default async function AdminTiersPage({
                     </span>
                   </label>
                 )}
-                <div className="mt-4">
+                <div className="mt-3">
                   <PrimaryButton type="submit">Save features</PrimaryButton>
                 </div>
               </form>
@@ -261,7 +260,7 @@ export default async function AdminTiersPage({
         })}
       </div>
 
-      <section className="mt-14">
+      <section className="mt-8">
         <h2 className="font-heading text-lg font-bold text-ink">Recent changes</h2>
         {!(events ?? []).length ? (
           <p className="mt-3 text-sm text-copy">No edits yet.</p>
@@ -275,7 +274,7 @@ export default async function AdminTiersPage({
                 ? e.companies[0]?.name
                 : (e.companies as { name: string } | null)?.name;
               return (
-                <li key={e.id} className="border-t border-line py-3 text-sm text-copy">
+                <li key={e.id} className="border-t border-line py-2 text-sm text-copy">
                   <span className="text-ink">{e.kind.replaceAll("_", " ")}</span>
                   {tierName ? ` · ${tierName}` : ""}
                   {companyName ? ` · ${companyName}` : ""}

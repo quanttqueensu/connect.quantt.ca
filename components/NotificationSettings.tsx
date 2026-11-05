@@ -29,7 +29,7 @@ export default function NotificationSettings({
   setup?: boolean;
 }) {
   const form = (
-    <form action={saveNotificationSettings} className={setup ? "space-y-3" : "mt-4 space-y-3"}>
+    <form action={saveNotificationSettings} className={setup ? "space-y-3" : "mt-3 space-y-2"}>
       {setup && <input type="hidden" name="setup" value="1" />}
       {SHOWN[role].map((k) => (
         <label key={k} className="flex items-center gap-3 text-sm text-ink">
@@ -47,7 +47,7 @@ export default function NotificationSettings({
   );
   if (setup) return form;
   return (
-    <section id="notifications" className="mt-10 max-w-xl scroll-mt-40 border-t border-line pt-8">
+    <section id="notifications" className="mt-6 max-w-xl scroll-mt-40 border-t border-line pt-5">
       <h2 className="font-heading text-lg font-bold text-ink">Email notifications</h2>
       <p className="mt-1 text-sm text-copy">Emails link back to Connect and never include message text.</p>
       {form}

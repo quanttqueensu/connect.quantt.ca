@@ -29,7 +29,7 @@ export default async function CompanyHome({
 
   return (
     <>
-      <PageHeader kicker="Company" title={company?.name ?? "Your posts"}>
+      <PageHeader title={company?.name ?? "Your posts"}>
         You only see posts from your firm. Members see these on the global feed.
       </PageHeader>
       <Notice message={sp.denied} />

@@ -34,7 +34,7 @@ export default async function ApplicantsPage({
 
   return (
     <>
-      <PageHeader kicker="Hiring" title="Applicants" />
+      <PageHeader title="Applicants" />
       <Notice message={sp.denied} />
       <LockedCard
         capability="read_applicants"

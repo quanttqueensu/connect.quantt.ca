@@ -41,7 +41,7 @@ export default async function NewCompanyPost({
 
   return (
     <>
-      <PageHeader kicker="Company" title="New post" />
+      <PageHeader title="New post" />
       <Notice message={sp.denied} />
       {!can(access, "post_in_app_job") && (
         <div className="mb-8">

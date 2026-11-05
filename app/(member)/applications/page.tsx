@@ -32,7 +32,7 @@ export default async function ApplicationsPage({
 
   return (
     <>
-      <PageHeader kicker="Pipeline" title="My applications" />
+      <PageHeader title="My applications" />
       <Notice message={sp.denied} />
       {appsError ? (
         <p className="border border-line p-6 text-sm text-copy">
@@ -85,7 +85,7 @@ export default async function ApplicationsPage({
           );
         })}
       </ul>
-      <form action={logOffPlatform} className="mt-12 max-w-md space-y-3">
+      <form action={logOffPlatform} className="mt-8 max-w-md space-y-3">
         <h2 className="font-heading text-lg font-bold text-ink">Log an external application</h2>
         <Field label="Company name">
           <TextInput name="company_name" required />

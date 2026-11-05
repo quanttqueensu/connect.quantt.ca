@@ -43,7 +43,7 @@ export default async function ResumeBookPage({
 
   return (
     <>
-      <PageHeader kicker="Talent" title="Resume book">
+      <PageHeader title="Resume book">
         Members who opted in, with the resume saved in their profile.
       </PageHeader>
       <Notice message={sp.denied} />

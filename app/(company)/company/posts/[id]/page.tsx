@@ -55,7 +55,7 @@ export default async function CompanyPostPage({
         </p>
       )}
       {isPlatformJob(p) && (
-        <section className="mt-10">
+        <section className="mt-6">
           <LockedCard
             capability="read_applicants"
             tier={access}

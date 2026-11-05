@@ -21,7 +21,7 @@ export default async function AdminApplicationsPage({
 
   return (
     <>
-      <PageHeader kicker="Pipeline" title="All applications" />
+      <PageHeader title="All applications" />
       <Notice message={sp.denied} />
       <ul>
         {(apps as Application[] | null)?.map((a) => (

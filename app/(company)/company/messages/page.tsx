@@ -17,7 +17,7 @@ export default async function CompanyMessagesPage() {
 
   return (
     <>
-      <PageHeader kicker="Inbox" title="Messages" />
+      <PageHeader title="Messages" />
       <ul>
         {(convos as Conversation[] | null)?.map((c) => (
           <li key={c.id} className="border-t border-line">

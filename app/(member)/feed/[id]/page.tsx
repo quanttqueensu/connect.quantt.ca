@@ -164,7 +164,7 @@ export default async function PostDetailPage({
       )}
 
       {isPlatformJob(p) && profile?.role === "member" && !inApp && (
-        <section className="mt-10 max-w-lg border-t border-line pt-8">
+        <section className="mt-6 max-w-lg border-t border-line pt-5">
           <h2 className="font-heading text-lg font-bold text-ink">Apply</h2>
           <p className="mt-3 text-sm text-copy">
             This posting is closed, so applications are no longer being accepted here.
@@ -177,7 +177,7 @@ export default async function PostDetailPage({
       )}
 
       {inApp && profile?.role === "member" && (
-        <section className="mt-10 max-w-lg border-t border-line pt-8">
+        <section className="mt-6 max-w-lg border-t border-line pt-5">
           <h2 className="font-heading text-lg font-bold text-ink">Apply</h2>
           {existingApp ? (
             <p className="mt-3 text-sm text-primary">Already applied.</p>
@@ -220,7 +220,7 @@ export default async function PostDetailPage({
         </section>
       )}
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="font-heading text-lg font-bold text-ink">Comments</h2>
         <ul className="mt-4 space-y-4">
           {commentsError ? (

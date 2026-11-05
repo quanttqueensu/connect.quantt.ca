@@ -44,30 +44,29 @@ export default async function CompaniesPage({
 
   return (
     <>
-      <PageHeader kicker="Firms" title="Companies">
-        Assign a sponsor tier, then customize features for individual companies.
-        Company overrides take priority over tier defaults and stay in place when the tier changes.
+      <PageHeader
+        title="Companies"
+        actions={
+          <>
+            <Link href="/admin/invite?kind=company" className={buttonClass("primary")}>
+              Invite a company contact
+            </Link>
+            <Link href="/admin/tiers" className={buttonClass("ghost")}>
+              Edit tier defaults
+            </Link>
+          </>
+        }
+      >
+        Overrides beat tier defaults and stay when the level changes. Inactive firms are hidden and lose their features.
       </PageHeader>
       <Notice message={sp.denied} />
-      <div className="mb-6 flex flex-wrap gap-3">
-        <Link href="/admin/invite?kind=company" className={buttonClass("primary")}>
-          Invite a company contact
-        </Link>
-        <Link href="/admin/tiers" className={buttonClass("ghost")}>
-          Edit tier defaults
-        </Link>
-      </div>
-      <div className="mb-10 border border-line p-5">
-        <p className="text-[11px] uppercase tracking-[2px] text-copy">Public signup link</p>
-        <p className="mt-2 text-sm text-copy">
-          Firms can request access here. You approve them under Join requests, or invite a contact
-          directly.
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border border-line px-4 py-3">
+        <p className="text-sm text-copy">
+          <span className="font-medium text-ink">Public signup link.</span> Requests land in Join requests.
         </p>
-        <div className="mt-3">
-          <CopyLink value={`${siteUrl()}/join`} />
-        </div>
+        <CopyLink value={`${siteUrl()}/join`} />
       </div>
-      <div className="space-y-8">
+      <div className="space-y-4">
         {(companies as CompanyRow[] | null)?.map((c) => {
           const assigned = tiers.find((t) => t.id === c.sponsor_tier_id) ?? null;
           const grace = graceIsOpen(c.tier_grace_until);
@@ -77,9 +76,9 @@ export default async function CompaniesPage({
               : assigned;
           const overrides = overridesByCompany.get(c.id) ?? [];
           return (
-            <article key={c.id} id={`company-${c.id}`} className="scroll-mt-6 border border-line p-5">
+            <article key={c.id} id={`company-${c.id}`} className="scroll-mt-6 border border-line p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h2 className="font-heading text-xl font-bold text-ink">{c.name}</h2>
+                <h2 className="font-heading text-lg font-bold text-ink">{c.name}</h2>
                 <p className="text-xs uppercase tracking-wider text-muted">
                   {assigned?.name ?? "unassigned"} · {c.status}
                   {grace && c.tier_grace_until
@@ -89,7 +88,7 @@ export default async function CompaniesPage({
                 </p>
               </div>
 
-              <form action={setCompanyTier} className="mt-4 grid gap-3 md:grid-cols-3">
+              <form action={setCompanyTier} className="mt-3 grid gap-3 md:grid-cols-3">
                 <input type="hidden" name="company_id" value={c.id} />
                 <Field label="Sponsorship level">
                   <select
@@ -123,27 +122,27 @@ export default async function CompaniesPage({
                   <PrimaryButton type="submit">Save level &amp; status</PrimaryButton>
                 </div>
               </form>
-              <p className="mt-2 text-xs text-muted">
-                Inactive firms stay off the member directory. Connect features stay off until you set
-                them active again. Changing the level does not clear custom grants below.
-              </p>
 
-              <form action={setCompanyAccess} className="mt-6 border-t border-line pt-4">
+              <details open={overrides.length > 0} className="group mt-4 border-t border-line pt-3">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-ink">
+                  <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-90">›</span>
+                  Feature overrides
+                  <span className="font-normal text-muted">
+                    {overrides.length ? `${overrides.length} custom` : `following ${assigned?.name ?? "tier"}`}
+                  </span>
+                </summary>
+              <form action={setCompanyAccess} className="mt-3">
                 <input type="hidden" name="company_id" value={c.id} />
-                <p className="text-[11px] uppercase tracking-[2px] text-copy">
-                  Company feature overrides
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  Follow tier uses {assigned?.name ?? "the assigned tier"} defaults and any current
-                  grandfathered access. Enable or disable a feature to keep an exception for {c.name}
-                  only. Other companies on this tier are unaffected.
+                <p className="text-xs text-muted">
+                  Follow tier uses {assigned?.name ?? "the assigned tier"} defaults, including grandfathered
+                  access. Enable or disable to make an exception for {c.name} only.
                 </p>
                 {c.status === "inactive" && (
                   <p className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-ink">
                     This firm is inactive, so these products are off for their contacts right now.
                   </p>
                 )}
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                   {capabilities.map((cap) => {
                     const key = cap.key as CapabilityKey;
                     const custom = overrideFor(overrides, key);
@@ -161,7 +160,7 @@ export default async function CompaniesPage({
                     );
                   })}
                 </ul>
-                <div className="mt-4">
+                <div className="mt-3">
                   <PrimaryButton type="submit">Save company overrides</PrimaryButton>
                 </div>
               </form>
@@ -172,6 +171,7 @@ export default async function CompaniesPage({
                   <GhostButton type="submit">Reset all features to tier defaults</GhostButton>
                 </form>
               )}
+              </details>
             </article>
           );
         })}

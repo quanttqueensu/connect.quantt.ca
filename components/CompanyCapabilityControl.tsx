@@ -30,7 +30,7 @@ export default function CompanyCapabilityControl({
     : "Disabled";
 
   return (
-    <li className="border border-line p-4">
+    <li className="border border-line p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <label htmlFor={id} className="text-sm font-medium text-ink">
           {capability.label}
@@ -39,7 +39,7 @@ export default function CompanyCapabilityControl({
           {enabled ? "Enabled" : "Disabled"} · {mode === "inherit" ? "from tier" : "company override"}
         </span>
       </div>
-      <p id={`${id}-description`} className="mt-1 text-xs text-muted">
+      <p id={`${id}-description`} className="sr-only">
         {capability.description}
       </p>
       <select
@@ -49,18 +49,18 @@ export default function CompanyCapabilityControl({
         onChange={(event) => setMode(event.target.value as AccessMode)}
         aria-label={`${capability.label} for ${companyName}`}
         aria-describedby={`${id}-description ${id}-tier`}
-        className="mt-3 min-h-11 w-full rounded px-3 py-2 text-sm"
+        className="mt-2 w-full rounded px-3 py-1.5 text-sm"
       >
         <option value="inherit">Follow tier</option>
         <option value="grant">Enable for this company</option>
         <option value="revoke">Disable for this company</option>
       </select>
-      <p id={`${id}-tier`} className="mt-2 text-xs text-muted">
-        Tier default (including current grandfathered access): {tierSummary}.
+      <p id={`${id}-tier`} className="mt-1.5 text-xs text-muted">
+        Tier default: {tierSummary}.
       </p>
       {quota && (
-        <div className="mt-3">
-          <Field label="Company job limit (blank = unlimited)">
+        <div className="mt-2">
+          <Field label="Job limit (blank = unlimited)">
             <TextInput
               name={`value_${capability.key}`}
               type="number"
@@ -73,9 +73,6 @@ export default function CompanyCapabilityControl({
               placeholder="unlimited"
             />
           </Field>
-          <p className="mt-1 text-xs text-muted">
-            Choose Enable for this company to set its own limit.
-          </p>
         </div>
       )}
     </li>

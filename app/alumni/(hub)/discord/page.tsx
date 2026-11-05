@@ -26,7 +26,7 @@ export default async function AlumniDiscordPage({
   const ready = discordReady(env as unknown as DiscordEnv);
   return (
     <>
-      <PageHeader kicker="Alumni" title="QUANTT Discord">
+      <PageHeader title="QUANTT Discord">
         Alumni get the Alumni role: #alumni-lounge and #alumni-jobs with current members, a private #alumni channel, and
         club announcements and events.
       </PageHeader>

@@ -22,7 +22,7 @@ export default async function AlumniHome({
   const others = all.filter((p) => p.alumni_id !== me.id);
   return (
     <>
-      <PageHeader kicker="Alumni" title="Opportunities">
+      <PageHeader title="Opportunities">
         Post a job or a mentorship offer. Current QUANTT members see it under Alumni in their hub.
       </PageHeader>
       <Notice message={sp.denied} />
@@ -56,7 +56,7 @@ export default async function AlumniHome({
         </form>
       </section>
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="mb-4 font-heading text-lg font-bold text-ink">Your posts</h2>
         <AlumniPostList
           posts={mine}
@@ -72,7 +72,7 @@ export default async function AlumniHome({
         />
       </section>
 
-      <section className="mt-12 border-t border-line pt-8">
+      <section className="mt-6 border-t border-line pt-5">
         <h2 className="mb-4 font-heading text-lg font-bold text-ink">From other alumni</h2>
         <AlumniPostList posts={others} empty="No other alumni posts yet." />
       </section>
