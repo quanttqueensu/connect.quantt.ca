@@ -43,8 +43,47 @@ export async function pendingInvite(db: D1Database, email: string) {
  */
 export async function canSignIn(db: D1Database, email: string) {
   const profile = await profileByEmail(db, email);
-  if (profile) return profile.role === "company_user";
-  return (await pendingInvite(db, email))?.role === "company_user";
+  const invite = await pendingInvite(db, email);
+  if (profile) {
+    if (profile.role !== "company_user") return false;
+    // A contact an admin removed has no firm link left; only a new invite lets them back in.
+    return (await hasCompanyLink(db, profile.id)) || invite?.role === "company_user";
+  }
+  return invite?.role === "company_user";
+}
+
+async function hasCompanyLink(db: D1Database, profileId: string) {
+  return Boolean(
+    await db.prepare(`SELECT 1 AS ok FROM company_users WHERE profile_id = ?`).bind(profileId).first(),
+  );
+}
+
+/**
+ * Admin "Remove access" for a sponsor contact: unlink them from their firm and
+ * sign them out everywhere. Their posts and messages stay with the firm.
+ * Members and admins are never touched. Returns false if nothing was removed.
+ */
+export async function removeCompanyContact(db: D1Database, profileId: string) {
+  const row = await db
+    .prepare(`SELECT p.id FROM profiles p JOIN company_users cu ON cu.profile_id = p.id
+      WHERE p.id = ? AND p.role = 'company_user' AND p.is_admin = 0`)
+    .bind(profileId)
+    .first<{ id: string }>();
+  if (!row) return false;
+  await db.batch([
+    db.prepare(`DELETE FROM company_users WHERE profile_id = ?`).bind(profileId),
+    db.prepare(`DELETE FROM sessions WHERE profile_id = ?`).bind(profileId),
+  ]);
+  return true;
+}
+
+/** Admin "Cancel invite": only an invite nobody has used yet. */
+export async function cancelPendingInvite(db: D1Database, inviteId: string) {
+  const res = await db
+    .prepare(`DELETE FROM invites WHERE id = ? AND accepted_at IS NULL`)
+    .bind(inviteId)
+    .run();
+  return (res.meta?.changes ?? 0) > 0;
 }
 
 function defaultName(invite: { full_name: string }, email: string) {
@@ -58,8 +97,20 @@ function defaultName(invite: { full_name: string }, email: string) {
 export async function profileForSignIn(db: D1Database, rawEmail: string, now = new Date()) {
   const email = normalizeEmail(rawEmail);
   const existing = await profileByEmail(db, email);
-  if (existing) return existing;
   const invite = await pendingInvite(db, email);
+  if (existing) {
+    // A removed sponsor contact invited again: link them to the invite's firm.
+    if (
+      existing.role === "company_user" && invite?.role === "company_user" && invite.company_id &&
+      !(await hasCompanyLink(db, existing.id))
+    ) {
+      await db.batch([
+        db.prepare(`INSERT INTO company_users (company_id, profile_id) VALUES (?, ?)`).bind(invite.company_id, existing.id),
+        db.prepare(`UPDATE invites SET accepted_at = ? WHERE id = ?`).bind(now.toISOString(), invite.id),
+      ]);
+    }
+    return existing;
+  }
   if (!invite) return null;
 
   const id = crypto.randomUUID();

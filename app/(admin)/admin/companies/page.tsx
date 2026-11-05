@@ -3,7 +3,9 @@ import PageHeader from "@/components/PageHeader";
 import CopyLink from "@/components/CopyLink";
 import CompanyCapabilityControl from "@/components/CompanyCapabilityControl";
 import { Field, GhostButton, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
-import { addCompany, resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import { addCompany, removeContact, resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
+import { hubEnv } from "@/lib/hub/env";
 import {
   graceIsOpen,
   liveCan,
@@ -24,7 +26,7 @@ type CompanyRow = Company;
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string; added?: string }>;
+  searchParams: Promise<{ denied?: string; added?: string; removed?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -34,6 +36,19 @@ export default async function CompaniesPage({
     loadCapabilities(),
     supabase.from("company_capability_overrides").select("*"),
   ]);
+
+  const { results: contactRows } = await (await hubEnv()).DB
+    .prepare(
+      `SELECT cu.company_id, p.id, p.full_name, p.email FROM company_users cu
+       JOIN profiles p ON p.id = cu.profile_id ORDER BY p.full_name`,
+    )
+    .all<{ company_id: string; id: string; full_name: string; email: string }>();
+  const contactsByCompany = new Map<string, { id: string; full_name: string; email: string }[]>();
+  for (const row of contactRows ?? []) {
+    const list = contactsByCompany.get(row.company_id) ?? [];
+    list.push(row);
+    contactsByCompany.set(row.company_id, list);
+  }
 
   const overridesByCompany = new Map<string, CompanyCapabilityOverride[]>();
   for (const row of (overrideRows as CompanyCapabilityOverride[] | null) ?? []) {
@@ -60,6 +75,11 @@ export default async function CompaniesPage({
         Overrides beat tier defaults and stay when the level changes. Inactive firms are hidden and lose their features.
       </PageHeader>
       <Notice message={sp.denied} />
+      {sp.removed && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
+          Contact removed and signed out. Their posts and messages stay with the firm.
+        </p>
+      )}
       {sp.added && (
         <p className="mb-4 border-l-2 border-primary pl-4 text-sm text-copy">
           Company added. Invite a contact whenever you&rsquo;re ready.
@@ -122,6 +142,32 @@ export default async function CompaniesPage({
                     : ""}
                   {overrides.length ? ` · ${overrides.length} custom` : ""}
                 </p>
+              </div>
+
+              <div className="mt-3">
+                <p className="text-[11px] uppercase tracking-[2px] text-copy">Contacts</p>
+                {(contactsByCompany.get(c.id) ?? []).length === 0 ? (
+                  <p className="mt-1 text-sm text-copy">None signed in yet.</p>
+                ) : (
+                  <ul className="mt-1">
+                    {(contactsByCompany.get(c.id) ?? []).map((p) => (
+                      <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-1 text-sm text-ink">
+                        <span>
+                          {p.full_name} <span className="text-copy">{p.email}</span>
+                        </span>
+                        <form action={removeContact}>
+                          <input type="hidden" name="profile_id" value={p.id} />
+                          <ConfirmSubmitButton
+                            variant="quietDanger"
+                            confirmMessage={`Remove ${p.email} from ${c.name}? They're signed out and can't sign in again unless you re-invite them.`}
+                          >
+                            Remove access
+                          </ConfirmSubmitButton>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <form action={setCompanyTier} className="mt-3 grid gap-3 md:grid-cols-3">

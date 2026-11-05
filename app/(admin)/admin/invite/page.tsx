@@ -1,6 +1,8 @@
 import PageHeader from "@/components/PageHeader";
 import InviteForm from "@/components/InviteForm";
 import Notice from "@/components/Notice";
+import ConfirmSubmitButton from "@/components/ConfirmSubmitButton";
+import { cancelInvite } from "@/lib/actions/admin";
 import { loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { Company } from "@/lib/types";
@@ -8,15 +10,15 @@ import type { Company } from "@/lib/types";
 export default async function InvitePage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; denied?: string; unsent?: string; kind?: string }>;
+  searchParams: Promise<{ sent?: string; denied?: string; unsent?: string; kind?: string; cancelled?: string }>;
 }) {
-  const { sent, denied, unsent, kind } = await searchParams;
+  const { sent, denied, unsent, kind, cancelled } = await searchParams;
   const supabase = await createClient();
   const [{ data: companies }, { data: pending }, tiers] = await Promise.all([
     supabase.from("companies").select("id, name").eq("status", "active").order("name"),
     supabase
       .from("invites")
-      .select("email, full_name, role, is_admin, created_at, companies(name)")
+      .select("id, email, full_name, role, is_admin, created_at, companies(name)")
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
     loadTiers(),
@@ -32,6 +34,11 @@ export default async function InvitePage({
         to say they can sign in at connect.quantt.ca with that address.
       </PageHeader>
       <Notice message={denied} />
+      {cancelled && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
+          Invite cancelled. That address can no longer sign in.
+        </p>
+      )}
       {unsent && (
         <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
           The invite is saved, but the email didn’t send. Tell them to sign in at
@@ -63,13 +70,24 @@ export default async function InvitePage({
                   : "Club member";
               return (
                 <li
-                  key={invite.email}
-                  className="border-t border-line py-3 text-sm text-ink"
+                  key={invite.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-3 text-sm text-ink"
                 >
-                  {invite.full_name}{" "}
-                  <span className="text-copy">
-                    {invite.email} · {kindLabel}
+                  <span>
+                    {invite.full_name}{" "}
+                    <span className="text-copy">
+                      {invite.email} · {kindLabel}
+                    </span>
                   </span>
+                  <form action={cancelInvite}>
+                    <input type="hidden" name="invite_id" value={invite.id} />
+                    <ConfirmSubmitButton
+                      variant="quietDanger"
+                      confirmMessage={`Cancel the invite for ${invite.email}? They won't be able to sign in.`}
+                    >
+                      Cancel invite
+                    </ConfirmSubmitButton>
+                  </form>
                 </li>
               );
             })}
