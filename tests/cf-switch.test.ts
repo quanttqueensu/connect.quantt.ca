@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 import type { R2BucketLike } from "@/lib/db/storage";
 import { signFileLink } from "@/lib/db/storage";
 
-import { addMember, all, asD1, freshDb, run, type Db } from "./db/sqlite";
+import { addCompany, addMember, all, asD1, freshDb, run, type Db } from "./db/sqlite";
 
 const state = vi.hoisted(() => ({
   raw: null as unknown as Db,
@@ -79,6 +79,7 @@ describe("emailed-code sign-in", () => {
   it("signs a sponsor in with the emailed code and out again", async () => {
     const member = addMember(state.raw, { email: "Jane@Acme.com" });
     run(state.raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, member);
+    run(state.raw, `INSERT INTO company_users (company_id, profile_id) VALUES (?, ?)`, addCompany(state.raw, "partner").companyId, member);
     await expect(requestCode(form({ email: " jane@acme.com " }))).rejects.toThrow("redirect:/login?step=code");
     expect(state.sent).toHaveLength(1);
     const code = /\b(\d{6})\b/.exec(state.sent[0].text)![1];

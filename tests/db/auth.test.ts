@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { profileForQuanttMember, profileForSignIn } from "@/lib/cf-auth/accounts";
+import { cancelPendingInvite, profileForQuanttMember, profileForSignIn, removeCompanyContact } from "@/lib/cf-auth/accounts";
 import { loginCodeEmail, sendLoginCodeEmail } from "@/lib/cf-auth/email";
 import { CODES_PER_HOUR, MAX_ATTEMPTS, requestLoginCode, verifyLoginCode } from "@/lib/cf-auth/login-codes";
 import { createSession, endAllSessions, endSession, purgeExpired, readSession } from "@/lib/cf-auth/sessions";
@@ -24,6 +24,7 @@ function inviteRecruiter(raw: Db, email: string, companyId: string) {
 function addSponsor(raw: Db, email: string) {
   const id = addMember(raw, { email });
   run(raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, id);
+  run(raw, `INSERT INTO company_users (company_id, profile_id) VALUES (?, ?)`, addCompany(raw, "partner").companyId, id);
   return id;
 }
 
@@ -267,5 +268,49 @@ describe("code email", () => {
 
   it("fails loudly without an API key", async () => {
     await expect(sendLoginCodeEmail({}, "a@b.co", "123456")).rejects.toThrow(/RESEND_API_KEY/);
+  });
+});
+
+describe("admin removes sponsor access", () => {
+  it("cancels an unused invite so no code is sent", async () => {
+    const { raw, db } = setup();
+    const { companyId: company } = addCompany(raw, "partner");
+    inviteRecruiter(raw, "rita@acme.com", company);
+    const [{ id }] = all<{ id: string }>(raw, `SELECT id FROM invites`);
+    expect(await cancelPendingInvite(db, id)).toBe(true);
+    expect(await codeFor(db, "rita@acme.com")).toBeNull();
+    expect(await cancelPendingInvite(db, id)).toBe(false);
+  });
+
+  it("never cancels an invite that was already used", async () => {
+    const { raw, db } = setup();
+    const { companyId: company } = addCompany(raw, "partner");
+    inviteRecruiter(raw, "rita@acme.com", company);
+    await profileForSignIn(db, "rita@acme.com", NOW);
+    const [{ id }] = all<{ id: string }>(raw, `SELECT id FROM invites`);
+    expect(await cancelPendingInvite(db, id)).toBe(false);
+  });
+
+  it("unlinks a contact, signs them out, blocks codes, and a new invite restores them", async () => {
+    const { raw, db } = setup();
+    const id = addSponsor(raw, "ann@acme.com");
+    await createSession(db, id, NOW);
+    expect(await removeCompanyContact(db, id)).toBe(true);
+    expect(all(raw, `SELECT * FROM sessions WHERE profile_id = ?`, id)).toEqual([]);
+    expect(all(raw, `SELECT * FROM company_users WHERE profile_id = ?`, id)).toEqual([]);
+    expect(await codeFor(db, "ann@acme.com")).toBeNull();
+
+    const { companyId: other } = addCompany(raw, "leader");
+    inviteRecruiter(raw, "ann@acme.com", other);
+    expect(await codeFor(db, "ann@acme.com")).toMatch(/^\d{6}$/);
+    expect((await profileForSignIn(db, "ann@acme.com", NOW))?.id).toBe(id);
+    expect(all<{ company_id: string }>(raw, `SELECT company_id FROM company_users WHERE profile_id = ?`, id))
+      .toEqual([{ company_id: other }]);
+  });
+
+  it("never removes a member or an admin", async () => {
+    const { raw, db } = setup();
+    const member = addMember(raw, { email: "m@queensu.ca" });
+    expect(await removeCompanyContact(db, member)).toBe(false);
   });
 });

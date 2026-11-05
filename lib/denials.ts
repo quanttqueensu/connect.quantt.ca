@@ -114,6 +114,8 @@ const MESSAGES = {
   company_status_invalid: "Choose whether this firm is active or inactive.",
   company_name_required: "Enter the company's name.",
   company_exists: "A company with that name already exists. Find it in the list below.",
+  invite_cancel_failed: "That invite was already used or removed.",
+  contact_remove_failed: "That contact could not be removed. They may already be gone.",
   company_add_failed: "That company could not be added. Try again, or check that your account still has admin rights.",
   company_access_save_failed:
     "That firm's Connect access could not be saved. The firm may have been removed, or your account may no longer have admin rights.",

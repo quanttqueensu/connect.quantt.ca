@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createHmac } from "node:crypto";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
+import { cancelPendingInvite, removeCompanyContact } from "@/lib/cf-auth/accounts";
 import { sendInviteEmail, type InviteAudience } from "@/lib/cf-auth/email";
 import { hubEnv } from "@/lib/hub/env";
 import { siteUrl } from "@/lib/site-url";
@@ -368,6 +369,31 @@ function revalidateCompanyAccess() {
   revalidatePath("/company/resume-book");
   revalidatePath("/company/search");
   revalidatePath("/company/applicants");
+}
+
+/** Withdraw an invite nobody has used yet. */
+export async function cancelInvite(formData: FormData) {
+  const profile = await requireProfile();
+  if (!profile.is_admin) denyRedirect("/feed", "admins_only");
+  const id = String(formData.get("invite_id") ?? "");
+  if (!id || !(await cancelPendingInvite((await hubEnv()).DB, id))) {
+    denyRedirect("/admin/invite", "invite_cancel_failed");
+  }
+  revalidatePath("/admin/invite");
+  redirect("/admin/invite?cancelled=1");
+}
+
+/** Take a sponsor contact off their firm and sign them out. Posts and messages stay. */
+export async function removeContact(formData: FormData) {
+  const profile = await requireProfile();
+  if (!profile.is_admin) denyRedirect("/feed", "admins_only");
+  const id = String(formData.get("profile_id") ?? "");
+  if (!id || !(await removeCompanyContact((await hubEnv()).DB, id))) {
+    denyRedirect("/admin/companies", "contact_remove_failed");
+  }
+  revalidatePath("/admin/companies");
+  revalidatePath("/admin/people");
+  redirect("/admin/companies?removed=1");
 }
 
 /** Create a sponsor firm on its own, with no contact invited yet. */
