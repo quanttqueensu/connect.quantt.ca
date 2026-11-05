@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   DIRECTORY_SYNC_SCHEMA,
   getDirectorySync,
+  pushToDirectory,
   setDirectorySync,
   syncAllDirectoryFiles,
   syncDirectoryFiles,
@@ -145,6 +146,31 @@ describe("syncing directory headshots and resumes", () => {
     expect([...r2.objects.keys()].every((k) => k.includes(`/${id}/`))).toBe(true);
     run(raw, `UPDATE profiles SET role = 'company_user' WHERE id = ?`, id);
     expect(await syncDirectoryFiles(db, bucket(), auth(jpeg, pdf), id, "ann@queensu.ca")).toEqual({ photo: false, resume: false });
+  });
+
+  it("sends a Connect upload to the directory and copies it back", async () => {
+    const { raw, db, id } = setup();
+    const r2 = bucket();
+    const a = auth(null, null);
+    const sent: unknown[] = [];
+    const withUpload = {
+      ...a,
+      upload: async (email: string, kind: "photo" | "resume", data: ArrayBuffer, name: string) => {
+        sent.push([email, kind, name]);
+        if (kind === "photo") { a.st.photo = data; a.st.photoAt = "2026-11-05T00:00:00.000Z"; }
+        else { a.st.resume = data; a.st.resumeAt = "2026-11-05T00:00:00.000Z"; }
+      },
+    };
+    expect(await pushToDirectory(db, r2, withUpload, id, "ann@queensu.ca", "resume", pdf, "cv.pdf")).toEqual({ photo: false, resume: true });
+    expect(sent).toEqual([["ann@queensu.ca", "resume", "cv.pdf"]]);
+    expect(resumePath(raw, id)).toMatch(/\/resume\.pdf$/);
+    await pushToDirectory(db, r2, withUpload, id, "ann@queensu.ca", "photo", jpeg, "me.jpg");
+    expect(photoPath(raw, id)).toMatch(/directory-[0-9a-f]{8}\.jpg$/);
+  });
+
+  it("refuses a Connect upload when the auth Worker can't take one yet", async () => {
+    const { db, id } = setup();
+    await expect(pushToDirectory(db, bucket(), auth(null, null), id, "ann@queensu.ca", "photo", jpeg, "x.jpg")).rejects.toThrow(/can't take uploads/);
   });
 
   it("matches the migration", () => {

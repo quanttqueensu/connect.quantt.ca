@@ -13,6 +13,7 @@ import {
   setDirectorySyncSetting,
 } from "@/lib/actions/profile";
 import { getDirectorySync, syncDirectoryFiles } from "@/lib/directory-files";
+import { HeadshotUpload } from "@/components/HeadshotUpload";
 import { syncGradYear } from "@/lib/graduation-sync";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getCurrentProfile } from "@/lib/auth";
@@ -177,8 +178,8 @@ export default async function ProfilePage({
                 <h2 className="text-sm font-medium text-ink">Photo and resume</h2>
                 {synced ? (
                   <p className="mt-1 text-sm text-copy">
-                    Kept in sync with your QUANTT directory profile. To change them, upload new files on{" "}
-                    <a href="https://auth.quantt.ca" className="text-primary hover:text-ink">auth.quantt.ca</a>; Connect picks them up within the hour.
+                    Kept in sync with your QUANTT profile on{" "}
+                    <a href="https://auth.quantt.ca" className="text-primary hover:text-ink">auth.quantt.ca</a>. Upload here or there; either one updates both.
                   </p>
                 ) : (
                   <p className="mt-1 text-sm text-copy">
@@ -200,16 +201,7 @@ export default async function ProfilePage({
                 </form>
               </section>
           </div>
-          {!synced && (
-            <form action={uploadPhoto} className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="min-w-0 max-w-full">
-                <Field label="Photo">
-                  <FileInput name="photo" accept="image/jpeg,image/png,image/webp" />
-                </Field>
-              </div>
-              <PrimaryButton type="submit">Upload photo</PrimaryButton>
-            </form>
-          )}
+          <HeadshotUpload action={uploadPhoto} />
           <section id="documents" className="mt-6 scroll-mt-40 border-t border-line pt-5">
             <h2 className="font-heading text-lg font-bold text-ink">Application documents</h2>
             <p className="mt-2 text-sm text-copy">
@@ -224,7 +216,6 @@ export default async function ProfilePage({
                   const label = kind === "resume" ? "Resume" : "Cover letter";
                   const path = kind === "resume" ? documents?.resume_path : documents?.cover_letter_path;
                   const hasText = kind === "cover" && documents?.cover_letter;
-                  const locked = kind === "resume" && synced;
                   return (
                     <div key={kind}>
                       <h3 className="text-sm font-medium text-ink">{label}</h3>
@@ -232,23 +223,20 @@ export default async function ProfilePage({
                         {path ? (
                           <a href={`/profile/documents/${kind}`} className="text-primary hover:text-ink">View saved {label.toLowerCase()}</a>
                         ) : <p>{hasText ? "Saved cover letter" : `No ${label.toLowerCase()} uploaded.`}</p>}
-                        {(path || hasText) && !locked && (
+                        {(path || hasText) && (
                           <form action={removeProfileDocument.bind(null, kind)}>
                             <QuietDangerButton type="submit">Remove {label.toLowerCase()}</QuietDangerButton>
                           </form>
                         )}
                       </div>
                       {hasText && !path ? <p className="mt-2 whitespace-pre-wrap text-sm text-copy">{documents?.cover_letter}</p> : null}
-                      {locked ? (
-                        <p className="mt-2 text-sm text-copy">Synced from auth.quantt.ca.</p>
-                      ) : (
+                      {synced && kind === "resume" && <p className="mt-2 text-sm text-copy">Synced with auth.quantt.ca.</p>}
                       <form action={saveProfileDocument.bind(null, kind)} className="mt-3 flex flex-wrap items-end gap-3">
                         <Field label={`${path || hasText ? "Replace" : "Upload"} ${label.toLowerCase()}`}>
                           <FileInput name="document" accept="application/pdf" required />
                         </Field>
                         <PrimaryButton type="submit">Save {label.toLowerCase()}</PrimaryButton>
                       </form>
-                      )}
                     </div>
                   );
                 })}

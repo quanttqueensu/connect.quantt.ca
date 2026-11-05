@@ -12,15 +12,16 @@ import {
 import { isPackagePdfPath, isPhotoPath } from "@/lib/storage-paths";
 
 /**
- * Headshots and resumes are uploaded on auth.quantt.ca (the member directory).
+ * Headshots and resumes live on auth.quantt.ca (the member directory).
  * Each member chooses on their Connect profile whether the hub keeps in step
  * with it ("Keep in sync", on unless they turn it off):
  *
  * - On: whenever the directory has a newer upload than the one last copied,
  *   the hub copies it into the member's profile (headshot) and documents
  *   (resume). Checked at sign-in, when they open their profile, and hourly
- *   (worker.js). While on, the hub's own photo and resume uploads are locked so
- *   the two sites can't disagree; the cover letter is never synced.
+ *   (worker.js). Members can still upload here: the file goes to the directory
+ *   first (pushToDirectory) and is copied back, so both sites always match.
+ *   Removing the resume here removes it there too. The cover letter is never synced.
  * - Off: nothing is copied; the member uploads their own files here.
  *
  * Nothing is ever deleted: a copy goes to a fresh R2 key and only the profile's
@@ -37,9 +38,12 @@ export type DirectoryFiles = {
   resume?(who: string): Promise<DirectoryFile | null>;
   /** Upload times only (no bytes). Older auth Workers don't have it. */
   files?(who: string): Promise<DirectoryStamps | null>;
+  /** A member's own upload made here. Older auth Workers don't have it. */
+  upload?(email: string, kind: Kind, data: ArrayBuffer, name: string): Promise<unknown>;
+  removeFile?(email: string, kind: Kind): Promise<unknown>;
 };
 
-type Kind = "photo" | "resume";
+export type Kind = "photo" | "resume";
 
 export const DIRECTORY_SYNC_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS directory_sync (
@@ -205,4 +209,30 @@ export async function syncAllDirectoryFiles(db: D1Database, files: R2BucketLike,
     }
   }
   return { members: results?.length ?? 0, photos, resumes, failed };
+}
+
+/**
+ * A synced member uploaded a headshot or resume on Connect: store it in the
+ * directory (auth checks type and size again), then copy it back here. Throws
+ * if the directory refuses it or the auth Worker can't take uploads yet.
+ */
+export async function pushToDirectory(
+  db: D1Database,
+  files: R2BucketLike,
+  auth: DirectoryFiles,
+  profileId: string,
+  email: string,
+  kind: Kind,
+  data: ArrayBuffer,
+  name: string,
+) {
+  if (!auth.upload) throw new Error("The member directory can't take uploads from Connect yet.");
+  await auth.upload(email, kind, data, name.slice(0, 200));
+  return syncDirectoryFiles(db, files, auth, profileId, email);
+}
+
+/** A synced member removed their resume (or headshot) on Connect: remove it from the directory too. */
+export async function removeFromDirectory(auth: DirectoryFiles, email: string, kind: Kind) {
+  if (!auth.removeFile) throw new Error("The member directory can't remove files from Connect yet.");
+  await auth.removeFile(email, kind);
 }

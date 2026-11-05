@@ -35,12 +35,15 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
 - **Cron:** `worker.js` `scheduled` runs hourly: it syncs headshots and resumes from
   auth.quantt.ca (below), and at 08:00 UTC also deletes expired sessions, codes and
   join-form counters.
-- **Headshots and resumes:** uploaded once on auth.quantt.ca. Each member's profile has
+- **Headshots and resumes:** stored once on auth.quantt.ca. Each member's profile has
   **Keep in sync** (on by default): while on, Connect copies a newer upload from the
-  directory at sign-in, when they open their profile, and hourly, and locks its own photo and
-  resume upload; turned off, the member uploads their own files here. Copies go to new R2
-  keys, so nothing earlier is deleted. Table `directory_sync` (`db/migrations/0007`, also
-  created on first use). Code: `lib/directory-files.ts`.
+  directory at sign-in, when they open their profile, and hourly. Members can upload on
+  either site: a photo or resume uploaded here goes to auth first (RPC `Directory.upload`,
+  needs auth.quantt.ca PR #19 or later) and is copied straight back, and removing the resume
+  here removes it there too (`Directory.removeFile`). Photos are face-cropped in the browser
+  first, exactly like auth's (`lib/headshot-crop.ts`, MediaPipe vendored in `public/vendor/mediapipe`). Turned off, the member's uploads here
+  stay on Connect only. Copies go to new R2 keys, so nothing earlier is deleted. Table
+  `directory_sync` (`db/migrations/0007`, also created on first use). Code: `lib/directory-files.ts`.
 
 ## Setup (a new copy)
 

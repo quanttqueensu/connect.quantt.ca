@@ -33,7 +33,8 @@ const imgSrc = ["'self'", "data:", "blob:"].join(" ");
 const contentSecurityPolicy = [
   "default-src 'self'",
   // 'unsafe-inline' covers Next's hydration/flight inline scripts. See note above.
-  "script-src 'self' 'unsafe-inline'",
+  // 'wasm-unsafe-eval': the profile page's headshot cropping runs MediaPipe's face detector (WebAssembly).
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   // Tailwind and next/font both emit inline style; there is no nonce-free way around this.
   "style-src 'self' 'unsafe-inline'",
   // next/font/google self-hosts Inter and Merriweather at build time, so no
