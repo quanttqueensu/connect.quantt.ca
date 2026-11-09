@@ -54,15 +54,24 @@ export function inviteEmail(name: string, loginUrl: string, audience: InviteAudi
   const subject = "You're invited to QUANTT Connect";
   const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
   const how = howToSignIn(audience);
+  // Alumni also get the Discord join link (the Alumni role, #alumni-lounge, #alumni-jobs).
+  const discordUrl = audience === "alumni" ? new URL("/alumni/discord", loginUrl).toString() : null;
+  const discordLine = "Then join the QUANTT Discord to get the Alumni role and the alumni channels:";
   const text = [
     greeting,
     "",
     "You've been invited to QUANTT Connect.",
     `To sign in, go to ${loginUrl} and ${how}`,
+    ...(discordUrl ? ["", `${discordLine} ${discordUrl}`] : []),
   ].join("\n");
   const html = `<p>${escapeHtml(greeting)}</p>
 <p>You've been invited to QUANTT Connect.</p>
-<p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and ${escapeHtml(how)}</p>`;
+<p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and ${escapeHtml(how)}</p>${
+    discordUrl
+      ? `
+<p>${escapeHtml(discordLine)} <a href="${escapeHtml(discordUrl)}">${escapeHtml(discordUrl)}</a></p>`
+      : ""
+  }`;
   return { subject, text, html };
 }
 

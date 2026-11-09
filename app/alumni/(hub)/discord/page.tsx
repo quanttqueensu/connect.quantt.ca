@@ -16,7 +16,7 @@ const ERRORS: Record<string, string> = {
 export default async function AlumniDiscordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ joined?: string; error?: string }>;
+  searchParams: Promise<{ joined?: string; error?: string; setup?: string }>;
 }) {
   const sp = await searchParams;
   const me = await requireAlumnus();
@@ -30,6 +30,14 @@ export default async function AlumniDiscordPage({
         Alumni get the Alumni role: #alumni-lounge and #alumni-jobs with current members, a private #alumni channel, and
         club announcements and events.
       </PageHeader>
+      {sp.setup && !link && (
+        <p className="mb-6 text-sm text-copy">
+          Last step: join the QUANTT Discord.{" "}
+          <a href="/alumni" className="underline">
+            Skip for now
+          </a>
+        </p>
+      )}
       {sp.error && <p className="mb-6 text-sm text-copy">{ERRORS[sp.error] ?? ERRORS.cancelled}</p>}
       {sp.joined && <p className="mb-6 text-sm text-copy">You&apos;re in. The Alumni role is set.</p>}
       <div className="flex flex-wrap items-center gap-4">
