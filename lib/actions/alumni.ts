@@ -232,7 +232,8 @@ export async function saveAlumniNotifications(formData: FormData) {
   });
   if (formData.get("setup") === "1") {
     revalidatePath("/alumni", "layout");
-    redirect("/alumni");
+    // Last setup step: offer the Discord (skippable).
+    redirect("/alumni/discord?setup=1");
   }
   revalidatePath("/alumni/profile");
   redirect("/alumni/profile?notifications=saved#notifications");

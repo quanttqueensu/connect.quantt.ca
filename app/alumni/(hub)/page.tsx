@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { closeAlumniOpportunity, postAlumniOpportunity } from "@/lib/actions/alumni";
 import { requireAlumnus } from "@/lib/alumni/current";
 import { listAlumniPosts } from "@/lib/alumni/data";
+import { getAlumniDiscord } from "@/lib/alumni/discord";
 import { hubEnv } from "@/lib/hub/env";
 
 export default async function AlumniHome({
@@ -15,9 +16,10 @@ export default async function AlumniHome({
   const sp = await searchParams;
   const me = await requireAlumnus();
   const { DB } = await hubEnv();
-  const [mine, all] = await Promise.all([
+  const [mine, all, discord] = await Promise.all([
     listAlumniPosts(DB, { authorId: me.id, includeClosed: true }),
     listAlumniPosts(DB),
+    getAlumniDiscord(DB, me.id),
   ]);
   const others = all.filter((p) => p.alumni_id !== me.id);
   return (
@@ -26,6 +28,14 @@ export default async function AlumniHome({
         Post a job or a mentorship offer. Current QUANTT members see it under Alumni in their hub.
       </PageHeader>
       <Notice message={sp.denied} />
+      {!discord && (
+        <p className="mb-6 text-sm text-copy">
+          You haven&apos;t joined the QUANTT Discord yet.{" "}
+          <a href="/alumni/discord" className="underline">
+            Join the QUANTT Discord
+          </a>
+        </p>
+      )}
       {sp.posted && <p className="mb-6 text-sm text-copy">Posted. Members can see it now.</p>}
 
       <section className="max-w-xl">
