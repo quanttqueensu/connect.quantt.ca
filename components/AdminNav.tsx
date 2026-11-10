@@ -1,7 +1,7 @@
 "use client";
 
 import ConnectBrand from "@/components/ConnectBrand";
-import SponsorModeToggle from "@/components/SponsorModeToggle";
+import ViewAsSwitch from "@/components/ViewAsSwitch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -45,10 +45,15 @@ export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolea
             );
           })}
           <div className="ml-1 flex shrink-0 items-center gap-2 border-l border-line pl-4">
-            {!sponsorMode && <SponsorModeToggle />}
-            <Link href="/feed" className={buttonClass("nav")}>
-              Member area
-            </Link>
+            <ViewAsSwitch
+              current={
+                sponsorMode || pathname.startsWith("/admin/sponsor-mode")
+                  ? "sponsor"
+                  : pathname.startsWith("/admin/alumni-mode")
+                    ? "alum"
+                    : "admin"
+              }
+            />
             <form action={logout}>
               <button type="submit" className={buttonClass("nav")}>
                 Log out

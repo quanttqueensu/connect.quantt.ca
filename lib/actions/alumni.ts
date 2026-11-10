@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ALUMNI_COOKIE, endAlumniSession } from "@/lib/alumni/auth";
-import { requireAlumnus } from "@/lib/alumni/current";
+import { requireAlumnusForWrite as requireAlumnus } from "@/lib/alumni/current";
 import { removeAlumnusFromDiscord } from "@/lib/alumni/discord";
 import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import {

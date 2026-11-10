@@ -16,7 +16,7 @@ const LINKS = [
   { href: "/alumni/profile", label: "Profile" },
 ];
 
-export default function AlumniNav({ unread = 0 }: { unread?: number }) {
+export default function AlumniNav({ unread = 0, preview = false }: { unread?: number; preview?: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Alumni navigation" className="hub-nav">
@@ -40,11 +40,14 @@ export default function AlumniNav({ unread = 0 }: { unread?: number }) {
               </Link>
             );
           })}
-          <form action={alumniLogout} className="ml-1 shrink-0 border-l border-line pl-4">
-            <button type="submit" className={buttonClass("nav")}>
-              Log out
-            </button>
-          </form>
+          {/* An admin previewing switches back from the bar below instead. */}
+          {!preview && (
+            <form action={alumniLogout} className="ml-1 shrink-0 border-l border-line pl-4">
+              <button type="submit" className={buttonClass("nav")}>
+                Log out
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </nav>
