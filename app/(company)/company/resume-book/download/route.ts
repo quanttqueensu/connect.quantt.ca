@@ -24,8 +24,9 @@ export async function GET(request: Request) {
     return new NextResponse("Not found", { status: 404 });
   }
   const cu = await getCompanyContext();
-  // Sponsor mode shows the page but never hands members' files to the preview.
-  if (!cu || cu.preview) return new NextResponse("Not found", { status: 404 });
+  // Sponsor mode reads through the chosen company's rules, so an admin gets
+  // exactly the files that company's sponsor would. Downloading writes nothing.
+  if (!cu) return new NextResponse("Not found", { status: 404 });
 
   const { access } = await loadMyCompanyTier(cu.company_id);
   if (!can(access, "resume_book")) return new NextResponse("Not found", { status: 404 });

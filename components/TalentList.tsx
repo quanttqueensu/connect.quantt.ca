@@ -68,14 +68,14 @@ export default function TalentList({
                 <p className="mt-1 text-xs text-muted">Interests: {m.interests}</p>
               )}
               <div className="mt-3 flex flex-wrap items-start gap-2">
-                {readOnly ? <QuietButton type="button" disabled>Sample resume unavailable</QuietButton> : <a
+                <a
                   href={`/company/talent/${m.id}/resume`}
                   className={buttonClass("quiet")}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   View resume
-                </a>}
+                </a>
                 <ExtLink href={m.linkedin_url} label="LinkedIn" />
                 <ExtLink href={m.github_url} label="GitHub" />
                 <ExtLink href={m.website_url} label="Website" />
