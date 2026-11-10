@@ -8,7 +8,8 @@
 // auth.quantt.ca into the profiles of members who keep sync on
 // (lib/directory-files.ts); at 08:00 UTC, also delete expired sessions,
 // sign-in codes and join-form admission rows from D1. Hourly too: members who
-// graduated on auth.quantt.ca become alumni (lib/alumni/graduates.ts); in April
+// graduated on auth.quantt.ca become alumni (lib/alumni/graduates.ts), and the
+// alumni invited here are sent to auth's Alumni tab (lib/alumni/directory-push.ts); in April
 // at 08:00 UTC, graduates without a personal email get one reminder.
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
@@ -18,6 +19,7 @@ import { handleSync } from "./lib/jobs/store";
 import { syncAllDirectoryFiles } from "./lib/directory-files";
 import { syncGraduates, remindPersonalEmail } from "./lib/alumni/graduates";
 import { syncAllGradYears } from "./lib/graduation-sync";
+import { pushConnectAlumni } from "./lib/alumni/directory-push";
 import { sendEmail, graduationEmail, personalEmailReminder } from "./lib/cf-auth/email";
 
 const SITE = "https://connect.quantt.ca";
@@ -50,6 +52,15 @@ const worker = {
         syncAllGradYears(env.DB, env.AUTH).catch((err) => console.error("grad year sync failed", err)).then(() => syncGraduates(env.DB, env.FILES, env.AUTH, (to, name) => sendEmail(env, to, graduationEmail(name, `${SITE}/alumni/login`)))).then(
           (r) => console.log("graduates", JSON.stringify(r)),
           (err) => console.error("graduates sync failed", err),
+        ),
+      );
+    }
+    // Alumni invited here (not graduates) are listed on auth.quantt.ca's Alumni tab too (lib/alumni/directory-push.ts).
+    if (env.AUTH) {
+      ctx.waitUntil(
+        pushConnectAlumni(env.DB, env.AUTH).then(
+          (r) => r && console.log("connect alumni sent to auth", r.count),
+          (err) => console.error("connect alumni push failed", err),
         ),
       );
     }
