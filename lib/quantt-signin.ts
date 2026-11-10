@@ -40,6 +40,8 @@ export type QuanttDirectory = {
   /** Grad year and personal email (lib/graduation-sync.ts). */
   graduation?(email: string): Promise<{ id: string; gradYear: number | null; personal: string | null } | null>;
   setGraduation?(email: string, fields: { gradYear?: number | null; personal?: string | null }): Promise<unknown>;
+  /** Connect's own alumni, listed read-only on auth's Alumni tab (lib/alumni/directory-push.ts). */
+  setConnectAlumni?(list: import("@/lib/alumni/directory-push").ConnectAlum[]): Promise<{ count: number }>;
 };
 
 export type SigninResult = { ok: true; claims: QuanttClaims } | { ok: false; reason: string };

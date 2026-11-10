@@ -14,6 +14,7 @@ import {
 } from "@/lib/alumni/auth";
 import { requireAlumnus } from "@/lib/alumni/current";
 import { removeAlumnusFromDiscord } from "@/lib/alumni/discord";
+import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import {
   cancelAlumniInvite,
   closeAlumniPost,
@@ -90,7 +91,8 @@ export async function verifyAlumniLoginCode(formData: FormData) {
   const jar = await cookies();
   const email = jar.get(LOGIN_EMAIL_COOKIE)?.value;
   if (!email) redirect("/alumni/login?error=login_code_expired");
-  const { DB } = await hubEnv();
+  const env = await hubEnv();
+  const { DB } = env;
   const result = await verifyAlumniCode(DB, email, String(formData.get("code") ?? ""));
   if (!result.ok) {
     if (result.code === "alumni_account_missing") {
@@ -100,6 +102,8 @@ export async function verifyAlumniLoginCode(formData: FormData) {
     redirect("/alumni/login?step=code&error=login_code_invalid");
   }
   jar.set(ALUMNI_COOKIE, await createAlumniSession(DB, result.alumniId), alumniCookieOptions(secure()));
+  // An invite may just have turned into an account: auth's Alumni tab shows them as joined now, not in an hour.
+  await pushConnectAlumni(DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   jar.delete({ name: LOGIN_EMAIL_COOKIE, path: "/alumni/login" });
   redirect("/alumni");
 }
@@ -127,7 +131,8 @@ export async function saveAlumniProfile(formData: FormData) {
   if (!fullName || !link.ok || (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100))) {
     denyRedirect("/alumni/profile", "alumni_profile_invalid");
   }
-  await updateAlumnus((await hubEnv()).DB, { kind: "alumni", id: me.id }, {
+  const env = await hubEnv();
+  await updateAlumnus(env.DB, { kind: "alumni", id: me.id }, {
     full_name: fullName,
     grad_year: year,
     program: text(formData, "program", 120),
@@ -137,6 +142,7 @@ export async function saveAlumniProfile(formData: FormData) {
     linkedin_url: link.url,
     bio: text(formData, "bio", 1000),
   });
+  await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   revalidatePath("/alumni", "layout");
   redirect("/alumni/profile?saved=1");
 }
@@ -274,6 +280,7 @@ export async function inviteAlumniAction(formData: FormData) {
     console.error("alumni invite email not sent", e);
     sent = false;
   }
+  await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   revalidatePath("/admin/alumni");
   redirect(`/admin/alumni?${sent ? "sent" : "unsent"}=1`);
 }
@@ -290,6 +297,7 @@ export async function removeAlumniAction(formData: FormData) {
       await removeAlumnusFromDiscord(DB, env, id);
       await removeAlumnus(DB, id);
     }
+    await pushConnectAlumni(DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   }
   revalidatePath("/admin/alumni");
 }

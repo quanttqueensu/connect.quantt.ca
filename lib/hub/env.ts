@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { D1Database } from "@/lib/db/d1";
 import type { R2BucketLike } from "@/lib/db/storage";
+import type { QuanttDirectory } from "@/lib/quantt-signin";
 import { siteUrl } from "@/lib/site-url";
 
 /** The Worker bindings and secrets the hub needs (wrangler.jsonc, dashboard secrets). */
@@ -16,6 +17,8 @@ export type HubEnv = {
   DISCORD_CLIENT_SECRET?: string;
   DISCORD_BOT_TOKEN?: string;
   DISCORD_GUILD_ID?: string;
+  // The quantt-auth service binding (wrangler.jsonc).
+  AUTH?: QuanttDirectory;
 };
 
 function check(env: unknown): HubEnv {
