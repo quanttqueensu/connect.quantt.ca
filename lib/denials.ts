@@ -76,7 +76,6 @@ const MESSAGES = {
   // lib/actions/alumni.ts
   alumni_account_missing: "This email doesn't have an alumni account. Ask a QUANTT exec for an invite.",
   alumni_profile_invalid: "Check your profile: a name is required, and links must start with https://.",
-  alumni_profile_incomplete: "Add your LinkedIn and a short About. Both are required.",
   alumni_phone_invalid: "Enter a phone number with at least 7 digits.",
   alumni_post_invalid: "Add a title (and a valid https:// link, if you gave one), then post again.",
   alumni_post_failed: "That post could not be changed. It may not be yours, or it's already closed.",

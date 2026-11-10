@@ -86,14 +86,6 @@ export async function getAlumnus(db: D1Database, id: string) {
     .first<AlumniProfile & { phone: string | null; email_messages: number }>();
 }
 
-/**
- * What an alum must fill in before using Connect: LinkedIn, a phone number and
- * an About. The phone is never shown to members, only to QUANTT admins.
- */
-export function alumniProfileComplete(a: { full_name?: string | null; linkedin_url: string | null; phone: string | null; bio: string | null }) {
-  return Boolean(a.full_name?.trim() && a.linkedin_url?.trim() && a.phone?.trim() && a.bio?.trim());
-}
-
 export type AlumniProfileInput = Omit<AlumniProfile, "id"> & { phone: string | null };
 
 export async function updateAlumnus(db: D1Database, viewer: AlumniViewer, input: AlumniProfileInput) {

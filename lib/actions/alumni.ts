@@ -68,9 +68,7 @@ export async function alumniLogout() {
 
 export async function saveAlumniProfile(formData: FormData) {
   const me = await requireAlumnus();
-  // The first-time setup page uses this form too, and goes back there on an error.
-  const setup = formData.get("from") === "setup";
-  const back = setup ? "/alumni/setup" : "/alumni/profile";
+  const back = "/alumni/profile";
   const fullName = text(formData, "full_name", 120);
   const link = httpsUrl(text(formData, "linkedin_url", 500));
   const other = httpsUrl(text(formData, "other_social_url", 500));
@@ -81,8 +79,8 @@ export async function saveAlumniProfile(formData: FormData) {
   if (!fullName || !link.ok || !other.ok || (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100))) {
     denyRedirect(back, "alumni_profile_invalid");
   }
-  if (!link.url || !bio) denyRedirect(back, "alumni_profile_incomplete");
-  if (!phone || !/^\+?[0-9 ().-]{7,40}$/.test(phone) || phone.replace(/\D/g, "").length < 7) {
+  // Optional, but a number that's there has to look like one.
+  if (phone && (!/^\+?[0-9 ().-]{7,40}$/.test(phone) || phone.replace(/\D/g, "").length < 7)) {
     denyRedirect(back, "alumni_phone_invalid");
   }
   const env = await hubEnv();
@@ -100,7 +98,7 @@ export async function saveAlumniProfile(formData: FormData) {
   });
   await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   revalidatePath("/alumni", "layout");
-  redirect(setup ? "/alumni/setup" : "/alumni/profile?saved=1");
+  redirect("/alumni/profile?saved=1");
 }
 
 export async function postAlumniOpportunity(formData: FormData) {

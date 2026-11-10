@@ -14,11 +14,10 @@ type Values = {
   bio: string | null;
 };
 
-/** The alum's profile, on /alumni/profile and the first-time /alumni/setup. LinkedIn, phone and About are required. */
-export default function AlumniProfileForm({ a, setup = false }: { a: Values; setup?: boolean }) {
+/** The alum's profile on /alumni/profile. Only the name is required. */
+export default function AlumniProfileForm({ a }: { a: Values }) {
   return (
     <form action={saveAlumniProfile} className="grid max-w-xl gap-4">
-      {setup && <input type="hidden" name="from" value="setup" />}
       <Field label="Full name">
         <TextInput name="full_name" required maxLength={120} defaultValue={a.full_name} />
       </Field>
@@ -37,19 +36,19 @@ export default function AlumniProfileForm({ a, setup = false }: { a: Values; set
       <Field label="Program">
         <TextInput name="program" maxLength={120} defaultValue={a.program ?? ""} />
       </Field>
-      <Field label="LinkedIn (required)">
-        <TextInput name="linkedin_url" type="url" required maxLength={500} placeholder="https://" defaultValue={a.linkedin_url ?? ""} />
+      <Field label="LinkedIn">
+        <TextInput name="linkedin_url" type="url" maxLength={500} placeholder="https://" defaultValue={a.linkedin_url ?? ""} />
       </Field>
       <Field label="Other social or website (X, GitHub, personal site)">
         <TextInput name="other_social_url" type="url" maxLength={500} placeholder="https://" defaultValue={a.other_social_url ?? ""} />
       </Field>
-      <Field label="Phone (required, only QUANTT execs see it)">
-        <TextInput name="phone" type="tel" required maxLength={40} autoComplete="tel" defaultValue={a.phone ?? ""} />
+      <Field label="Phone (only QUANTT execs see it)">
+        <TextInput name="phone" type="tel" maxLength={40} autoComplete="tel" defaultValue={a.phone ?? ""} />
       </Field>
-      <Field label="About (required)">
-        <TextArea name="bio" rows={4} required maxLength={1000} defaultValue={a.bio ?? ""} />
+      <Field label="About">
+        <TextArea name="bio" rows={4} maxLength={1000} defaultValue={a.bio ?? ""} />
       </Field>
-      <PrimaryButton type="submit">{setup ? "Save and continue" : "Save profile"}</PrimaryButton>
+      <PrimaryButton type="submit">Save profile</PrimaryButton>
     </form>
   );
 }
