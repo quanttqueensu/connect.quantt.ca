@@ -4,6 +4,7 @@ import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import { inviteAlumniAction, removeAlumniAction } from "@/lib/actions/alumni";
 import { listAlumniAccounts, listAlumniInvites } from "@/lib/alumni/data";
+import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import { hubEnv } from "@/lib/hub/env";
 import { formatDate } from "@/lib/time";
 
@@ -13,8 +14,10 @@ export default async function AdminAlumniPage({
   searchParams: Promise<{ denied?: string; sent?: string; unsent?: string }>;
 }) {
   const sp = await searchParams;
-  const { DB } = await hubEnv();
+  const { DB, AUTH } = await hubEnv();
   const [invites, accounts] = await Promise.all([listAlumniInvites(DB), listAlumniAccounts(DB)]);
+  // Opening this page also brings auth.quantt.ca's Alumni tab up to date (the first time, and after any missed send).
+  await pushConnectAlumni(DB, AUTH).catch((e) => console.error("connect alumni push failed", e));
   return (
     <>
       <PageHeader title="Alumni">

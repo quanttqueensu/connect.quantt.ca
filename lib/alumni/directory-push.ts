@@ -6,8 +6,10 @@
  * Alumni and they signed in) plus invites not accepted yet. Graduates
  * (alumni_graduation, including suspended ones) are left out: auth already
  * has them. Each send is the whole list, so a removal here shows up there too.
- * Runs from the hourly cron (worker.js) and right after an admin invites or
- * removes someone. Older auth Workers without setConnectAlumni are skipped.
+ * No polling: it's sent only when something changes, i.e. an admin invites or
+ * removes someone, an alum signs in (an invite becomes an account), saves their
+ * profile or links Discord, plus whenever an admin opens Admin -> Alumni, which
+ * catches up anyone already here and any send that failed.
  */
 import type { D1Database } from "@/lib/db/d1";
 import { ensureAlumniTables } from "@/lib/alumni/schema";

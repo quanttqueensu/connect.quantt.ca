@@ -131,7 +131,8 @@ export async function saveAlumniProfile(formData: FormData) {
   if (!fullName || !link.ok || (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100))) {
     denyRedirect("/alumni/profile", "alumni_profile_invalid");
   }
-  await updateAlumnus((await hubEnv()).DB, { kind: "alumni", id: me.id }, {
+  const env = await hubEnv();
+  await updateAlumnus(env.DB, { kind: "alumni", id: me.id }, {
     full_name: fullName,
     grad_year: year,
     program: text(formData, "program", 120),
@@ -141,6 +142,7 @@ export async function saveAlumniProfile(formData: FormData) {
     linkedin_url: link.url,
     bio: text(formData, "bio", 1000),
   });
+  await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   revalidatePath("/alumni", "layout");
   redirect("/alumni/profile?saved=1");
 }
