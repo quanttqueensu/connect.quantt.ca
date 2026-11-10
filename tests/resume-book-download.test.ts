@@ -48,11 +48,12 @@ describe("resume book ZIP download", () => {
     state.paths = { [A]: `${A}/packages/x/resume.pdf`, [B]: `${B}/../victim/packages/x/resume.pdf` };
   });
 
-  it("refuses sponsor mode and companies without the resume book", async () => {
+  it("refuses companies without the resume book, in sponsor mode too", async () => {
     state.preview = true;
+    expect((await GET(req())).status).toBe(200);
+    state.hasBook = false;
     expect((await GET(req())).status).toBe(404);
     state.preview = false;
-    state.hasBook = false;
     expect((await GET(req())).status).toBe(404);
   });
 

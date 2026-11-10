@@ -3,7 +3,7 @@ import LockedCard from "@/components/LockedCard";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import TalentList, { type TalentRow } from "@/components/TalentList";
-import { Field, PrimaryButton, QuietButton, TextInput, buttonClass } from "@/components/Form";
+import { Field, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { can, graceOnlyCap, loadMyCompanyTier, loadTiers } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -78,13 +78,9 @@ export default async function ResumeBookPage({
         </form>
         {((members as TalentRow[] | null) ?? []).length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            {cu.preview ? (
-              <QuietButton type="button" disabled>Download all (ZIP)</QuietButton>
-            ) : (
-              <a href={downloadHref} className={buttonClass("ghost")}>
-                Download all (ZIP)
-              </a>
-            )}
+            <a href={downloadHref} className={buttonClass("ghost")}>
+              Download all (ZIP)
+            </a>
             <span className="text-xs text-muted">
               {(members as TalentRow[]).length} resumes as PDFs, plus index.csv
               {program || yearRaw ? ", matching these filters" : ""}.
