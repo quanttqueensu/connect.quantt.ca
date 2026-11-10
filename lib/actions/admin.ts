@@ -127,10 +127,9 @@ export async function submitCompanyRequest(formData: FormData) {
 }
 
 async function finishInvite(result: InviteResult): Promise<never> {
-  revalidatePath("/admin/invite");
   revalidatePath("/admin/people");
   revalidatePath("/admin/companies");
-  redirect(result.via === "unsent" ? "/admin/invite?unsent=1" : "/admin/invite?sent=1");
+  redirect(result.via === "unsent" ? "/admin/people?tab=sponsors&unsent=1" : "/admin/people?tab=sponsors&sent=1");
 }
 
 export async function invitePerson(formData: FormData) {
@@ -144,12 +143,12 @@ export async function invitePerson(formData: FormData) {
   let admin: ReturnType<typeof createAdminClient> | null = null;
   try {
     const profile = await requireProfile();
-    if (!profile.is_admin) denyRedirect("/admin/invite", "invite_failed");
+    if (!profile.is_admin) denyRedirect("/admin/people?tab=sponsors", "invite_failed");
     const kind = String(formData.get("kind") ?? "member");
     const fullName = String(formData.get("full_name") ?? "").trim();
-    if (!isEmail(email) || !fullName) denyRedirect("/admin/invite", "invite_name_email_required");
+    if (!isEmail(email) || !fullName) denyRedirect("/admin/people?tab=sponsors", "invite_name_email_required");
     if (kind !== "company" && kind !== "member" && kind !== "admin") {
-      denyRedirect("/admin/invite", "invite_kind_invalid");
+      denyRedirect("/admin/people?tab=sponsors", "invite_kind_invalid");
     }
 
     admin = createAdminClient();
@@ -159,7 +158,7 @@ export async function invitePerson(formData: FormData) {
       const newName = String(formData.get("new_company_name") ?? "").trim();
       if (!companyId && newName) {
         const tierId = emptyToNull(formData.get("sponsor_tier_id"));
-        if (!tierId) denyRedirect("/admin/invite", "invite_tier_required");
+        if (!tierId) denyRedirect("/admin/people?tab=sponsors", "invite_tier_required");
         const { data, error } = await admin
           .from("companies")
           .insert({
@@ -174,7 +173,7 @@ export async function invitePerson(formData: FormData) {
         companyId = data.id;
       }
       if (!companyId) {
-        denyRedirect("/admin/invite", "invite_company_required");
+        denyRedirect("/admin/people?tab=sponsors", "invite_company_required");
       }
       const { data: row, error: invErr } = await admin
         .from("invites")
@@ -220,12 +219,12 @@ export async function invitePerson(formData: FormData) {
         .delete()
         .eq("id", insertedInviteId)
         .then(undefined, () => undefined);
-      revalidatePath("/admin/invite");
+      revalidatePath("/admin/people");
     }
     // Opaque code, never driver text: InviteForm/Notice look it up, so a
     // crafted ?denied= (or leftover ?error=) cannot put attacker copy in chrome.
     denyRedirect(
-      "/admin/invite",
+      "/admin/people?tab=sponsors",
       e instanceof AlreadyRegisteredError
         ? "invite_email_already_registered"
         : "invite_failed",
@@ -252,19 +251,19 @@ export async function reviewJoinRequest(formData: FormData) {
         })
         .eq("id", id)
         .select("id");
-      if (error) denyRedirect("/admin/requests", "join_request_reject_failed");
+      if (error) denyRedirect("/admin/companies", "join_request_reject_failed");
       if (!data?.length) {
         // This update has no status filter, so an already-reviewed row still
         // matches and returns a row. Zero rows can only mean the request was
         // deleted, or RLS refused the write.
-        denyRedirect("/admin/requests", "join_request_reject_failed");
+        denyRedirect("/admin/companies", "join_request_reject_failed");
       }
-      revalidatePath("/admin/requests");
+      revalidatePath("/admin/companies");
       return;
     }
 
     if (decision !== "approved") {
-      denyRedirect("/admin/requests", "join_request_review_failed");
+      denyRedirect("/admin/companies", "join_request_review_failed");
     }
 
     const { data: req } = await supabase
@@ -272,14 +271,14 @@ export async function reviewJoinRequest(formData: FormData) {
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (!req) denyRedirect("/admin/requests", "join_request_review_failed");
+    if (!req) denyRedirect("/admin/companies", "join_request_review_failed");
     if (req.status !== "pending") {
-      denyRedirect("/admin/requests", "join_request_review_race");
+      denyRedirect("/admin/companies", "join_request_review_race");
     }
 
     const admin = createAdminClient();
     const tierId = emptyToNull(formData.get("sponsor_tier_id"));
-    if (!tierId) denyRedirect("/admin/requests", "invite_tier_required");
+    if (!tierId) denyRedirect("/admin/companies", "invite_tier_required");
     const { data: company, error: cErr } = await admin
       .from("companies")
       .insert({
@@ -291,7 +290,7 @@ export async function reviewJoinRequest(formData: FormData) {
       })
       .select("id")
       .single();
-    if (cErr || !company) denyRedirect("/admin/requests", "join_request_review_failed");
+    if (cErr || !company) denyRedirect("/admin/companies", "join_request_review_failed");
 
     const { data: inviteRow, error: inviteRowErr } = await admin
       .from("invites")
@@ -305,7 +304,7 @@ export async function reviewJoinRequest(formData: FormData) {
       .select("id")
       .maybeSingle();
     if (inviteRowErr && !isUniqueViolation(inviteRowErr.message, inviteRowErr.code)) {
-      denyRedirect("/admin/requests", "join_request_review_failed");
+      denyRedirect("/admin/companies", "join_request_review_failed");
     }
 
     let invite: InviteResult | null = null;
@@ -337,25 +336,24 @@ export async function reviewJoinRequest(formData: FormData) {
       .eq("id", id)
       .eq("status", "pending")
       .select("id");
-    if (updErr) denyRedirect("/admin/requests", "join_request_review_failed");
-    revalidatePath("/admin/requests");
+    if (updErr) denyRedirect("/admin/companies", "join_request_review_failed");
     revalidatePath("/admin/companies");
-    revalidatePath("/admin/invite");
+    revalidatePath("/admin/people");
     // The .eq("status", "pending") filter means zero rows here is a race: another
     // admin reviewed this request between the check above and now. The firm and
     // the invite were still created, so say so rather than reporting success.
     if (!approved?.length) {
-      denyRedirect("/admin/requests", "join_request_review_race");
+      denyRedirect("/admin/companies", "join_request_review_race");
     }
     if (!invite) {
-      denyRedirect("/admin/requests", "join_request_contact_already_registered");
+      denyRedirect("/admin/companies", "join_request_contact_already_registered");
     }
     if (invite.via === "unsent") {
-      redirect("/admin/invite?unsent=1");
+      redirect("/admin/people?tab=sponsors&unsent=1");
     }
   } catch (e) {
     if (isControlFlowError(e)) throw e;
-    denyRedirect("/admin/requests", "join_request_review_failed");
+    denyRedirect("/admin/companies", "join_request_review_failed");
   }
 }
 
@@ -409,7 +407,7 @@ export async function addCompany(formData: FormData) {
     detail: { from: null, to: tierId },
   });
   revalidateCompanyAccess();
-  revalidatePath("/admin/invite");
+  revalidatePath("/admin/people");
   redirect(`/admin/companies?added=1#company-${data.id}`);
 }
 

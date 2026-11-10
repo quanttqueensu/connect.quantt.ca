@@ -7,15 +7,12 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
 import { buttonClass } from "@/components/Form";
 
+// Invites and alumni live on People; join requests and tiers on Companies.
 const LINKS = [
-  { href: "/admin/invite", label: "Invite" },
   { href: "/admin/people", label: "People" },
   { href: "/admin/companies", label: "Companies" },
-  { href: "/admin/tiers", label: "Tiers" },
-  { href: "/admin/requests", label: "Requests" },
   { href: "/admin/posts", label: "Posts" },
   { href: "/admin/applications", label: "Applications" },
-  { href: "/admin/alumni", label: "Alumni" },
 ];
 
 export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolean }) {
@@ -32,7 +29,10 @@ export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolea
           onFocus={(event) => event.target.scrollIntoView({ block: "nearest", inline: "nearest" })}
         >
           {LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const active =
+              pathname === link.href ||
+              pathname.startsWith(`${link.href}/`) ||
+              (link.href === "/admin/companies" && pathname.startsWith("/admin/tiers"));
             return (
               <Link
                 key={link.href}

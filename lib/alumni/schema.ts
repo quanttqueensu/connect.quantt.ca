@@ -155,9 +155,26 @@ export const notSuspended = (col: string) =>
 export const notGraduated = (col: string) =>
   `NOT EXISTS (SELECT 1 FROM alumni_graduation gg WHERE gg.profile_id = ${col} AND gg.suspended_at IS NULL)`;
 
+/**
+ * Columns added to `alumni` after it was created. Mirrors
+ * db/migrations/0013_alumni_contact.sql. Added one at a time on first use;
+ * "duplicate column" means a migration or an earlier isolate already did it.
+ */
+export const ALUMNI_ADDED_COLUMNS = [
+  `ALTER TABLE alumni ADD COLUMN phone text`,
+  `ALTER TABLE alumni ADD COLUMN other_social_url text`,
+];
+
 let ready = false;
 export async function ensureAlumniTables(db: D1Database) {
   if (ready) return;
   await db.batch([...ALUMNI_SCHEMA, ...ALUMNI_DISCORD_SCHEMA, ...ALUMNI_REQUESTS_SCHEMA, ...ALUMNI_GRADUATION_SCHEMA].map((s) => db.prepare(s)));
+  for (const stmt of ALUMNI_ADDED_COLUMNS) {
+    try {
+      await db.prepare(stmt).run();
+    } catch (e) {
+      if (!/duplicate column/i.test(e instanceof Error ? e.message : String(e))) throw e;
+    }
+  }
   ready = true;
 }

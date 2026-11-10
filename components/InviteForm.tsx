@@ -3,22 +3,28 @@
 import { useState } from "react";
 import { Field, PrimaryButton, TextInput } from "@/components/Form";
 import { invitePerson } from "@/lib/actions/admin";
+import { inviteAlumniAction } from "@/lib/actions/alumni";
 
+/**
+ * One invite form for everyone who needs one. Members don't: anyone in the
+ * auth.quantt.ca directory can sign in, and their admin flag comes from the
+ * directory's Connect role on every sign-in (lib/cf-auth/accounts.ts).
+ */
 const KINDS = [
+  {
+    id: "company",
+    title: "Sponsor contact",
+    hint: "Posts jobs for their firm only. They do not get the member feed.",
+  },
+  {
+    id: "alum",
+    title: "Alum",
+    hint: "Posts jobs and mentorship, and messages members after they accept.",
+  },
   {
     id: "member",
     title: "Club member",
-    hint: "Sees the feed, applies to roles, and shows up in the directory.",
-  },
-  {
-    id: "admin",
-    title: "Exec admin",
-    hint: "A member who can also invite people, approve firms, and post for the club.",
-  },
-  {
-    id: "company",
-    title: "Company contact",
-    hint: "Posts jobs for their firm only. They do not get the member feed.",
+    hint: "No invite needed. Members come from auth.quantt.ca.",
   },
 ] as const;
 
@@ -27,7 +33,7 @@ type Kind = (typeof KINDS)[number]["id"];
 export default function InviteForm({
   companies,
   tiers,
-  initialKind = "member",
+  initialKind = "company",
   sent,
 }: {
   companies: { id: string; name: string }[];
@@ -36,12 +42,12 @@ export default function InviteForm({
   sent?: boolean;
 }) {
   const [kind, setKind] = useState<Kind>(
-    KINDS.some((k) => k.id === initialKind) ? initialKind : "member",
+    KINDS.some((k) => k.id === initialKind) ? initialKind : "company",
   );
   const [existingId, setExistingId] = useState("");
 
   return (
-    <form action={invitePerson} className="space-y-6">
+    <form action={kind === "alum" ? inviteAlumniAction : invitePerson} className="space-y-6">
       <input type="hidden" name="kind" value={kind} />
       <fieldset>
         <legend className="text-[11px] uppercase tracking-wider text-copy">Who is this?</legend>
@@ -77,6 +83,16 @@ export default function InviteForm({
         </p>
       )}
 
+      {kind === "member" ? (
+        <p className="border-l-2 border-primary pl-4 text-sm text-copy">
+          Members don&apos;t need an invite. Add them on{" "}
+          <a href="https://auth.quantt.ca" className="font-medium text-primary hover:underline">
+            auth.quantt.ca
+          </a>{" "}
+          and they can sign in here with their Queen&apos;s email. Admin access comes from their Connect role there.
+        </p>
+      ) : (
+      <>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Full name">
           <TextInput name="full_name" required autoComplete="name" />
@@ -125,12 +141,10 @@ export default function InviteForm({
       )}
 
       <PrimaryButton type="submit">
-        {kind === "admin"
-          ? "Invite exec admin"
-          : kind === "company"
-            ? "Invite company contact"
-            : "Invite club member"}
+        {kind === "alum" ? "Invite alum" : "Invite sponsor contact"}
       </PrimaryButton>
+      </>
+      )}
     </form>
   );
 }

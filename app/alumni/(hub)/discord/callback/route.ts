@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return res;
   };
   const { env, db, alumnus } = await discordRouteContext(request);
-  if (!alumnus || !db) return NextResponse.redirect(`${siteUrl()}/alumni/login`);
+  if (!alumnus || !db) return NextResponse.redirect(`${siteUrl()}/login`);
   if (!discordReady(env)) return back("error=unconfigured");
   const sp = request.nextUrl.searchParams;
   if (sp.get("error")) return back("error=cancelled");

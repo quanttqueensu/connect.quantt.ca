@@ -4,14 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  ALUMNI_COOKIE,
-  alumniCookieOptions,
-  createAlumniSession,
-  endAlumniSession,
-  requestAlumniCode,
-  verifyAlumniCode,
-} from "@/lib/alumni/auth";
+import { ALUMNI_COOKIE, endAlumniSession } from "@/lib/alumni/auth";
 import { requireAlumnus } from "@/lib/alumni/current";
 import { removeAlumnusFromDiscord } from "@/lib/alumni/discord";
 import { pushConnectAlumni } from "@/lib/alumni/directory-push";
@@ -30,7 +23,7 @@ import {
   type AlumniViewer,
 } from "@/lib/alumni/data";
 import { requireProfile } from "@/lib/auth";
-import { sendInviteEmail, sendLoginCodeEmail } from "@/lib/cf-auth/email";
+import { sendInviteEmail } from "@/lib/cf-auth/email";
 import { looksLikeEmail, normalizeEmail } from "@/lib/cf-auth/tokens";
 import { hubEnv } from "@/lib/hub/env";
 import { notifyLater } from "@/lib/notify";
@@ -44,12 +37,7 @@ import { denyRedirect } from "./deny";
  * actions check is_admin. Nothing here trusts an id from the form for "who am I".
  */
 
-const LOGIN_EMAIL_COOKIE = "connect_alumni_login_email";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function secure() {
-  return siteUrl().startsWith("https://");
-}
 
 function text(formData: FormData, key: string, max: number) {
   const v = String(formData.get(key) ?? "").trim();
@@ -67,69 +55,35 @@ function httpsUrl(v: string | null) {
 }
 
 // ---- Alumni sign-in -------------------------------------------------------
-
-export async function requestAlumniLoginCode(formData: FormData) {
-  const email = normalizeEmail(String(formData.get("email") ?? ""));
-  if (!looksLikeEmail(email)) redirect("/alumni/login?error=login_email_required");
-  const env = await hubEnv();
-  try {
-    await requestAlumniCode(env.DB, email, (to, code) => sendLoginCodeEmail(env, to, code));
-  } catch (e) {
-    console.error("alumni login code not sent", e);
-  }
-  (await cookies()).set(LOGIN_EMAIL_COOKIE, email, {
-    httpOnly: true,
-    secure: secure(),
-    sameSite: "lax",
-    path: "/alumni/login",
-    maxAge: 15 * 60,
-  });
-  redirect("/alumni/login?step=code");
-}
-
-export async function verifyAlumniLoginCode(formData: FormData) {
-  const jar = await cookies();
-  const email = jar.get(LOGIN_EMAIL_COOKIE)?.value;
-  if (!email) redirect("/alumni/login?error=login_code_expired");
-  const env = await hubEnv();
-  const { DB } = env;
-  const result = await verifyAlumniCode(DB, email, String(formData.get("code") ?? ""));
-  if (!result.ok) {
-    if (result.code === "alumni_account_missing") {
-      jar.delete({ name: LOGIN_EMAIL_COOKIE, path: "/alumni/login" });
-      redirect("/alumni/login?error=alumni_account_missing");
-    }
-    redirect("/alumni/login?step=code&error=login_code_invalid");
-  }
-  jar.set(ALUMNI_COOKIE, await createAlumniSession(DB, result.alumniId), alumniCookieOptions(secure()));
-  // An invite may just have turned into an account: auth's Alumni tab shows them as joined now, not in an hour.
-  await pushConnectAlumni(DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
-  jar.delete({ name: LOGIN_EMAIL_COOKIE, path: "/alumni/login" });
-  redirect("/alumni");
-}
-
-export async function restartAlumniLogin() {
-  (await cookies()).delete({ name: LOGIN_EMAIL_COOKIE, path: "/alumni/login" });
-  redirect("/alumni/login");
-}
+// Alumni sign in on /login with everyone else (lib/actions/auth.ts).
 
 export async function alumniLogout() {
   const jar = await cookies();
   await endAlumniSession((await hubEnv()).DB, jar.get(ALUMNI_COOKIE)?.value);
   jar.delete(ALUMNI_COOKIE);
-  redirect("/alumni/login");
+  redirect("/login");
 }
 
 // ---- Alumni: profile, posts, messages ------------------------------------
 
 export async function saveAlumniProfile(formData: FormData) {
   const me = await requireAlumnus();
+  // The first-time setup page uses this form too, and goes back there on an error.
+  const setup = formData.get("from") === "setup";
+  const back = setup ? "/alumni/setup" : "/alumni/profile";
   const fullName = text(formData, "full_name", 120);
   const link = httpsUrl(text(formData, "linkedin_url", 500));
+  const other = httpsUrl(text(formData, "other_social_url", 500));
+  const phone = text(formData, "phone", 40);
+  const bio = text(formData, "bio", 1000);
   const yearRaw = text(formData, "grad_year", 4);
   const year = yearRaw ? Number(yearRaw) : null;
-  if (!fullName || !link.ok || (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100))) {
-    denyRedirect("/alumni/profile", "alumni_profile_invalid");
+  if (!fullName || !link.ok || !other.ok || (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100))) {
+    denyRedirect(back, "alumni_profile_invalid");
+  }
+  if (!link.url || !bio) denyRedirect(back, "alumni_profile_incomplete");
+  if (!phone || !/^\+?[0-9 ().-]{7,40}$/.test(phone) || phone.replace(/\D/g, "").length < 7) {
+    denyRedirect(back, "alumni_phone_invalid");
   }
   const env = await hubEnv();
   await updateAlumnus(env.DB, { kind: "alumni", id: me.id }, {
@@ -140,11 +94,13 @@ export async function saveAlumniProfile(formData: FormData) {
     title: text(formData, "title", 120),
     location: text(formData, "location", 120),
     linkedin_url: link.url,
-    bio: text(formData, "bio", 1000),
+    other_social_url: other.url,
+    phone,
+    bio,
   });
   await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   revalidatePath("/alumni", "layout");
-  redirect("/alumni/profile?saved=1");
+  redirect(setup ? "/alumni/setup" : "/alumni/profile?saved=1");
 }
 
 export async function postAlumniOpportunity(formData: FormData) {
@@ -269,20 +225,20 @@ export async function inviteAlumniAction(formData: FormData) {
   const admin = await requireAdmin();
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const fullName = String(formData.get("full_name") ?? "").trim().slice(0, 120);
-  if (!looksLikeEmail(email) || !fullName) denyRedirect("/admin/alumni", "alumni_invite_invalid");
+  if (!looksLikeEmail(email) || !fullName) denyRedirect("/admin/people?tab=alumni", "alumni_invite_invalid");
   const env = await hubEnv();
   const result = await inviteAlumnus(env.DB, email, fullName, admin.id);
-  if (result === "exists") denyRedirect("/admin/alumni", "alumni_invite_exists");
+  if (result === "exists") denyRedirect("/admin/people?tab=alumni", "alumni_invite_exists");
   let sent = true;
   try {
-    await sendInviteEmail(env, email, fullName, `${siteUrl()}/alumni/login`, "alumni");
+    await sendInviteEmail(env, email, fullName, `${siteUrl()}/login`, "alumni");
   } catch (e) {
     console.error("alumni invite email not sent", e);
     sent = false;
   }
   await pushConnectAlumni(env.DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
-  revalidatePath("/admin/alumni");
-  redirect(`/admin/alumni?${sent ? "sent" : "unsent"}=1`);
+  revalidatePath("/admin/people");
+  redirect(`/admin/people?tab=alumni&${sent ? "sent" : "unsent"}=1`);
 }
 
 export async function removeAlumniAction(formData: FormData) {
@@ -299,5 +255,5 @@ export async function removeAlumniAction(formData: FormData) {
     }
     await pushConnectAlumni(DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   }
-  revalidatePath("/admin/alumni");
+  revalidatePath("/admin/people");
 }

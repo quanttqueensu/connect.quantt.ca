@@ -1,8 +1,12 @@
 import PageHeader from "@/components/PageHeader";
+import AlumniPostList from "@/components/AlumniPostList";
 import PostCard from "@/components/PostCard";
 import { PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { requireCurrentProfile } from "@/lib/auth";
+import { startAlumniConversation } from "@/lib/actions/alumni";
 import { markListingApplied, setListingHidden, unmarkListingApplied } from "@/lib/actions/opportunities";
+import { listAlumniPosts } from "@/lib/alumni/data";
+import { hubEnv } from "@/lib/hub/env";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/time";
 import type { Post } from "@/lib/types";
@@ -77,7 +81,11 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   if (sponsorError) console.error("opportunities: sponsor jobs failed", sponsorError.message, sponsorError.code);
   const sponsorJobs = (sponsorData ?? []) as unknown as Post[];
   // Sponsor jobs first whenever there are any; otherwise straight to every listing.
-  const view = sp.view === "sponsors" || sp.view === "all" ? sp.view : sponsorJobs.length > 0 ? "sponsors" : "all";
+  const view =
+    sp.view === "sponsors" || sp.view === "alumni" || sp.view === "all" ? sp.view : sponsorJobs.length > 0 ? "sponsors" : "all";
+  // Jobs and mentorship alumni posted (their own tables, lib/alumni/data.ts). Moved here from the Alumni tab
+  // so every opportunity is in one place.
+  const alumniPosts = await listAlumniPosts((await hubEnv()).DB);
 
   // Listings this member marked applied (members only; admins and sponsors have no tracker).
   const isMember = profile.role === "member";
@@ -128,16 +136,23 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   return (
     <>
       <PageHeader title="Opportunities">
-        Jobs from QUANTT sponsors, plus open quant internships and new-grad roles from public lists, refreshed daily.
+        Jobs from QUANTT sponsors and alumni, plus open quant internships and new-grad roles from public lists, refreshed daily.
       </PageHeader>
 
-      <nav aria-label="Opportunity type" className="mb-4 flex gap-2">
+      <nav aria-label="Opportunity type" className="mb-4 flex flex-wrap gap-2">
         <Link
           href="/opportunities?view=sponsors"
           aria-current={view === "sponsors" ? "page" : undefined}
           className={buttonClass(view === "sponsors" ? "primary" : "quiet")}
         >
           Sponsor jobs ({sponsorJobs.length})
+        </Link>
+        <Link
+          href="/opportunities?view=alumni"
+          aria-current={view === "alumni" ? "page" : undefined}
+          className={buttonClass(view === "alumni" ? "primary" : "quiet")}
+        >
+          From alumni ({alumniPosts.length})
         </Link>
         <Link
           href="/opportunities?view=all"
@@ -148,7 +163,21 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         </Link>
       </nav>
 
-      {view === "sponsors" ? (
+      {view === "alumni" ? (
+        <AlumniPostList
+          posts={alumniPosts}
+          empty="No alumni posts yet."
+          action={(p) => (
+            <form action={startAlumniConversation}>
+              <input type="hidden" name="side" value="member" />
+              <input type="hidden" name="alumni_id" value={p.alumni_id} />
+              <button type="submit" className="text-sm font-medium text-primary hover:underline">
+                Message {p.author_name}
+              </button>
+            </form>
+          )}
+        />
+      ) : view === "sponsors" ? (
         <div>
           {sponsorError ? (
             <p className="text-sm text-copy">Sponsor jobs could not be loaded. Try again.</p>

@@ -1,6 +1,9 @@
+import AlumniInbox from "@/components/AlumniInbox";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
+import { listConversations } from "@/lib/alumni/data";
 import { getCurrentProfile } from "@/lib/auth";
+import { hubEnv } from "@/lib/hub/env";
 import { createClient } from "@/lib/supabase/server";
 import { one, type Conversation } from "@/lib/types";
 import Link from "next/link";
@@ -28,6 +31,9 @@ export default async function MessagesPage({
   if (convosError) {
     console.error("messages: query failed", convosError.message);
   }
+  // Members' chats with alumni live in their own tables (lib/alumni/data.ts); companies can't have any.
+  const alumniConvos =
+    profile.role === "member" ? await listConversations((await hubEnv()).DB, { kind: "member", id: profile.id }) : [];
 
   const rows = ((convos as InboxRow[] | null) ?? [])
     .map((c) => {
@@ -47,6 +53,15 @@ export default async function MessagesPage({
     <>
       <PageHeader title="Messages" />
       <Notice message={sp.denied} />
+      {alumniConvos.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 font-heading text-lg font-bold text-ink">Alumni</h2>
+          <AlumniInbox side="member" conversations={alumniConvos} base="/alumni-network/messages" empty="" />
+        </section>
+      )}
+      {alumniConvos.length > 0 && rows.length > 0 && (
+        <h2 className="mb-2 font-heading text-lg font-bold text-ink">Companies</h2>
+      )}
       {convosError ? (
         <p className="text-sm text-copy">Messages could not be loaded. Try again.</p>
       ) : (
@@ -70,8 +85,8 @@ export default async function MessagesPage({
               </li>
             ))}
           </ul>
-          {rows.length === 0 && (
-            <p className="text-sm text-copy">No threads yet. Message a company from a post.</p>
+          {rows.length === 0 && alumniConvos.length === 0 && (
+            <p className="text-sm text-copy">No threads yet. Message a company from a post, or an alum from Alumni.</p>
           )}
         </>
       )}

@@ -34,11 +34,11 @@ export default async function LoginPage({
               <span className="mt-2 block text-base font-normal tracking-normal text-white/80">by QUANTT</span>
             </h1>
             <p className="mt-3 max-w-xs text-sm leading-6 text-white/80">
-              Invite-only access for members and approved companies.
+              Invite-only access for members, sponsors and alumni.
             </p>
           </div>
         </div>
-        <LoginPanel error={errorText} initial={codeStep || error?.startsWith("login_") ? "sponsor" : "member"}>
+        <LoginPanel error={errorText} codeStep={codeStep}>
           {codeStep ? (
             <form action={verifyCode} className="mt-5 w-full space-y-4">
               <p className="text-sm text-copy">
@@ -65,7 +65,7 @@ export default async function LoginPage({
             </form>
           ) : (
             <form action={requestCode} className="mt-5 w-full space-y-4">
-              <Field label="Email">
+              <Field label="Email you were invited with">
                 <TextInput name="email" type="email" required autoComplete="email" />
               </Field>
               <PrimaryButton type="submit" className="w-full">

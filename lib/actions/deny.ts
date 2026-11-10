@@ -8,5 +8,5 @@ import type { DenialCode } from "@/lib/denials";
  * hub's own banner. Never throws — redirect() unwinds via Next's control flow.
  */
 export function denyRedirect(path: string, code: DenialCode): never {
-  redirect(`${path}?denied=${encodeURIComponent(code)}`);
+  redirect(`${path}${path.includes("?") ? "&" : "?"}denied=${encodeURIComponent(code)}`);
 }
