@@ -1,20 +1,24 @@
 // The Worker's entry point: OpenNext's generated handler, plus a cron job.
 //
-// POST /api/opportunities/sync is answered here, before Next and its sign-in
-// middleware: the GitHub Action (.github/workflows/opportunities.yml) sends the
-// day's listings with a bearer token (lib/jobs/store.ts).
+// POST /api/opportunities/sync and /run are answered here, before Next and its
+// sign-in middleware, with a bearer token. /run fetches the public job lists,
+// stores them and posts new roles to Discord (lib/jobs/daily.ts); "Run workflow"
+// on GitHub (.github/workflows/opportunities.yml) calls it. /sync stores
+// listings someone else fetched (lib/jobs/store.ts).
 //
 // The hourly cron in wrangler.jsonc: copy headshots and resumes changed on
 // auth.quantt.ca into the profiles of members who keep sync on
 // (lib/directory-files.ts); at 08:00 UTC, also delete expired sessions,
 // sign-in codes and join-form admission rows from D1. Hourly too: members who
 // graduated on auth.quantt.ca become alumni (lib/alumni/graduates.ts); in April
-// at 08:00 UTC, graduates without a personal email get one reminder.
+// at 08:00 UTC, graduates without a personal email get one reminder. At 11:00
+// UTC, the daily Opportunities run (lib/jobs/daily.ts).
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
 import handler from "./.open-next/worker.js";
 import { handleSync } from "./lib/jobs/store";
+import { DAILY_HOUR_UTC, handleRun, runOpportunities } from "./lib/jobs/daily";
 import { syncAllDirectoryFiles } from "./lib/directory-files";
 import { syncGraduates, remindPersonalEmail } from "./lib/alumni/graduates";
 import { syncAllGradYears } from "./lib/graduation-sync";
@@ -24,9 +28,9 @@ const SITE = "https://connect.quantt.ca";
 
 const worker = {
   fetch(request, env, ctx) {
-    if (new URL(request.url).pathname === "/api/opportunities/sync") {
-      return handleSync(request, env);
-    }
+    const path = new URL(request.url).pathname;
+    if (path === "/api/opportunities/sync") return handleSync(request, env);
+    if (path === "/api/opportunities/run") return handleRun(request, env);
     return handler.fetch(request, env, ctx);
   },
 
@@ -53,7 +57,20 @@ const worker = {
         ),
       );
     }
-    if (new Date(controller.scheduledTime).getUTCHours() !== 8) return;
+    const hour = new Date(controller.scheduledTime).getUTCHours();
+    if (hour === DAILY_HOUR_UTC) {
+      ctx.waitUntil(
+        runOpportunities(env).then(
+          (r) => {
+            const line = JSON.stringify({ ...r, added: r.added.length });
+            if (r.discord.startsWith("failed")) console.error("opportunities: discord post failed", line);
+            else console.log("opportunities", line);
+          },
+          (err) => console.error("opportunities run failed", err),
+        ),
+      );
+    }
+    if (hour !== 8) return;
     // April, daily at 08:00 UTC: remind this spring's graduates to give auth a personal email (once each).
     if (env.AUTH) {
       ctx.waitUntil(

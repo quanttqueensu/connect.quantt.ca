@@ -310,3 +310,39 @@ export function dropPastTerms(listings: Listing[], now = new Date()): Listing[] 
     return Date.UTC(Number(m[2]), TERM_START_MONTH[m[1]], 1) > now.getTime();
   });
 }
+
+/** What a sync stores: each source's listings, or null when its fetch failed. */
+export type CollectedSources = { simplify: Listing[] | null; nwft: Listing[] | null };
+
+/**
+ * Fetches every source with `get`, keeps the quant roles whose term hasn't
+ * started, and drops Northwestern rows already on Simplify (same link, or same
+ * firm + title + term; Simplify has posting dates). A source whose fetch fails
+ * is null, so the store keeps yesterday's listings for it open.
+ *
+ * The lists are fetched one after another so only one 13 MB file is held at a time.
+ */
+export async function collectListings(
+  get: (url: string) => Promise<string>,
+  log: (line: string) => void = () => {},
+): Promise<CollectedSources> {
+  async function source(name: string, load: () => Promise<Listing[]>): Promise<Listing[] | null> {
+    try {
+      const list = await load();
+      log(`${name}: ${list.length} listings`);
+      return list;
+    } catch (err) {
+      log(`${name}: failed, keeping yesterday's listings (${(err as Error).message})`);
+      return null;
+    }
+  }
+  const simplify = await source("simplify", async () => {
+    const interns = parseSimplify(await get(SOURCES.simplifyInternships), "internship");
+    const newGrad = parseSimplify(await get(SOURCES.simplifyNewGrad), "full_time");
+    return dropPastTerms(dedupe([...interns, ...newGrad]));
+  });
+  const nwft = await source("nwft", async () => dropPastTerms(parseNwft(await get(SOURCES.nwftInternships))));
+  const onSimplify = new RoleIndex<Listing>();
+  for (const l of simplify ?? []) onSimplify.add(l);
+  return { simplify, nwft: nwft && dedupe(nwft).filter((l) => !onSimplify.find(l)) };
+}
