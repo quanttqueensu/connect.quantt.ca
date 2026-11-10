@@ -1,69 +1,40 @@
-"use client";
-
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 /**
- * Members sign in through auth.quantt.ca, the same Queen's sign-in as the
- * calendar and the other QUANTT sites. Sponsors get an emailed code
- * (`children`, the code form).
+ * One sign-in page for everyone. Club members sign in through auth.quantt.ca,
+ * the same Queen's sign-in as the calendar and the other QUANTT sites.
+ * Sponsors and alumni type their email in one box and get a code
+ * (`children`, the code form); lib/actions/auth.ts works out which they are.
  */
 export default function LoginPanel({
   children,
   error,
-  initial = "member",
+  codeStep = false,
 }: {
   children: ReactNode;
   error?: string;
-  initial?: "member" | "sponsor";
+  codeStep?: boolean;
 }) {
-  const [audience, setAudience] = useState<"member" | "sponsor">(initial);
-
   return (
     <div className="p-6 sm:p-8">
-      <div role="group" aria-label="Log in as" className="grid grid-cols-2 gap-1 rounded border border-line bg-surface p-1">
-        {(["member", "sponsor"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={audience === option}
-            onClick={() => setAudience(option)}
-            className={`min-h-11 cursor-pointer rounded border px-4 py-2 text-sm font-medium transition-colors ${
-              audience === option
-                ? "border-primary bg-primary text-white"
-                : "border-transparent text-copy hover:bg-white hover:text-primary"
-            }`}
-          >
-            {option === "member" ? "Member" : "Sponsor"}
-          </button>
-        ))}
-      </div>
-      <h2 className="mt-6 text-xl font-semibold text-ink">
-        {audience === "member" ? "Member login" : "Sponsor login"}
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-copy">
-        {audience === "member"
-          ? "Use the same Queen's sign-in as the other QUANTT sites."
-          : "We'll email a sign-in code to your invited company address."}
-      </p>
-      {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
-      {audience === "member" && (
-        <div className="mt-5">
+      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+      {!codeStep && (
+        <>
+          <h2 className="text-xl font-semibold text-ink">Club member</h2>
+          <p className="mt-1 text-sm leading-6 text-copy">Same Queen&apos;s sign-in as the other QUANTT sites.</p>
           {/* The route handler redirects off-site, so this stays a plain link. */}
           <a
             href="/auth/quantt/start"
-            className="inline-flex min-h-12 w-full items-center justify-center rounded border border-primary bg-white px-4 py-3 text-center text-sm font-medium leading-6 text-primary transition-colors hover:bg-primary/5"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded border border-primary bg-white px-4 py-3 text-center text-sm font-medium leading-6 text-primary transition-colors hover:bg-primary/5"
           >
             Sign in with your Queen&apos;s email
           </a>
-        </div>
+          <div className="mt-6 flex items-center gap-3 text-xs text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
+            Sponsor or alum
+          </div>
+        </>
       )}
-      {audience === "sponsor" && children}
-      <p className={`text-sm text-copy ${audience === "sponsor" ? "mt-2" : "mt-6 border-t border-line pt-5"}`}>
-        QUANTT alumni?{" "}
-        <a href="/alumni/login" className="font-medium text-primary hover:underline">
-          Alumni login
-        </a>
-      </p>
+      {children}
     </div>
   );
 }

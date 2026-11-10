@@ -25,6 +25,7 @@ export type AlumniProfile = {
   title: string | null;
   location: string | null;
   linkedin_url: string | null;
+  other_social_url: string | null;
   bio: string | null;
   has_photo?: number | null;
 };
@@ -54,7 +55,7 @@ export type MemberCardForAlumni = {
 
 // has_photo: a graduate's headshot copied from their member profile (lib/alumni/graduates.ts), served at /alumni/photo/<id>.
 const PROFILE_COLS =
-  "id, full_name, grad_year, program, firm, title, location, linkedin_url, bio, " +
+  "id, full_name, grad_year, program, firm, title, location, linkedin_url, other_social_url, bio, " +
   "(SELECT CASE WHEN g.photo_path IS NULL THEN 0 ELSE 1 END FROM alumni_graduation g WHERE g.alumni_id = alumni.id) AS has_photo";
 
 function likeTerm(q: string) {
@@ -79,21 +80,24 @@ export async function listAlumni(db: D1Database, q = "") {
 
 export async function getAlumnus(db: D1Database, id: string) {
   await ensureAlumniTables(db);
-  return db.prepare(`SELECT ${PROFILE_COLS}, email_messages FROM alumni WHERE id = ?`).bind(id).first<AlumniProfile & { email_messages: number }>();
+  return db
+    .prepare(`SELECT ${PROFILE_COLS}, phone, email_messages FROM alumni WHERE id = ?`)
+    .bind(id)
+    .first<AlumniProfile & { phone: string | null; email_messages: number }>();
 }
 
-export type AlumniProfileInput = Omit<AlumniProfile, "id">;
+export type AlumniProfileInput = Omit<AlumniProfile, "id"> & { phone: string | null };
 
 export async function updateAlumnus(db: D1Database, viewer: AlumniViewer, input: AlumniProfileInput) {
   if (viewer.kind !== "alumni") throw new Error("Alumni only");
   await db
     .prepare(
       `UPDATE alumni SET full_name = ?, grad_year = ?, program = ?, firm = ?, title = ?, location = ?,
-         linkedin_url = ?, bio = ? WHERE id = ?`,
+         linkedin_url = ?, other_social_url = ?, phone = ?, bio = ? WHERE id = ?`,
     )
     .bind(
       input.full_name, input.grad_year, input.program, input.firm, input.title, input.location,
-      input.linkedin_url, input.bio, viewer.id,
+      input.linkedin_url, input.other_social_url, input.phone, input.bio, viewer.id,
     )
     .run();
 }
@@ -423,8 +427,8 @@ export async function listAlumniAccounts(db: D1Database) {
   await ensureAlumniTables(db);
   return (
     await db
-      .prepare(`SELECT id, email, full_name, firm, grad_year, created_at FROM alumni ORDER BY full_name`)
-      .all<{ id: string; email: string; full_name: string; firm: string | null; grad_year: number | null; created_at: string }>()
+      .prepare(`SELECT id, email, full_name, firm, grad_year, phone, created_at FROM alumni ORDER BY full_name`)
+      .all<{ id: string; email: string; full_name: string; firm: string | null; grad_year: number | null; phone: string | null; created_at: string }>()
   ).results;
 }
 

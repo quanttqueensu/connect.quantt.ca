@@ -33,6 +33,7 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
           ? [{ href: "/company/search", label: "Search" }]
           : []),
         { href: "/company/messages", label: "Messages" },
+        { href: "/company/team", label: "Team" },
         { href: "/company/sponsorship", label: "Sponsorship" },
       ]
     : [

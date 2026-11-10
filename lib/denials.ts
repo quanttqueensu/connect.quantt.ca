@@ -71,11 +71,12 @@ const MESSAGES = {
   login_code_invalid: "That code didn't work. Check it, or ask for a new one.",
   login_code_expired: "That code expired. Enter your email to get a new one.",
   login_account_missing:
-    "This email doesn't have a sponsor account. QUANTT members: use Sign in with your Queen's email.",
+    "This email isn't on an invite. Sponsors and alumni: use the address you were invited with. Members: use Sign in with your Queen's email.",
 
   // lib/actions/alumni.ts
   alumni_account_missing: "This email doesn't have an alumni account. Ask a QUANTT exec for an invite.",
   alumni_profile_invalid: "Check your profile: a name is required, and links must start with https://.",
+  alumni_phone_invalid: "Enter a phone number with at least 7 digits.",
   alumni_post_invalid: "Add a title (and a valid https:// link, if you gave one), then post again.",
   alumni_post_failed: "That post could not be changed. It may not be yours, or it's already closed.",
   alumni_message_failed: "That message was not sent. Keep it under 4,000 characters and try again.",
@@ -193,6 +194,12 @@ const MESSAGES = {
     "That section was not added — you already have the maximum number of profile sections. Delete one first.",
   resume_book_opt_out_failed:
     "Your resume book consent was NOT withdrawn. Nothing changed — try again, and tell a QUANTT exec if it keeps failing.",
+
+  // lib/actions/company.ts (Team)
+  team_invite_domain: "Colleagues must use an email at your firm's domain (the same as yours). Ask a QUANTT exec for anyone else.",
+  team_invite_limit: "Your firm has reached its contact limit. Ask a QUANTT exec to add more.",
+  team_invite_taken: "That address already has a Connect account or another invite. Ask a QUANTT exec if it needs to change.",
+  team_invite_failed: "The invite didn't go through. Nothing was saved; try again.",
 } as const;
 
 /** Every code an action may pass to denyRedirect. */

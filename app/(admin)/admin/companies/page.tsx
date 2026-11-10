@@ -1,6 +1,7 @@
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
 import CopyLink from "@/components/CopyLink";
+import JoinRequestQueue from "@/components/JoinRequestQueue";
 import CompanyCapabilityControl from "@/components/CompanyCapabilityControl";
 import { Field, GhostButton, PrimaryButton, TextInput, buttonClass } from "@/components/Form";
 import { addCompany, resetCompanyAccess, setCompanyAccess, setCompanyTier } from "@/lib/actions/admin";
@@ -24,7 +25,7 @@ type CompanyRow = Company;
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ denied?: string; added?: string }>;
+  searchParams: Promise<{ denied?: string; added?: string; rpage?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -48,7 +49,7 @@ export default async function CompaniesPage({
         title="Companies"
         actions={
           <>
-            <Link href="/admin/invite?kind=company" className={buttonClass("primary")}>
+            <Link href="/admin/people?tab=sponsors&invite=1" className={buttonClass("primary")}>
               Invite a company contact
             </Link>
             <Link href="/admin/tiers" className={buttonClass("ghost")}>
@@ -60,6 +61,7 @@ export default async function CompaniesPage({
         Overrides beat tier defaults and stay when the level changes. Inactive firms are hidden and lose their features.
       </PageHeader>
       <Notice message={sp.denied} />
+      <JoinRequestQueue rawPage={sp.rpage} />
       {sp.added && (
         <p className="mb-4 border-l-2 border-primary pl-4 text-sm text-copy">
           Company added. Invite a contact whenever you&rsquo;re ready.
@@ -98,7 +100,7 @@ export default async function CompaniesPage({
       </details>
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border border-line px-4 py-3">
         <p className="text-sm text-copy">
-          <span className="font-medium text-ink">Public signup link.</span> Requests land in Join requests.
+          <span className="font-medium text-ink">Public signup link.</span> Requests show at the top of this page.
         </p>
         <CopyLink value={`${siteUrl()}/join`} />
       </div>

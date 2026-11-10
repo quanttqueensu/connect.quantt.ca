@@ -12,9 +12,9 @@ export const currentAlumnus = cache(async (): Promise<Alumnus | null> => {
   return readAlumniSession((await hubEnv()).DB, token);
 });
 
-/** For alumni pages and actions: the alumnus, or off to /alumni/login. */
+/** For alumni pages and actions: the alumnus, or off to /login. */
 export async function requireAlumnus(): Promise<Alumnus> {
   const a = await currentAlumnus();
-  if (!a) redirect("/alumni/login");
+  if (!a) redirect("/login");
   return a;
 }

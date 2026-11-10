@@ -57,6 +57,11 @@ export default function AlumniDirectory({
                     LinkedIn
                   </a>
                 )}
+                {a.other_social_url && (
+                  <a href={a.other_social_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                    Website
+                  </a>
+                )}
               </div>
             </div>
           ))}
