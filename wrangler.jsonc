@@ -35,6 +35,7 @@
   // Worker next to the database instead of next to the visitor, so each of those calls is short.
   "placement": { "mode": "smart" },
   // worker.js `scheduled`, hourly: headshot/resume sync with auth.quantt.ca; the 08:00 UTC run also
-  // cleans up expired sessions and codes. One trigger, so it fits the account's cron limit.
+  // cleans up expired sessions and codes, and the 11:00 UTC run does the daily Opportunities sync and
+  // Discord digest (lib/jobs/daily.ts). One trigger, so it fits the account's cron limit.
   "triggers": { "crons": ["0 * * * *"] }
 }

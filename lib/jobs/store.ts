@@ -1,11 +1,9 @@
 /**
  * Writes listings into D1 (table job_listings, db/migrations/0005).
  *
- * The GitHub Action (.github/workflows/opportunities.yml) does the fetching and
- * filtering, because Simplify's lists are about 13 MB each and parsing them
- * takes more CPU than a Worker on Cloudflare's free plan may use. It POSTs the
- * few hundred quant listings it keeps to /api/opportunities/sync, and
- * worker.js hands them here. This part is cheap: a handful of statements.
+ * The daily run (daily.ts) fetches and filters the lists and calls
+ * storeListings; POST /api/opportunities/sync hands it listings fetched
+ * elsewhere. This part is cheap: a handful of statements.
  *
  * Relative imports only: worker.js bundles this through wrangler, outside Next.
  */

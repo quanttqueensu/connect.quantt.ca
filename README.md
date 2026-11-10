@@ -89,13 +89,13 @@ rather than scraping firms' career sites:
   [new-grad](https://github.com/SimplifyJobs/New-Grad-Positions) lists, "Quant" category only.
 - Northwestern Fintech's [quant internship list](https://github.com/northwesternfintech/2027QuantInternships).
 
-Once a day `.github/workflows/opportunities.yml` runs `scripts/sync-opportunities.mjs`,
-which fetches the lists, keeps the quant roles whose term hasn't started
-(`lib/jobs/sources.ts`), and POSTs them to `/api/opportunities/sync`. `worker.js`
-answers that route before Next; `lib/jobs/store.ts` checks the bearer token and upserts
-into `job_listings` by link. A listing a source stops showing is closed; closed
-listings are deleted after 90 days. The fetching runs on GitHub, not the Worker,
-because Simplify's files are about 13 MB each, more than a free-plan Worker's CPU allows.
+Once a day at 11:00 UTC the quantt-connect Worker's cron runs `lib/jobs/daily.ts`:
+it fetches the lists, keeps the quant roles whose term hasn't started
+(`lib/jobs/sources.ts`), and upserts them into `job_listings` by link (`lib/jobs/store.ts`).
+A listing a source stops showing is closed; closed listings are deleted after 90 days.
+Actions → Opportunities → Run workflow asks the Worker for a run now
+(`POST /api/opportunities/run`, bearer `OPPORTUNITIES_SYNC_TOKEN`).
+`POST /api/opportunities/sync` still stores listings fetched elsewhere.
 
 One role is stored once: two links count as the same role when the firm and title match
 after `roleKey` (Quant/Quantitative, Researcher/Research, Intern/Internship, word order,
@@ -109,22 +109,24 @@ Applied filter shows applied or not-applied listings. "Applied ✓" undoes it.
 
 Each run also posts the roles that weren't open before to #opportunities in the
 QUANTT Discord from QUANTT Bot, grouped by internship term, then new grad, with a 🇨🇦
-on Canadian roles (repo secret `DISCORD_BOT_TOKEN`; skipped without it). Run workflow
-with "Post all open roles" ticked posts the whole list the same way.
+on Canadian roles, using the Worker secret `DISCORD_BOT_TOKEN` (the same one the alumni
+join uses, so a token reset only has to update the Worker). Run workflow with "Post all
+open roles" ticked posts the whole list the same way. A failed Discord post turns a
+manual run red and logs an error on the Worker for the cron run.
 
 Setup, once:
 
 1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, and 0008's `applications.job_listing_id`).
 2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
    `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
-   same name (Settings → Secrets and variables → Actions).
-3. Keep workers.dev on for quantt-connect (Settings → Domains & Routes): the Action
-   posts to https://quantt-connect.quanttgroup.workers.dev, because connect.quantt.ca
+   same name (Settings → Secrets and variables → Actions). It's only for Run workflow.
+3. Keep workers.dev on for quantt-connect (Settings → Domains & Routes): Run workflow
+   calls https://quantt-connect.quanttgroup.workers.dev, because connect.quantt.ca
    answers GitHub's runners with a bot challenge. A repo variable `CONNECT_URL`
    overrides the address.
 4. Actions → Opportunities → Run workflow, for the first fill.
 
-Preview locally with `node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run`.
+Preview what a run would fetch with `node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run`.
 
 ## Sign in with QUANTT (club members)
 
@@ -211,7 +213,7 @@ push and pull request.
 
 | Who | Paths |
 | --- | --- |
-| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links), `/alumni/*` (checks its own session). `POST /api/opportunities/sync` is answered by `worker.js` with a bearer token, before the middleware. |
+| Public | `/` (landing), `/for-companies`, `/login`, `/join`, `/auth/quantt/*`, `/files/*` (signed links), `/alumni/*` (checks its own session). `POST /api/opportunities/sync` and `/run` are answered by `worker.js` with a bearer token, before the middleware. |
 | Member | `/feed`, `/opportunities`, `/applications`, `/profile`, `/members`, `/messages`, `/alumni-network` |
 | Alumni | `/alumni/login`, then `/alumni` (posts), `/alumni/members`, `/alumni/directory`, `/alumni/messages`, `/alumni/discord`, `/alumni/profile`, with the separate alumni session |
 | Company | `/company`, `/company/posts/new`, `/company/applicants`, `/company/messages` |

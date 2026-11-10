@@ -16,6 +16,8 @@ import {
   type Listing,
 } from "@/lib/jobs/sources";
 import { handleSync, storeListings } from "@/lib/jobs/store";
+import { digestMessages, handleRun, runOpportunities } from "@/lib/jobs/daily";
+import { SOURCES } from "@/lib/jobs/sources";
 
 import { addCompany, addMember, addPost, all, asD1, freshDb, viewer } from "./db/sqlite";
 
@@ -387,5 +389,80 @@ describe("sponsor jobs tab", () => {
       .limit(100);
     expect(error).toBeNull();
     expect((data ?? []).map((p) => p.id).sort()).toEqual([job, link].sort());
+  });
+});
+
+describe("daily run (Worker cron)", () => {
+  const simplifyFile = (rows: Record<string, unknown>[]) => JSON.stringify(rows, null, 2);
+  const files = (interns: Record<string, unknown>[]) => async (url: string) => {
+    if (url === SOURCES.simplifyInternships) return simplifyFile(interns);
+    if (url === SOURCES.simplifyNewGrad) return "[]";
+    throw new Error("404 Not Found");
+  };
+  const future = { terms: ["Summer 2099"] };
+
+  it("stores the lists and posts only roles that weren't open before", async () => {
+    const env = { DB: asD1(freshDb()) };
+    const sent: string[] = [];
+    const send = async (c: string) => void sent.push(c);
+    const r1 = await runOpportunities(env, { get: files([simplifyRow({ ...future, url: "https://a.com/1" })]), send });
+    expect(r1.stored).toBe(1);
+    expect(r1.discord).toBe("posted 1");
+    expect(r1.skipped).toEqual(["nwft"]); // nwft's fetch failed: its listings are kept, not closed
+    expect(sent.join("\n")).toContain("Jane Street");
+
+    sent.length = 0;
+    const r2 = await runOpportunities(env, {
+      get: files([
+        simplifyRow({ ...future, url: "https://a.com/1" }),
+        simplifyRow({ ...future, url: "https://b.com/2", company_name: "Citadel", title: "Quant Researcher Intern" }),
+      ]),
+      send,
+    });
+    expect(r2.added.map((a) => a.company)).toEqual(["Citadel"]);
+    expect(sent.join("\n")).toContain("Citadel");
+    expect(sent.join("\n")).not.toContain("Jane Street");
+  });
+
+  it("reports a failed Discord post instead of hiding it, and still stores", async () => {
+    const env = { DB: asD1(freshDb()) };
+    const r = await runOpportunities(env, {
+      get: files([simplifyRow(future)]),
+      send: async () => {
+        throw new Error("401 Unauthorized");
+      },
+    });
+    expect(r.stored).toBe(1);
+    expect(r.discord).toBe("failed: 401 Unauthorized");
+  });
+
+  it("fails when every source fails", async () => {
+    const env = { DB: asD1(freshDb()) };
+    await expect(runOpportunities(env, { get: async () => { throw new Error("down"); } })).rejects.toThrow(/every source failed/);
+  });
+
+  it("splits a long digest under Discord's limit", () => {
+    const list = Array.from({ length: 80 }, (_, i) => ({
+      company: `Firm ${i}`,
+      title: "Quantitative Trader Intern",
+      url: `https://x.com/${i}`,
+      locations: ["Toronto, ON"],
+      role_type: "internship" as const,
+      term: `Summer ${2027 + (i % 3)}`,
+    }));
+    const msgs = digestMessages(list, "new");
+    expect(msgs.length).toBeGreaterThan(1);
+    for (const m of msgs) expect(m.length).toBeLessThanOrEqual(2000);
+    expect(msgs[0]).toMatch(/^## 80 new quant roles/);
+    expect(msgs.join("\n")).toContain("🇨🇦");
+  });
+
+  it("POST /api/opportunities/run needs the bearer token", async () => {
+    const env = { DB: asD1(freshDb()), OPPORTUNITIES_SYNC_TOKEN: "s3cret" };
+    const req = (auth?: string) =>
+      new Request("https://connect.quantt.ca/api/opportunities/run", { method: "POST", headers: auth ? { authorization: auth } : {} });
+    expect((await handleRun(req(), env)).status).toBe(401);
+    expect((await handleRun(req("Bearer wrong"), env)).status).toBe(401);
+    expect((await handleRun(new Request("https://connect.quantt.ca/api/opportunities/run"), env)).status).toBe(405);
   });
 });
