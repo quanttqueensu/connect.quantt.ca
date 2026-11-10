@@ -1,7 +1,7 @@
 "use client";
 
 import ConnectBrand from "@/components/ConnectBrand";
-import SponsorModeToggle from "@/components/SponsorModeToggle";
+import ViewAsSwitch from "@/components/ViewAsSwitch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions/auth";
@@ -46,9 +46,6 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
         { href: "/profile", label: "Profile" },
       ];
 
-  if (profile.is_admin) {
-    links.push({ href: "/admin", label: "Admin" });
-  }
 
   return (
     <nav aria-label="Connect navigation" className="hub-nav">
@@ -83,7 +80,8 @@ export default function HubNav({ profile, unread = 0, companyCaps }: Props) {
               </Link>
             );
           })}
-          {profile.is_admin && <SponsorModeToggle />}
+          {/* Admins switch views here; the Admin view replaces the old Admin link. */}
+          {profile.is_admin && <ViewAsSwitch current="member" />}
           <form action={logout} className="ml-1 shrink-0 border-l border-line pl-4">
             <button type="submit" className={buttonClass("nav")}>
               Log out

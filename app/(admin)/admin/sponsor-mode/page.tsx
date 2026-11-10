@@ -26,7 +26,7 @@ export default async function SponsorModePage({
 
   return (
     <>
-      <PageHeader title="Sponsor mode">
+      <PageHeader title="Sponsor view">
         Company view. Same pages, package, overrides and data. Read-only.
       </PageHeader>
       {companies.length === 0 ? (

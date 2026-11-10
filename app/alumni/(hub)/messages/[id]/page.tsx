@@ -23,7 +23,8 @@ export default async function AlumniThreadPage({
   const viewer = { kind: "alumni" as const, id: me.id };
   const thread = await getThread(DB, viewer, id);
   if (!thread) notFound();
-  after(() => markThreadRead(DB, viewer, id));
+  // An admin previewing (alumni mode) must not mark the alum's messages read.
+  if (!me.preview) after(() => markThreadRead(DB, viewer, id));
   return (
     <>
       <h1 className="font-heading text-2xl font-bold text-ink">{thread.member_name}</h1>
