@@ -200,6 +200,10 @@ const MESSAGES = {
   team_invite_limit: "Your firm has reached its contact limit. Ask a QUANTT exec to add more.",
   team_invite_taken: "That address already has a Connect account or another invite. Ask a QUANTT exec if it needs to change.",
   team_invite_failed: "The invite didn't go through. Nothing was saved; try again.",
+  feedback_empty: "Write something before sending.",
+  feedback_kind: "Choose what kind of note this is.",
+  feedback_limit: "Your firm has sent a lot today. Try again tomorrow, or email a QUANTT exec.",
+  feedback_limit_alum: "You've sent a lot today. Try again tomorrow, or email a QUANTT exec.",
 } as const;
 
 /** Every code an action may pass to denyRedirect. */
