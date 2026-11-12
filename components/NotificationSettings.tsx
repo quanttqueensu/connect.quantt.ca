@@ -20,8 +20,11 @@ export default function NotificationSettings({
   saved,
   disabled,
   setup,
+  sponsorFeedback,
 }: {
   prefs: NotificationPrefs;
+  /** Admins only: their sponsor feedback email setting. Leave out for everyone else. */
+  sponsorFeedback?: boolean;
   role: "member" | "company_user";
   saved?: boolean;
   disabled?: boolean;
@@ -37,6 +40,18 @@ export default function NotificationSettings({
           {LABELS[k]}
         </label>
       ))}
+      {sponsorFeedback !== undefined && <input type="hidden" name="sponsor_feedback_shown" value="1" />}
+      {sponsorFeedback !== undefined && (
+        <label className="flex items-center gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            name="sponsor_feedback"
+            defaultChecked={sponsorFeedback}
+            className="h-4 w-4 accent-primary"
+          />
+          New sponsor feedback (admins)
+        </label>
+      )}
       <div className="flex items-center gap-3 pt-2">
         <PrimaryButton type="submit" disabled={disabled}>
           {setup ? "Save and continue" : "Save notifications"}

@@ -1,7 +1,7 @@
 import { buttonClass, QuietButton } from "@/components/Form";
 import PageHeader from "@/components/PageHeader";
 import { requireCurrentProfile } from "@/lib/auth";
-import { setSponsorFeedbackEmails, setSponsorFeedbackStatus } from "@/lib/actions/feedback";
+import { setSponsorFeedbackStatus } from "@/lib/actions/feedback";
 import { hubEnv } from "@/lib/hub/env";
 import { FEEDBACK_KIND_LABEL, isWatchingFeedback, listAllFeedback } from "@/lib/sponsor-feedback";
 import { formatDate } from "@/lib/time";
@@ -17,16 +17,13 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
 
   return (
     <>
-      <PageHeader
-        title="Feedback"
-        actions={
-          <form action={setSponsorFeedbackEmails}>
-            <input type="hidden" name="on" value={watching ? "0" : "1"} />
-            <QuietButton type="submit">{watching ? "Stop emailing me" : "Email me new feedback"}</QuietButton>
-          </form>
-        }
-      >
-        Requests and feedback from sponsors. Only admins see this.{watching ? " You get an email for each new one." : ""}
+      <PageHeader title="Feedback">
+        Requests and feedback from sponsors. Only admins see this.{" "}
+        {watching ? "You get an email for each new one" : "Emails for new ones are off"} (
+        <Link href="/profile#notifications" className="underline">
+          notification settings
+        </Link>
+        ).
       </PageHeader>
 
       <div className="mb-4 flex gap-2">

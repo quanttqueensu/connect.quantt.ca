@@ -3,7 +3,8 @@
  * Connect admins (Admin → Feedback). A firm sees its own list and whether
  * each item is still open, never anyone else's.
  *
- * Admins can ask to be emailed about each new item; that is off until they
+ * Admins can ask to be emailed about each new item (Profile → Email
+ * notifications, admins only); that is off until they
  * turn it on, like every other Connect email (Ethan, 2026-11-02).
  *
  * Same tables as db/migrations/0015_sponsor_feedback.sql (a test checks they
@@ -198,7 +199,7 @@ export async function notifyNewFeedback(db: D1Database, send: SendEmails, feedba
   const what = FEEDBACK_KIND_LABEL[item.kind].toLowerCase();
   const who = item.author_name ? `${item.author_name} (${item.company_name})` : item.company_name;
   const url = `${siteUrl()}/admin/feedback`;
-  const note = "You get these because you turned on feedback emails on Admin → Feedback.";
+  const note = "You get these because you turned on sponsor feedback in your Connect notification settings.";
   const emails: Email[] = results.map((r) => ({
     to: r.email,
     subject: `Sponsor ${what} from ${item.company_name}`,
