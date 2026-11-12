@@ -246,8 +246,9 @@ export default async function ProfilePage({
           <section className="mt-6 border-t border-line pt-5">
             <h2 className="font-heading text-lg font-bold text-ink">Resume book</h2>
             <p className="mt-2 text-sm text-copy">
-              Sponsors see your name, program, grad year and saved resume, never your applications or
-              messages. Withdraw any time.
+              Every member is in the resume book unless they opt out. Sponsors and QUANTT alumni see your
+              name, program, grad year, headshot and saved resume, never your applications or messages.
+              Withdraw any time.
             </p>
             {!documents?.resume_path && !documentsError && (
               <p className="mt-2 text-sm text-copy">Upload a resume above to appear in the resume book.</p>
