@@ -23,6 +23,7 @@ import { redirect } from "next/navigation";
 import NotificationSettings from "@/components/NotificationSettings";
 import { hubEnv } from "@/lib/hub/env";
 import { DEFAULT_PREFS, getPrefs } from "@/lib/notifications";
+import { isWatchingFeedback } from "@/lib/sponsor-feedback";
 
 export default async function ProfilePage({
   searchParams,
@@ -71,6 +72,7 @@ export default async function ProfilePage({
     ? ((await DB.prepare(`SELECT photo_path FROM profiles WHERE id = ?`).bind(profile.id).first<{ photo_path: string | null }>())?.photo_path ?? null)
     : profile.photo_path;
   const prefs = await getPrefs(DB, profile.id).catch(() => ({ ...DEFAULT_PREFS }));
+  const sponsorFeedback = profile.is_admin ? await isWatchingFeedback(DB, profile.id).catch(() => false) : undefined;
   const photoUrl = photoPath ? `/members/${profile.id}/photo?v=${encodeURIComponent(photoPath)}` : null;
   const sectionRows = (sections as ProfileSection[] | null) ?? [];
   const nextSort =
@@ -274,7 +276,12 @@ export default async function ProfilePage({
               )}
             </form>
           </section>
-          <NotificationSettings prefs={prefs} role="member" saved={sp.notifications === "saved"} />
+          <NotificationSettings
+            prefs={prefs}
+            role="member"
+            saved={sp.notifications === "saved"}
+            sponsorFeedback={sponsorFeedback}
+          />
         </aside>
       </div>
 

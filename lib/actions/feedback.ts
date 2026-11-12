@@ -10,7 +10,6 @@ import {
   notifyNewFeedback,
   parseFeedbackKind,
   setFeedbackStatus,
-  setWatchingFeedback,
   submitFeedback,
 } from "@/lib/sponsor-feedback";
 import { createClient } from "@/lib/supabase/server";
@@ -63,11 +62,4 @@ export async function setSponsorFeedbackStatus(formData: FormData) {
   if (id) await setFeedbackStatus((await hubEnv()).DB, id, status, admin.id);
   revalidatePath("/admin/feedback");
   revalidatePath("/company/feedback");
-}
-
-/** Admin → Feedback: the signed-in admin's own email setting. */
-export async function setSponsorFeedbackEmails(formData: FormData) {
-  const admin = await requireAdmin();
-  await setWatchingFeedback((await hubEnv()).DB, admin.id, formData.get("on") === "1");
-  revalidatePath("/admin/feedback");
 }
