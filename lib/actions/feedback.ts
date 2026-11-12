@@ -6,10 +6,12 @@ import { requireProfile } from "@/lib/auth";
 import { hubEnv } from "@/lib/hub/env";
 import { notifyLater } from "@/lib/notify";
 import { assertSponsorWriteAllowed } from "@/lib/sponsor-mode";
+import { requireAlumnusForWrite } from "@/lib/alumni/current";
 import {
   notifyNewFeedback,
   parseFeedbackKind,
   setFeedbackStatus,
+  submitAlumniFeedback,
   submitFeedback,
 } from "@/lib/sponsor-feedback";
 import { createClient } from "@/lib/supabase/server";
@@ -48,6 +50,23 @@ export async function sendSponsorFeedback(formData: FormData) {
   redirect("/company/feedback?sent=1");
 }
 
+/** An alum sends a request or feedback (Alumni → Feedback). Their own session only; alumni mode is read-only. */
+export async function sendAlumniFeedback(formData: FormData) {
+  const me = await requireAlumnusForWrite();
+  const kind = parseFeedbackKind(formData.get("kind"));
+  if (!kind) denyRedirect("/alumni/feedback", "feedback_kind");
+  const res = await submitAlumniFeedback((await hubEnv()).DB, {
+    alumniId: me.id,
+    kind,
+    body: String(formData.get("body") ?? ""),
+  });
+  if (!res.ok) denyRedirect("/alumni/feedback", res.code === "feedback_limit" ? "feedback_limit_alum" : res.code);
+  notifyLater("alumni feedback", (db, send) => notifyNewFeedback(db, send, res.id, "alum"));
+  revalidatePath("/alumni/feedback");
+  revalidatePath("/admin/feedback");
+  redirect("/alumni/feedback?sent=1");
+}
+
 async function requireAdmin() {
   const profile = await requireProfile();
   if (!profile.is_admin) throw new Error("Admins only");
@@ -62,4 +81,5 @@ export async function setSponsorFeedbackStatus(formData: FormData) {
   if (id) await setFeedbackStatus((await hubEnv()).DB, id, status, admin.id);
   revalidatePath("/admin/feedback");
   revalidatePath("/company/feedback");
+  revalidatePath("/alumni/feedback");
 }

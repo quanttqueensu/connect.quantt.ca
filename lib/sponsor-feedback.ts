@@ -1,7 +1,8 @@
 /**
- * Requests and feedback from sponsors (Company → Feedback), read only by
- * Connect admins (Admin → Feedback). A firm sees its own list and whether
- * each item is still open, never anyone else's.
+ * Requests and feedback from sponsors (Company → Feedback) and alumni
+ * (Alumni → Feedback), read only by Connect admins (Admin → Feedback). A firm
+ * or alum sees their own list and whether each item is still open, never
+ * anyone else's. Admins only read and handle these; they don't send them.
  *
  * Admins can ask to be emailed about each new item (Profile → Email
  * notifications, admins only); that is off until they
@@ -45,10 +46,26 @@ export const SPONSOR_FEEDBACK_SCHEMA = [
 )`,
 ];
 
+/** Alumni feedback (db/migrations/0016_alumni_feedback.sql); same admin inbox. */
+export const ALUMNI_FEEDBACK_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS alumni_feedback (
+  id text PRIMARY KEY,
+  alumni_id text REFERENCES alumni (id) ON DELETE SET NULL,
+  kind text NOT NULL CHECK (kind IN ('request', 'feedback', 'problem')),
+  body text NOT NULL CHECK (length(body) BETWEEN 1 AND 4000),
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done')),
+  resolved_at text,
+  resolved_by text REFERENCES profiles (id) ON DELETE SET NULL,
+  created_at text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+)`,
+  `CREATE INDEX IF NOT EXISTS alumni_feedback_alumni_idx ON alumni_feedback (alumni_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS alumni_feedback_status_idx ON alumni_feedback (status, created_at)`,
+];
+
 let ready = false;
 export async function ensureFeedbackTables(db: D1Database) {
   if (ready) return;
-  await db.batch(SPONSOR_FEEDBACK_SCHEMA.map((s) => db.prepare(s)));
+  await db.batch([...SPONSOR_FEEDBACK_SCHEMA, ...ALUMNI_FEEDBACK_SCHEMA].map((s) => db.prepare(s)));
   ready = true;
 }
 
@@ -68,7 +85,12 @@ export type FeedbackRow = {
   author_email: string | null;
 };
 
-export type AdminFeedbackRow = FeedbackRow & { company_name: string; resolved_by_name: string | null };
+/** company_name is the firm for sponsors, or "Alumni" (plus their firm, if set) for alumni. */
+export type AdminFeedbackRow = FeedbackRow & {
+  source: "sponsor" | "alum";
+  company_name: string;
+  resolved_by_name: string | null;
+};
 
 export type SubmitResult = { ok: true; id: string } | { ok: false; code: "feedback_empty" | "feedback_limit" };
 
@@ -97,6 +119,44 @@ export async function submitFeedback(
   return { ok: true, id };
 }
 
+/** Save one item from an alum (Alumni → Feedback). The caller has checked it's their own session. */
+export async function submitAlumniFeedback(
+  db: D1Database,
+  input: { alumniId: string; kind: FeedbackKind; body: string },
+  now = new Date(),
+): Promise<SubmitResult> {
+  await ensureFeedbackTables(db);
+  const body = input.body.trim().slice(0, MAX_FEEDBACK_LENGTH);
+  if (!body) return { ok: false, code: "feedback_empty" };
+  const since = new Date(now.getTime() - 24 * 3600_000).toISOString();
+  const recent = await db
+    .prepare(`SELECT count(*) AS n FROM alumni_feedback WHERE alumni_id = ? AND created_at > ?`)
+    .bind(input.alumniId, since)
+    .first<{ n: number }>();
+  if ((recent?.n ?? 0) >= MAX_FEEDBACK_PER_DAY) return { ok: false, code: "feedback_limit" };
+  const id = crypto.randomUUID();
+  await db
+    .prepare(`INSERT INTO alumni_feedback (id, alumni_id, kind, body, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .bind(id, input.alumniId, input.kind, body, now.toISOString())
+    .run();
+  return { ok: true, id };
+}
+
+/** One alum's own items, newest first. */
+export async function listAlumniFeedback(db: D1Database, alumniId: string): Promise<FeedbackRow[]> {
+  await ensureFeedbackTables(db);
+  const { results } = await db
+    .prepare(
+      `SELECT f.id, '' AS company_id, f.kind, f.body, f.status, f.created_at, f.resolved_at,
+              a.full_name AS author_name, a.email AS author_email
+         FROM alumni_feedback f LEFT JOIN alumni a ON a.id = f.alumni_id
+        WHERE f.alumni_id = ? ORDER BY f.created_at DESC LIMIT 200`,
+    )
+    .bind(alumniId)
+    .all<FeedbackRow>();
+  return results;
+}
+
 const BASE_SELECT = `SELECT f.id, f.company_id, f.kind, f.body, f.status, f.created_at, f.resolved_at,
        p.full_name AS author_name, p.email AS author_email
   FROM sponsor_feedback f LEFT JOIN profiles p ON p.id = f.profile_id`;
@@ -111,30 +171,46 @@ export async function listCompanyFeedback(db: D1Database, companyId: string): Pr
   return results;
 }
 
-/** Everything, for admins: open first (oldest first, like a queue), then done (newest first). */
+/** Everything from sponsors and alumni, for admins: open oldest first (a queue), done newest first. */
 export async function listAllFeedback(db: D1Database, status: "open" | "done"): Promise<AdminFeedbackRow[]> {
   await ensureFeedbackTables(db);
   const { results } = await db
     .prepare(
-      `SELECT f.id, f.company_id, f.kind, f.body, f.status, f.created_at, f.resolved_at,
-              p.full_name AS author_name, p.email AS author_email,
-              c.name AS company_name, r.full_name AS resolved_by_name
-         FROM sponsor_feedback f
-         JOIN companies c ON c.id = f.company_id
-         LEFT JOIN profiles p ON p.id = f.profile_id
-         LEFT JOIN profiles r ON r.id = f.resolved_by
-        WHERE f.status = ?
-        ORDER BY f.created_at ${status === "open" ? "ASC" : "DESC"}
-        LIMIT 500`,
+      `SELECT * FROM (
+         SELECT 'sponsor' AS source, f.id, f.company_id, f.kind, f.body, f.status, f.created_at, f.resolved_at,
+                p.full_name AS author_name, p.email AS author_email,
+                c.name AS company_name, r.full_name AS resolved_by_name
+           FROM sponsor_feedback f
+           JOIN companies c ON c.id = f.company_id
+           LEFT JOIN profiles p ON p.id = f.profile_id
+           LEFT JOIN profiles r ON r.id = f.resolved_by
+          WHERE f.status = ?
+         UNION ALL
+         SELECT 'alum' AS source, f.id, '' AS company_id, f.kind, f.body, f.status, f.created_at, f.resolved_at,
+                a.full_name AS author_name, a.email AS author_email,
+                CASE WHEN a.firm IS NOT NULL AND a.firm <> '' THEN 'Alumni · ' || a.firm ELSE 'Alumni' END AS company_name,
+                r.full_name AS resolved_by_name
+           FROM alumni_feedback f
+           LEFT JOIN alumni a ON a.id = f.alumni_id
+           LEFT JOIN profiles r ON r.id = f.resolved_by
+          WHERE f.status = ?
+       )
+       ORDER BY created_at ${status === "open" ? "ASC" : "DESC"}
+       LIMIT 500`,
     )
-    .bind(status)
+    .bind(status, status)
     .all<AdminFeedbackRow>();
   return results;
 }
 
 export async function countOpenFeedback(db: D1Database): Promise<number> {
   await ensureFeedbackTables(db);
-  const row = await db.prepare(`SELECT count(*) AS n FROM sponsor_feedback WHERE status = 'open'`).first<{ n: number }>();
+  const row = await db
+    .prepare(
+      `SELECT (SELECT count(*) FROM sponsor_feedback WHERE status = 'open')
+            + (SELECT count(*) FROM alumni_feedback WHERE status = 'open') AS n`,
+    )
+    .first<{ n: number }>();
   return row?.n ?? 0;
 }
 
@@ -147,10 +223,13 @@ export async function setFeedbackStatus(
   now = new Date(),
 ) {
   await ensureFeedbackTables(db);
-  await db
-    .prepare(`UPDATE sponsor_feedback SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?`)
-    .bind(status, status === "done" ? now.toISOString() : null, status === "done" ? adminId : null, id)
-    .run();
+  const vals = [status, status === "done" ? now.toISOString() : null, status === "done" ? adminId : null, id];
+  // Ids are random UUIDs, so at most one of the two tables has the row.
+  await db.batch(
+    ["sponsor_feedback", "alumni_feedback"].map((t) =>
+      db.prepare(`UPDATE ${t} SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?`).bind(...vals),
+    ),
+  );
 }
 
 export async function isWatchingFeedback(db: D1Database, profileId: string) {
@@ -181,14 +260,23 @@ function escapeHtml(s: string) {
  * who stopped being an admin stops getting them even if their row is still
  * there. The email carries the text, since only admins receive it.
  */
-export async function notifyNewFeedback(db: D1Database, send: SendEmails, feedbackId: string) {
+export async function notifyNewFeedback(
+  db: D1Database,
+  send: SendEmails,
+  feedbackId: string,
+  source: "sponsor" | "alum" = "sponsor",
+) {
   await ensureFeedbackTables(db);
   const item = await db
     .prepare(
-      `SELECT f.kind, f.body, c.name AS company_name, p.full_name AS author_name
-         FROM sponsor_feedback f JOIN companies c ON c.id = f.company_id
-         LEFT JOIN profiles p ON p.id = f.profile_id
-        WHERE f.id = ?`,
+      source === "sponsor"
+        ? `SELECT f.kind, f.body, c.name AS company_name, p.full_name AS author_name
+             FROM sponsor_feedback f JOIN companies c ON c.id = f.company_id
+             LEFT JOIN profiles p ON p.id = f.profile_id
+            WHERE f.id = ?`
+        : `SELECT f.kind, f.body, 'an alum' AS company_name, a.full_name AS author_name
+             FROM alumni_feedback f LEFT JOIN alumni a ON a.id = f.alumni_id
+            WHERE f.id = ?`,
     )
     .bind(feedbackId)
     .first<{ kind: FeedbackKind; body: string; company_name: string; author_name: string | null }>();
@@ -197,12 +285,17 @@ export async function notifyNewFeedback(db: D1Database, send: SendEmails, feedba
     .prepare(`SELECT p.email FROM sponsor_feedback_watchers w JOIN profiles p ON p.id = w.profile_id WHERE p.is_admin = 1`)
     .all<{ email: string }>();
   const what = FEEDBACK_KIND_LABEL[item.kind].toLowerCase();
-  const who = item.author_name ? `${item.author_name} (${item.company_name})` : item.company_name;
+  const alum = source === "alum";
+  const who = alum
+    ? `${item.author_name || "An alum"} (alum)`
+    : item.author_name
+      ? `${item.author_name} (${item.company_name})`
+      : item.company_name;
   const url = `${siteUrl()}/admin/feedback`;
-  const note = "You get these because you turned on sponsor feedback in your Connect notification settings.";
+  const note = "You get these because you turned on feedback emails in your Connect notification settings.";
   const emails: Email[] = results.map((r) => ({
     to: r.email,
-    subject: `Sponsor ${what} from ${item.company_name}`,
+    subject: alum ? `Alum ${what} from ${item.author_name || "an alum"}` : `Sponsor ${what} from ${item.company_name}`,
     text: [`${who} sent a ${what} on Connect:`, "", item.body, "", url, "", note].join("\n"),
     html:
       `<p>${escapeHtml(who)} sent a ${what} on Connect:</p>` +

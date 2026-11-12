@@ -203,6 +203,7 @@ const MESSAGES = {
   feedback_empty: "Write something before sending.",
   feedback_kind: "Choose what kind of note this is.",
   feedback_limit: "Your firm has sent a lot today. Try again tomorrow, or email a QUANTT exec.",
+  feedback_limit_alum: "You've sent a lot today. Try again tomorrow, or email a QUANTT exec.",
 } as const;
 
 /** Every code an action may pass to denyRedirect. */

@@ -12,6 +12,9 @@ import {
   setFeedbackStatus,
   setWatchingFeedback,
   SPONSOR_FEEDBACK_SCHEMA,
+  ALUMNI_FEEDBACK_SCHEMA,
+  listAlumniFeedback,
+  submitAlumniFeedback,
   submitFeedback,
 } from "@/lib/sponsor-feedback";
 
@@ -96,5 +99,34 @@ describe("sponsor feedback", () => {
     await setWatchingFeedback(db, admin, false);
     await notifyNewFeedback(db, send, r.id);
     expect(sent).toHaveLength(0);
+  });
+
+  it("matches db/migrations/0016_alumni_feedback.sql", () => {
+    const sql = readFileSync(resolve(__dirname, "../../db/migrations/0016_alumni_feedback.sql"), "utf8");
+    for (const stmt of ALUMNI_FEEDBACK_SCHEMA) expect(sql).toContain(stmt.trim());
+  });
+
+  it("alumni feedback lands in the same admin inbox, and only the alum sees their own", async () => {
+    const { raw, db, sent, send, a, admin } = setup();
+    run(raw, `INSERT INTO alumni (id, email, full_name, firm) VALUES ('al1', 'sam@gmail.com', 'Sam Lee', 'Jane Street')`);
+    run(raw, `INSERT INTO alumni (id, email, full_name) VALUES ('al2', 'kim@gmail.com', 'Kim Park')`);
+    await submitFeedback(db, { companyId: a.companyId, profileId: a.userId, kind: "request", body: "sponsor ask" }, NOW);
+    const r = await submitAlumniFeedback(db, { alumniId: "al1", kind: "feedback", body: "alum note" }, new Date(NOW.getTime() + 1000));
+    if (!r.ok) throw new Error();
+    expect((await listAlumniFeedback(db, "al1")).map((f) => f.body)).toEqual(["alum note"]);
+    expect(await listAlumniFeedback(db, "al2")).toEqual([]);
+    const open = await listAllFeedback(db, "open");
+    expect(open.map((f) => [f.source, f.company_name, f.body])).toEqual([
+      ["sponsor", expect.any(String), "sponsor ask"],
+      ["alum", "Alumni · Jane Street", "alum note"],
+    ]);
+    expect(await countOpenFeedback(db)).toBe(2);
+    await setFeedbackStatus(db, r.id, "done", admin, NOW);
+    expect(await countOpenFeedback(db)).toBe(1);
+
+    await setWatchingFeedback(db, admin, true);
+    await notifyNewFeedback(db, send, r.id, "alum");
+    expect(sent.map((e) => e.to)).toEqual(["exec@queensu.ca"]);
+    expect(sent[0].subject).toBe("Alum feedback from Sam Lee");
   });
 });

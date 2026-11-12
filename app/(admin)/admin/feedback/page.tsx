@@ -7,7 +7,7 @@ import { FEEDBACK_KIND_LABEL, isWatchingFeedback, listAllFeedback } from "@/lib/
 import { formatDate } from "@/lib/time";
 import Link from "next/link";
 
-/** Requests and feedback sponsors sent from Company → Feedback. Admins only (the admin layout checks). */
+/** Requests and feedback from sponsors (Company → Feedback) and alumni (Alumni → Feedback). Admins only (the admin layout checks). */
 export default async function AdminFeedbackPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const sp = await searchParams;
   const tab = sp.tab === "done" ? "done" : "open";
@@ -18,7 +18,7 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
   return (
     <>
       <PageHeader title="Feedback">
-        Requests and feedback from sponsors. Only admins see this.{" "}
+        Requests and feedback from sponsors and alumni. Only admins see this.{" "}
         {watching ? "You get an email for each new one" : "Emails for new ones are off"} (
         <Link href="/profile#notifications" className="underline">
           notification settings
