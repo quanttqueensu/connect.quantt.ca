@@ -2,6 +2,7 @@ import PageHeader from "@/components/PageHeader";
 import { listAlumniAccounts, listAlumniInvites } from "@/lib/alumni/data";
 import { hubEnv } from "@/lib/hub/env";
 import { createClient } from "@/lib/supabase/server";
+import { countOpenFeedback } from "@/lib/sponsor-feedback";
 import Link from "next/link";
 
 export default async function AdminHome() {
@@ -17,10 +18,12 @@ export default async function AdminHome() {
       listAlumniAccounts(DB),
       listAlumniInvites(DB),
     ]);
+  const openFeedback = await countOpenFeedback(DB);
 
   // What needs an exec first, then the rest.
   const links = [
     { href: "/admin/companies", label: "Join requests", hint: `${pending ?? 0} waiting for a decision` },
+    { href: "/admin/feedback", label: "Sponsor feedback", hint: `${openFeedback} open` },
     { href: "/admin/people?tab=sponsors", label: "Sponsors", hint: `${contacts ?? 0} contacts · ${sponsorInvites ?? 0} invited, not joined` },
     { href: "/admin/people?tab=alumni", label: "Alumni", hint: `${alumni.length} joined · ${alumInvites.length} invited, not joined` },
     { href: "/admin/people?tab=members", label: "Members", hint: `${members ?? 0} signed in · managed on auth.quantt.ca` },

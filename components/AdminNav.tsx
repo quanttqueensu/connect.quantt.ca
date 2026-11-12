@@ -13,9 +13,17 @@ const LINKS = [
   { href: "/admin/companies", label: "Companies" },
   { href: "/admin/posts", label: "Posts" },
   { href: "/admin/applications", label: "Applications" },
+  { href: "/admin/feedback", label: "Feedback" },
 ];
 
-export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolean }) {
+export default function AdminNav({
+  sponsorMode = false,
+  openFeedback = 0,
+}: {
+  sponsorMode?: boolean;
+  /** Open sponsor feedback items, shown as a dot on Feedback. */
+  openFeedback?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -41,6 +49,12 @@ export default function AdminNav({ sponsorMode = false }: { sponsorMode?: boolea
                 className="hub-nav-link relative"
               >
                 {link.label}
+                {link.href === "/admin/feedback" && openFeedback > 0 && (
+                  <>
+                    <span aria-hidden="true" className="absolute -right-2 top-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span className="sr-only"> ({openFeedback} open)</span>
+                  </>
+                )}
               </Link>
             );
           })}
