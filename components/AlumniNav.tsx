@@ -10,6 +10,7 @@ import { alumniLogout } from "@/lib/actions/alumni";
 const LINKS = [
   { href: "/alumni", label: "Opportunities" },
   { href: "/alumni/members", label: "Members" },
+  { href: "/alumni/resume-book", label: "Resume book" },
   { href: "/alumni/directory", label: "Alumni" },
   { href: "/alumni/messages", label: "Messages" },
   { href: "/alumni/discord", label: "Discord" },

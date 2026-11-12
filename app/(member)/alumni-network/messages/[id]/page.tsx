@@ -21,9 +21,11 @@ export default async function MemberAlumniThreadPage({
   if (!me) redirect("/login");
   if (me.role !== "member") redirect("/company");
   const { DB } = await hubEnv();
-  const viewer = { kind: "member" as const, id: me.id };
+  const viewer = { kind: "member" as const, id: me.id, admin: Boolean(me.is_admin) };
   const thread = await getThread(DB, viewer, id);
   if (!thread) notFound();
+  // Admins message alumni without a request, so the request notes don't apply.
+  const status = viewer.admin ? "accepted" : thread.status;
   after(() => markThreadRead(DB, viewer, id));
   return (
     <>
@@ -32,12 +34,12 @@ export default async function MemberAlumniThreadPage({
       </p>
       <h1 className="mt-2 font-heading text-2xl font-bold text-ink">{thread.alumni_name}</h1>
       <Notice message={sp.denied} />
-      {thread.status === "pending" && (
+      {status === "pending" && (
         <p className="mt-4 max-w-lg border border-line bg-surface px-4 py-3 text-sm text-copy">
           Request sent. You can send more messages once {thread.alumni_name} accepts.
         </p>
       )}
-      {thread.status === "declined" && (
+      {status === "declined" && (
         <p className="mt-4 max-w-lg border border-line bg-surface px-4 py-3 text-sm text-copy">
           {thread.alumni_name} declined this request.
         </p>
@@ -47,7 +49,7 @@ export default async function MemberAlumniThreadPage({
         conversationId={id}
         otherName={thread.alumni_name}
         messages={thread.messages}
-        canSend={thread.status === "accepted"}
+        canSend={status === "accepted"}
       />
     </>
   );
