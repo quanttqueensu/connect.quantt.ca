@@ -133,7 +133,7 @@ export async function closeAlumniOpportunity(formData: FormData) {
 async function memberViewer(): Promise<AlumniViewer> {
   const p = await requireProfile();
   if (p.role !== "member") throw new Error("Members only");
-  return { kind: "member", id: p.id };
+  return { kind: "member", id: p.id, admin: Boolean(p.is_admin) };
 }
 
 function threadPath(viewer: AlumniViewer, id: string) {
@@ -142,8 +142,8 @@ function threadPath(viewer: AlumniViewer, id: string) {
 
 /**
  * Start (or reopen) a conversation. Alumni pass member_id and go straight to
- * the thread. Members pass alumni_id: an existing conversation opens, and a
- * first contact goes to the message request form.
+ * the thread, and so do admins passing alumni_id. Other members pass alumni_id:
+ * an existing conversation opens, and a first contact goes to the request form.
  */
 export async function startAlumniConversation(formData: FormData) {
   const isAlumniSide = formData.get("side") === "alumni";

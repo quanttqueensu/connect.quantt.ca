@@ -25,7 +25,7 @@ export default async function AlumniRequestPage({
   if (me.role !== "member") redirect("/company");
   if (!UUID_RE.test(id)) notFound();
   const { DB } = await hubEnv();
-  const existing = await openConversation(DB, { kind: "member", id: me.id }, id);
+  const existing = await openConversation(DB, { kind: "member", id: me.id, admin: Boolean(me.is_admin) }, id);
   if (existing) redirect(`/alumni-network/messages/${existing}`);
   const name = await getAlumnusName(DB, id);
   if (name === null) notFound();

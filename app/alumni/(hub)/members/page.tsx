@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PrimaryButton, QuietButton } from "@/components/Form";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
@@ -5,6 +7,7 @@ import { startAlumniConversation } from "@/lib/actions/alumni";
 import { requireAlumnus } from "@/lib/alumni/current";
 import { listMembersForAlumni } from "@/lib/alumni/data";
 import { hubEnv } from "@/lib/hub/env";
+import MemberPhoto from "@/components/AlumniMemberPhoto";
 
 export default async function AlumniMembersPage({
   searchParams,
@@ -18,7 +21,8 @@ export default async function AlumniMembersPage({
   return (
     <>
       <PageHeader title="Current members">
-        Message a member to offer advice, a referral or a coffee chat.
+        Message a member to offer advice, a referral or a coffee chat. Resumes of members in the{" "}
+        <Link href="/alumni/resume-book" className="text-primary hover:underline">resume book</Link> are linked.
       </PageHeader>
       <Notice message={sp.denied} />
       <form method="get" className="mb-8 flex max-w-md items-stretch gap-2">
@@ -40,7 +44,9 @@ export default async function AlumniMembersPage({
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {members.map((m) => (
-            <div key={m.id} className="min-w-0 border border-line p-5 [overflow-wrap:anywhere]">
+            <div key={m.id} className="flex min-w-0 gap-4 border border-line p-5 [overflow-wrap:anywhere]">
+              <MemberPhoto id={m.id} hasPhoto={Boolean(m.has_photo)} />
+              <div className="min-w-0 flex-1">
               <p className="font-heading text-lg font-bold text-ink">{m.full_name}</p>
               <p className="mt-1 text-sm text-muted">{[m.program, m.grad_year].filter(Boolean).join(" · ")}</p>
               {m.bio && <p className="mt-2 line-clamp-3 text-sm text-copy">{m.bio}</p>}
@@ -50,11 +56,17 @@ export default async function AlumniMembersPage({
                   <input type="hidden" name="member_id" value={m.id} />
                   <QuietButton type="submit">Message</QuietButton>
                 </form>
+                {m.in_book ? (
+                  <a href={`/alumni/talent/${m.id}/resume`} className="text-sm text-primary hover:underline">
+                    Resume
+                  </a>
+                ) : null}
                 {m.linkedin_url && (
                   <a href={m.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
                     LinkedIn
                   </a>
                 )}
+              </div>
               </div>
             </div>
           ))}

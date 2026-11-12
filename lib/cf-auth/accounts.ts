@@ -67,9 +67,12 @@ export async function profileForSignIn(db: D1Database, rawEmail: string, now = n
   const statements = [
     db
       .prepare(
-        `INSERT INTO profiles (id, email, full_name, role, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO profiles (id, email, full_name, role, is_admin, resume_book_opt_in, resume_book_opt_in_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(id, email, defaultName(invite, email), invite.role, invite.is_admin ? 1 : 0, at),
+      // Members are in the resume book unless they opt out (Ethan, 2026-11-12).
+      .bind(id, email, defaultName(invite, email), invite.role, invite.is_admin ? 1 : 0,
+        invite.role === "member" ? 1 : 0, invite.role === "member" ? at : null, at),
     db.prepare(`UPDATE invites SET accepted_at = ? WHERE id = ?`).bind(at, invite.id),
   ];
   if (invite.role === "company_user" && invite.company_id) {
@@ -173,9 +176,11 @@ export async function profileForQuanttMember(
   const statements = [
     db
       .prepare(
-        `INSERT INTO profiles (id, email, full_name, role, is_admin, created_at) VALUES (?, ?, ?, 'member', ?, ?)`,
+        `INSERT INTO profiles (id, email, full_name, role, is_admin, resume_book_opt_in, resume_book_opt_in_at, created_at)
+         VALUES (?, ?, ?, 'member', ?, 1, ?, ?)`,
       )
-      .bind(id, email, name, isAdmin, at),
+      // Members are in the resume book unless they opt out (Ethan, 2026-11-12).
+      .bind(id, email, name, isAdmin, at, at),
   ];
   if (invite) statements.push(db.prepare(`UPDATE invites SET accepted_at = ? WHERE id = ?`).bind(at, invite.id));
   if (sub) statements.push(linkStatement(db, sub, id, now));
