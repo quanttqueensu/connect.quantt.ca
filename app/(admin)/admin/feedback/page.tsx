@@ -39,13 +39,13 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
                 : "border-b-2 border-transparent pb-1 text-copy hover:text-ink"
             }
           >
-            {t === "open" ? "To handle" : "Handled"}
+            {t === "open" ? "Open" : "Closed"}
           </Link>
         ))}
       </nav>
 
       {items.length === 0 ? (
-        <p className="text-sm text-copy">{tab === "open" ? "Nothing to handle." : "Nothing handled yet."}</p>
+        <p className="text-sm text-copy">{tab === "open" ? "Nothing open." : "Nothing closed yet."}</p>
       ) : (
         <ul>
           {items.map((f) => (
@@ -64,7 +64,7 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
                     </>
                   ) : null}
                   {f.status === "done" && f.resolved_at
-                    ? ` · handled ${formatDate(f.resolved_at)}${f.resolved_by_name ? ` by ${f.resolved_by_name}` : ""}`
+                    ? ` · closed ${formatDate(f.resolved_at)}${f.resolved_by_name ? ` by ${f.resolved_by_name}` : ""}`
                     : ""}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{f.body}</p>
@@ -72,7 +72,7 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
               <form action={setSponsorFeedbackStatus}>
                 <input type="hidden" name="id" value={f.id} />
                 <input type="hidden" name="status" value={f.status === "open" ? "done" : "open"} />
-                <QuietButton type="submit">{f.status === "open" ? "Mark handled" : "Move back"}</QuietButton>
+                <QuietButton type="submit">{f.status === "open" ? "Close" : "Reopen"}</QuietButton>
               </form>
             </li>
           ))}
