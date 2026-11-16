@@ -487,3 +487,11 @@ export async function cancelAlumniInvite(db: D1Database, id: string) {
   await ensureAlumniTables(db);
   await db.prepare(`DELETE FROM alumni_invites WHERE id = ? AND accepted_at IS NULL`).bind(id).run();
 }
+
+export async function getPendingAlumniInvite(db: D1Database, id: string) {
+  await ensureAlumniTables(db);
+  return db
+    .prepare(`SELECT id, email, full_name FROM alumni_invites WHERE id = ? AND accepted_at IS NULL`)
+    .bind(id)
+    .first<{ id: string; email: string; full_name: string }>();
+}

@@ -45,7 +45,7 @@ export default function FeedbackPanel({
                 <p className="text-xs text-copy">
                   {FEEDBACK_KIND_LABEL[f.kind]} · {formatDate(f.created_at)}
                   {f.author_name ? ` · ${f.author_name}` : ""} ·{" "}
-                  <span className={f.status === "done" ? "text-primary" : ""}>{f.status === "done" ? "Done" : "Open"}</span>
+                  <span className={f.status === "done" ? "text-primary" : ""}>{f.status === "done" ? "Closed" : "Open"}</span>
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{f.body}</p>
               </li>

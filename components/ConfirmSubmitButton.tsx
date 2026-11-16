@@ -22,6 +22,7 @@ import { buttonClass, type ButtonVariant } from "@/components/Form";
 export default function ConfirmSubmitButton({
   confirmMessage,
   confirmLabel,
+  dismissLabel = "Cancel",
   children,
   variant = "primary",
   className,
@@ -29,6 +30,8 @@ export default function ConfirmSubmitButton({
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   confirmMessage: string;
   confirmLabel?: string;
+  /** The button that closes the dialog without submitting. */
+  dismissLabel?: string;
   variant?: ButtonVariant;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +86,7 @@ export default function ConfirmSubmitButton({
             onClick={() => dialogRef.current?.close()}
             className={buttonClass("ghost")}
           >
-            Cancel
+            {dismissLabel}
           </button>
         </div>
       </dialog>
