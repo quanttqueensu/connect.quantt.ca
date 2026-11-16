@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { sendInviteEmail, type InviteAudience } from "@/lib/cf-auth/email";
 import { hubEnv } from "@/lib/hub/env";
+import { clearInviteReminders, recordInviteReminder } from "@/lib/invite-reminders";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -624,18 +625,22 @@ async function pendingSponsorInvite(formData: FormData) {
     .is("accepted_at", null)
     .maybeSingle();
   if (!data) denyRedirect("/admin/people?tab=sponsors", "invite_not_pending");
-  return { admin, invite: data as { id: string; email: string; full_name: string } };
+  return { admin, profile, invite: data as { id: string; email: string; full_name: string } };
 }
 
 export async function remindSponsorInvite(formData: FormData) {
-  const { invite } = await pendingSponsorInvite(formData);
+  const { invite, profile } = await pendingSponsorInvite(formData);
+  const env = await hubEnv();
   try {
-    await sendInviteEmail(await hubEnv(), invite.email, invite.full_name, `${siteUrl()}/login`, "sponsor", fetch, true);
+    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "sponsor", fetch, true);
   } catch (e) {
     console.error("invite reminder not sent", e);
     denyRedirect("/admin/people?tab=sponsors", "invite_remind_failed");
   }
-  redirect("/admin/people?tab=sponsors&reminded=1");
+  // Only once Resend has accepted it, so the row's "Reminded" date means sent.
+  await recordInviteReminder(env.DB, "sponsor", invite.id, profile.id).catch((e) => console.error("reminder log failed", e));
+  revalidatePath("/admin/people");
+  redirect(`/admin/people?tab=sponsors&reminded=${invite.id}`);
 }
 
 export async function cancelSponsorInvite(formData: FormData) {
@@ -645,6 +650,7 @@ export async function cancelSponsorInvite(formData: FormData) {
     console.error("invite cancel failed", error.message);
     denyRedirect("/admin/people?tab=sponsors", "invite_failed");
   }
+  await clearInviteReminders((await hubEnv()).DB, "sponsor", invite.id).catch(() => undefined);
   revalidatePath("/admin/people");
   revalidatePath("/admin/companies");
   redirect("/admin/people?tab=sponsors&cancelled=1");

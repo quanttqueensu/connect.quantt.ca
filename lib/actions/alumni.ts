@@ -29,6 +29,7 @@ import { looksLikeEmail, normalizeEmail } from "@/lib/cf-auth/tokens";
 import { hubEnv } from "@/lib/hub/env";
 import { notifyLater } from "@/lib/notify";
 import { notifyAlumniMessage, notifyAlumniRequest, notifyAlumniRequestAccepted } from "@/lib/notifications";
+import { clearInviteReminders, recordInviteReminder } from "@/lib/invite-reminders";
 import { siteUrl } from "@/lib/site-url";
 import { denyRedirect } from "./deny";
 
@@ -242,7 +243,7 @@ export async function inviteAlumniAction(formData: FormData) {
 
 /** Email a pending alumni invite again. Only rows still waiting (accepted_at IS NULL). */
 export async function remindAlumniInviteAction(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const env = await hubEnv();
   const invite = UUID_RE.test(id) ? await getPendingAlumniInvite(env.DB, id) : null;
@@ -253,7 +254,10 @@ export async function remindAlumniInviteAction(formData: FormData) {
     console.error("alumni invite reminder not sent", e);
     denyRedirect("/admin/people?tab=alumni", "invite_remind_failed");
   }
-  redirect("/admin/people?tab=alumni&reminded=1");
+  // Only once Resend has accepted it, so the row's "Reminded" date means sent.
+  await recordInviteReminder(env.DB, "alumni", invite.id, admin.id).catch((e) => console.error("reminder log failed", e));
+  revalidatePath("/admin/people");
+  redirect(`/admin/people?tab=alumni&reminded=${invite.id}`);
 }
 
 export async function removeAlumniAction(formData: FormData) {
@@ -262,7 +266,10 @@ export async function removeAlumniAction(formData: FormData) {
   const env = await hubEnv();
   const { DB } = env;
   if (UUID_RE.test(id)) {
-    if (formData.get("what") === "invite") await cancelAlumniInvite(DB, id);
+    if (formData.get("what") === "invite") {
+      await cancelAlumniInvite(DB, id);
+      await clearInviteReminders(DB, "alumni", id).catch(() => undefined);
+    }
     else {
       // Before the row goes: the Discord link is deleted with it.
       await removeAlumnusFromDiscord(DB, env, id);

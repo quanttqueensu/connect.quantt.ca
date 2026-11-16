@@ -75,3 +75,31 @@ describe("cancelling a pending invite", () => {
     expect(all(raw, `SELECT count(*) AS n FROM alumni_invites`)[0].n).toBe(1);
   });
 });
+
+describe("invite reminder log", () => {
+  it("matches db/migrations/0017_invite_reminders.sql", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const { INVITE_REMINDERS_SCHEMA } = await import("@/lib/invite-reminders");
+    const sql = readFileSync(resolve(__dirname, "../../db/migrations/0017_invite_reminders.sql"), "utf8");
+    for (const stmt of INVITE_REMINDERS_SCHEMA) expect(sql).toContain(stmt.trim());
+  });
+
+  it("counts reminders per invite, keeps the latest date, and clears on cancel", async () => {
+    const { recordInviteReminder, inviteReminderSummary, clearInviteReminders } = await import("@/lib/invite-reminders");
+    const raw = freshDb();
+    const db = asD1(raw);
+    const adminId = addMember(raw, { admin: true });
+    const a = uuid();
+    const b = uuid();
+    await recordInviteReminder(db, "sponsor", a, adminId, new Date("2026-11-10T12:00:00Z"));
+    await recordInviteReminder(db, "sponsor", a, adminId, new Date("2026-11-16T12:00:00Z"));
+    await recordInviteReminder(db, "alumni", b, adminId, new Date("2026-11-12T12:00:00Z"));
+    const sponsors = await inviteReminderSummary(db, "sponsor");
+    expect(sponsors.get(a)).toEqual({ count: 2, last: "2026-11-16T12:00:00.000Z" });
+    expect(sponsors.has(b)).toBe(false);
+    expect((await inviteReminderSummary(db, "alumni")).get(b)?.count).toBe(1);
+    await clearInviteReminders(db, "sponsor", a);
+    expect((await inviteReminderSummary(db, "sponsor")).size).toBe(0);
+  });
+});
