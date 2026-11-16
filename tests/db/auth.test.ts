@@ -130,6 +130,8 @@ describe("first sign-in from an invite", () => {
     expect(all(raw, `SELECT company_id FROM company_users WHERE profile_id = ?`, id)).toEqual([{ company_id: firm.companyId }]);
     expect(all(raw, `SELECT accepted_at FROM invites`)[0].accepted_at).not.toBeNull();
     expect(all(raw, `SELECT email, full_name FROM profiles WHERE id = ?`, id)[0]).toEqual({ email: "rita@acme.com", full_name: "Rita" });
+    // The resume book is for members only.
+    expect(all(raw, `SELECT resume_book_opt_in FROM profiles WHERE id = ?`, id)[0]).toEqual({ resume_book_opt_in: 0 });
   });
 
   it("does not create anyone without an invite", async () => {
@@ -145,6 +147,10 @@ describe("Sign in with QUANTT", () => {
     expect(out.ok).toBe(true);
     expect(all(raw, `SELECT email, full_name, role, is_admin FROM profiles`)).toEqual([
       { email: "zed@queensu.ca", full_name: "Zed", role: "member", is_admin: 1 },
+    ]);
+    // In the resume book unless they opt out.
+    expect(all(raw, `SELECT resume_book_opt_in, resume_book_opt_in_at FROM profiles`)).toEqual([
+      { resume_book_opt_in: 1, resume_book_opt_in_at: expect.any(String) },
     ]);
     await profileForQuanttMember(db, { email: "zed@queensu.ca", name: "Zed", role: "member" });
     expect(all(raw, `SELECT is_admin FROM profiles`)).toEqual([{ is_admin: 0 }]);

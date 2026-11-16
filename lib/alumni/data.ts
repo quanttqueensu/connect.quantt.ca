@@ -2,19 +2,27 @@
  * Alumni area data. Every function takes the viewer and checks access itself:
  *
  *  - Alumni see other alumni, the member directory (name, program, grad year,
- *    bio, LinkedIn; never resumes, applications or sponsor data), alumni
- *    posts, and their own conversations.
+ *    bio, LinkedIn, headshot; resumes only through the resume book, see
+ *    lib/alumni/talent.ts; never applications or sponsor data), alumni posts,
+ *    and their own conversations.
  *  - Members see alumni, open alumni posts, and their own alumni conversations.
  *  - A conversation is always one alumnus and one member.
  *  - A member's first contact is a message request (Ethan, 2026-11-02): the
  *    member sends one intro message, then can't send more until the alum
  *    accepts. Alumni can message any member directly, and an alum replying to a
  *    request accepts it. Declined requests drop out of the alum's inbox.
+ *  - Admins skip requests (Ethan, 2026-11-12): an admin member opens a
+ *    conversation with any alum directly and can always send. An admin's
+ *    message to a pending or declined request reopens it as accepted, so the
+ *    alum sees it.
  */
 import type { D1Database } from "@/lib/db/d1";
 import { ensureAlumniTables, notGraduated, notSuspended } from "@/lib/alumni/schema";
 
-export type AlumniViewer = { kind: "alumni"; id: string } | { kind: "member"; id: string };
+/** `admin` on a member: a connect admin, who messages alumni without a request. */
+export type AlumniViewer = { kind: "alumni"; id: string } | { kind: "member"; id: string; admin?: boolean };
+
+const skipsRequests = (viewer: AlumniViewer) => viewer.kind === "alumni" || viewer.admin === true;
 
 export type AlumniProfile = {
   id: string;
@@ -51,6 +59,9 @@ export type MemberCardForAlumni = {
   grad_year: number | null;
   bio: string | null;
   linkedin_url: string | null;
+  has_photo: number;
+  /** Opted in to the resume book with a resume saved: alumni can open it. */
+  in_book: number;
 };
 
 // has_photo: a graduate's headshot copied from their member profile (lib/alumni/graduates.ts), served at /alumni/photo/<id>.
@@ -106,7 +117,11 @@ export async function listMembersForAlumni(db: D1Database, viewer: AlumniViewer,
   if (viewer.kind !== "alumni") throw new Error("Alumni only");
   await ensureAlumniTables(db);
   const term = q.trim().slice(0, 80);
-  const cols = "id, full_name, program, grad_year, bio, linkedin_url";
+  const cols = `id, full_name, program, grad_year, bio, linkedin_url,
+    CASE WHEN photo_path IS NULL THEN 0 ELSE 1 END AS has_photo,
+    CASE WHEN resume_book_opt_in = 1 AND resume_book_opt_in_at IS NOT NULL
+          AND EXISTS (SELECT 1 FROM member_documents md WHERE md.member_id = profiles.id AND md.resume_path IS NOT NULL)
+         THEN 1 ELSE 0 END AS in_book`;
   const stmt = term
     ? db
         .prepare(
@@ -183,14 +198,14 @@ async function existingConversation(db: D1Database, alumniId: string, memberId: 
 }
 
 /**
- * Alumni: the conversation with this member, created (open, no request) if
- * needed. Members: the existing conversation only, since a member's first
+ * Alumni and admins: the conversation, created (open, no request) if needed.
+ * Other members: the existing conversation only, since a member's first
  * contact goes through requestConversation. Null if there's nothing to open.
  */
 export async function openConversation(db: D1Database, viewer: AlumniViewer, otherId: string, now = new Date()) {
   await ensureAlumniTables(db);
   const [alumniId, memberId] = viewer.kind === "alumni" ? [viewer.id, otherId] : [otherId, viewer.id];
-  if (viewer.kind === "member") return existingConversation(db, alumniId, memberId);
+  if (!skipsRequests(viewer)) return existingConversation(db, alumniId, memberId);
   if (!(await bothExist(db, alumniId, memberId))) return null;
   await db
     .prepare(
@@ -216,6 +231,16 @@ export async function requestConversation(
 ): Promise<{ id: string; created: boolean } | null> {
   if (viewer.kind !== "member") return null;
   await ensureAlumniTables(db);
+  if (viewer.admin) {
+    // Admins don't send requests: the intro goes in as an ordinary first message.
+    const text = intro.trim();
+    if (!text || text.length > MAX_ALUMNI_MESSAGE) return null;
+    const had = await existingConversation(db, alumniId, viewer.id);
+    const id = await openConversation(db, viewer, alumniId, now);
+    if (!id) return null;
+    if (!(await sendThreadMessage(db, viewer, id, text, now))) return null;
+    return { id, created: !had };
+  }
   const existing = await existingConversation(db, alumniId, viewer.id);
   if (existing) return { id: existing, created: false };
   const text = intro.trim();
@@ -239,13 +264,29 @@ export async function requestConversation(
 export async function decideRequest(db: D1Database, viewer: AlumniViewer, conversationId: string, accept: boolean, now = new Date()) {
   if (viewer.kind !== "alumni") return false;
   await ensureAlumniTables(db);
+  return setRequestStatus(db, conversationId, "alumni_id", viewer.id, accept, now);
+}
+
+/** An admin writing into their own pending or declined request reopens it. */
+async function reopenAsAdmin(db: D1Database, memberId: string, conversationId: string, now: Date) {
+  await setRequestStatus(db, conversationId, "member_id", memberId, true, now);
+}
+
+async function setRequestStatus(
+  db: D1Database,
+  conversationId: string,
+  side: "alumni_id" | "member_id",
+  who: string,
+  accept: boolean,
+  now: Date,
+) {
   const res = await db
     .prepare(
       `UPDATE alumni_message_requests SET status = ?, decided_at = ?
         WHERE conversation_id = ? AND status <> ?
-          AND conversation_id IN (SELECT id FROM alumni_conversations WHERE alumni_id = ?)`,
+          AND conversation_id IN (SELECT id FROM alumni_conversations WHERE ${side} = ?)`,
     )
-    .bind(accept ? "accepted" : "declined", now.toISOString(), conversationId, accept ? "accepted" : "declined", viewer.id)
+    .bind(accept ? "accepted" : "declined", now.toISOString(), conversationId, accept ? "accepted" : "declined", who)
     .run();
   return res.meta.changes === 1;
 }
@@ -343,7 +384,7 @@ export const MAX_ALUMNI_REQUEST = 1000;
 /**
  * Adds a message if the viewer is in the conversation. Returns false otherwise,
  * and for a member whose request is still pending or was declined. An alum
- * replying to a request accepts it.
+ * replying to a request accepts it, and so does an admin writing into one.
  */
 export async function sendThreadMessage(db: D1Database, viewer: AlumniViewer, conversationId: string, body: string, now = new Date()) {
   const text = body.trim();
@@ -351,8 +392,9 @@ export async function sendThreadMessage(db: D1Database, viewer: AlumniViewer, co
   const thread = await getThread(db, viewer, conversationId, 1);
   if (!thread) return false;
   if (thread.status !== "accepted") {
-    if (viewer.kind === "member") return false;
-    await decideRequest(db, viewer, conversationId, true, now);
+    if (viewer.kind === "alumni") await decideRequest(db, viewer, conversationId, true, now);
+    else if (viewer.admin) await reopenAsAdmin(db, viewer.id, conversationId, now);
+    else return false;
   }
   await db
     .prepare(`INSERT INTO alumni_messages (id, conversation_id, sender, body, created_at) VALUES (?, ?, ?, ?, ?)`)

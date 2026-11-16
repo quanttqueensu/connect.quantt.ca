@@ -24,7 +24,9 @@ export default async function AlumniNetworkPage({
   return (
     <>
       <PageHeader title="Alumni">
-        QUANTT alumni. Send any alum a message request; once they accept, message freely.
+        {me.is_admin
+          ? "QUANTT alumni. As an admin you can message any alum directly."
+          : "QUANTT alumni. Send any alum a message request; once they accept, message freely."}
       </PageHeader>
       <Notice message={sp.denied} />
 

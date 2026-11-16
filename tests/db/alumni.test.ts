@@ -282,3 +282,37 @@ describe("alumni message requests", () => {
     expect(sent.map((e) => e.to)).toEqual(["alex@firm.com", "ann@queensu.ca", "alex@firm.com"]);
   });
 });
+
+describe("admins message alumni without requests", () => {
+  it("opens a conversation directly and can always send", async () => {
+    const { db } = setupDb();
+    const alum = await signIn(db, "alex@firm.com");
+    const admin = { kind: "member" as const, id: adminId, admin: true };
+    const alumni = { kind: "alumni" as const, id: alum };
+
+    const id = (await openConversation(db, admin, alum, NOW))!;
+    expect(id).toBeTruthy();
+    expect(await sendThreadMessage(db, admin, id, "Hi Alex", later(1))).toBe(true);
+    expect((await listConversations(db, alumni))[0]).toMatchObject({ id, status: "accepted", unread: true });
+
+    // A request form submission from an admin is a plain first message too.
+    const other = await signIn(db, "sam@firm.com", "Sam");
+    const res = (await requestConversation(db, admin, other, "Hello Sam", NOW))!;
+    expect(res.created).toBe(true);
+    expect((await getThread(db, { kind: "alumni", id: other }, res.id))).toMatchObject({ status: "accepted" });
+
+    // The admin flag only comes from the server; without it the same member still needs a request.
+    const third = await signIn(db, "kim@firm.com", "Kim");
+    expect(await openConversation(db, { kind: "member", id: adminId }, third, NOW)).toBeNull();
+  });
+
+  it("reopens an admin's old pending or declined request when they write", async () => {
+    const { db } = setupDb();
+    const alum = await signIn(db, "alex@firm.com");
+    const req = (await requestConversation(db, { kind: "member", id: adminId }, alum, "Hi", NOW))!;
+    await decideRequest(db, { kind: "alumni", id: alum }, req.id, false, NOW);
+    expect(await listConversations(db, { kind: "alumni", id: alum })).toEqual([]);
+    expect(await sendThreadMessage(db, { kind: "member", id: adminId, admin: true }, req.id, "Following up", later(1))).toBe(true);
+    expect((await listConversations(db, { kind: "alumni", id: alum }))[0]).toMatchObject({ status: "accepted", unread: true });
+  });
+});

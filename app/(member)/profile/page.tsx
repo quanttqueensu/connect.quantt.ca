@@ -247,7 +247,7 @@ export default async function ProfilePage({
           <section className="border-t border-line pt-4">
             <h2 className="font-semibold text-ink">Resume book</h2>
             <p className="mt-1 text-xs text-copy">
-              Sponsors see your name, program, grad year and resume, never your applications or messages.
+              On by default; opt out any time. Sponsors and alumni see your name, program, grad year, headshot and resume, never your applications or messages.
             </p>
             <form action={setResumeBookOptIn} className="mt-2 flex flex-wrap items-center gap-3">
               <input type="hidden" name="opt_in" value={profile.resume_book_opt_in ? "false" : "true"} />
