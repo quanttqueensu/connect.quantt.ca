@@ -9,6 +9,7 @@ import { remindAlumniInviteAction, removeAlumniAction } from "@/lib/actions/alum
 import { listAlumniAccounts, listAlumniInvites } from "@/lib/alumni/data";
 import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import { hubEnv } from "@/lib/hub/env";
+import { inviteReminderSummary, type ReminderSummary } from "@/lib/invite-reminders";
 import { createClient } from "@/lib/supabase/server";
 import { loadTiers } from "@/lib/tiers";
 import { formatDate } from "@/lib/time";
@@ -56,6 +57,10 @@ export default async function PeoplePage({
       listAlumniInvites(DB),
       listAlumniAccounts(DB),
     ]);
+  const [sponsorReminders, alumniReminders] = await Promise.all([
+    inviteReminderSummary(DB, "sponsor").catch(() => new Map<string, ReminderSummary>()),
+    inviteReminderSummary(DB, "alumni").catch(() => new Map<string, ReminderSummary>()),
+  ]);
   if (tab === "alumni") {
     // Opening the Alumni tab also brings auth.quantt.ca's Alumni tab up to date (the first time, and after any missed send).
     await pushConnectAlumni(DB, AUTH).catch((e) => console.error("connect alumni push failed", e));
@@ -74,6 +79,11 @@ export default async function PeoplePage({
     .sort((a, b) => a.firm.localeCompare(b.firm) || a.name.localeCompare(b.name));
   const sponsorInvites = (pendingSponsors as { id: string; email: string; full_name: string; created_at: string; companies: Named }[] | null) ?? [];
 
+  // ?reminded=<invite id>: look the address up here rather than putting it in the URL.
+  const remindedTo = sp.reminded
+    ? (sponsorInvites.find((i) => i.id === sp.reminded)?.email ?? alumInvites.find((i) => i.id === sp.reminded)?.email)
+    : undefined;
+
   const counts: Record<Tab, number> = {
     members: (members ?? []).length,
     sponsors: sponsorRows.length + sponsorInvites.length,
@@ -86,7 +96,11 @@ export default async function PeoplePage({
     <>
       <PageHeader title="People">Everyone who can use Connect.</PageHeader>
       <Notice message={sp.denied} />
-      {sp.reminded && <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">Reminder sent.</p>}
+      {sp.reminded && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy [overflow-wrap:anywhere]">
+          {remindedTo ? `Reminder sent to ${remindedTo}.` : "Reminder sent."}
+        </p>
+      )}
       {sp.cancelled && (
         <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">Invite cancelled. That address can no longer sign in.</p>
       )}
@@ -159,6 +173,7 @@ export default async function PeoplePage({
                     {i.full_name}{" "}
                     <span className="text-copy">
                       {i.email} · {one(i.companies)?.name ?? "Company"} · invited {formatDate(i.created_at)}
+                      <Reminded summary={sponsorReminders.get(i.id)} />
                     </span>
                   </span>
                   <InviteActions
@@ -190,7 +205,11 @@ export default async function PeoplePage({
             {alumInvites.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line py-3 text-sm">
                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                  {i.full_name} <span className="text-muted">{i.email} · invited {formatDate(i.created_at)}</span>
+                  {i.full_name}{" "}
+                  <span className="text-muted">
+                    {i.email} · invited {formatDate(i.created_at)}
+                    <Reminded summary={alumniReminders.get(i.id)} />
+                  </span>
                 </span>
                 <InviteActions
                   id={i.id}
@@ -272,5 +291,19 @@ function InviteActions({
         </ConfirmSubmitButton>
       </form>
     </span>
+  );
+}
+
+/** " · reminded Nov 16 (2×)" after a pending invite, once a reminder has gone out. */
+function Reminded({ summary }: { summary?: ReminderSummary }) {
+  if (!summary) return null;
+  return (
+    <>
+      {" · "}
+      <span className="font-medium text-ink">
+        reminded {formatDate(summary.last)}
+        {summary.count > 1 ? ` (${summary.count}×)` : ""}
+      </span>
+    </>
   );
 }
