@@ -105,6 +105,8 @@ const MESSAGES = {
   invite_failed:
     "That invite could not be sent. Check the details and try again, or contact another exec if it keeps failing.",
   invite_name_email_required: "Name and email are required.",
+  invite_not_pending: "That invite isn't pending any more. They may have just signed in, or it was already cancelled.",
+  invite_remind_failed: "The reminder email didn't send. The invite still works; try again in a minute.",
   invite_company_required: "Choose an existing firm or enter a new company name.",
   invite_kind_invalid: "Choose member, admin, or company.",
   invite_tier_required: "Choose a sponsorship tier for this firm.",

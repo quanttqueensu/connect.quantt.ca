@@ -4,7 +4,8 @@ import { buttonClass, QuietButton } from "@/components/Form";
 import InviteForm from "@/components/InviteForm";
 import Notice from "@/components/Notice";
 import PageHeader from "@/components/PageHeader";
-import { removeAlumniAction } from "@/lib/actions/alumni";
+import { cancelSponsorInvite, remindSponsorInvite } from "@/lib/actions/admin";
+import { remindAlumniInviteAction, removeAlumniAction } from "@/lib/actions/alumni";
 import { listAlumniAccounts, listAlumniInvites } from "@/lib/alumni/data";
 import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import { hubEnv } from "@/lib/hub/env";
@@ -25,7 +26,15 @@ const one = (v: Named) => (Array.isArray(v) ? v[0] : v);
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; denied?: string; sent?: string; unsent?: string; invite?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    denied?: string;
+    sent?: string;
+    unsent?: string;
+    invite?: string;
+    reminded?: string;
+    cancelled?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const tab: Tab = sp.tab === "sponsors" || sp.tab === "alumni" ? sp.tab : "members";
@@ -38,7 +47,7 @@ export default async function PeoplePage({
       supabase.from("company_users").select("company_id, profiles(full_name, email), companies(name)"),
       supabase
         .from("invites")
-        .select("email, full_name, created_at, companies(name)")
+        .select("id, email, full_name, created_at, companies(name)")
         .eq("role", "company_user")
         .is("accepted_at", null)
         .order("created_at", { ascending: false }),
@@ -63,7 +72,7 @@ export default async function PeoplePage({
     })
     .filter((c) => c.email)
     .sort((a, b) => a.firm.localeCompare(b.firm) || a.name.localeCompare(b.name));
-  const sponsorInvites = (pendingSponsors as { email: string; full_name: string; created_at: string; companies: Named }[] | null) ?? [];
+  const sponsorInvites = (pendingSponsors as { id: string; email: string; full_name: string; created_at: string; companies: Named }[] | null) ?? [];
 
   const counts: Record<Tab, number> = {
     members: (members ?? []).length,
@@ -77,6 +86,10 @@ export default async function PeoplePage({
     <>
       <PageHeader title="People">Everyone who can use Connect.</PageHeader>
       <Notice message={sp.denied} />
+      {sp.reminded && <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">Reminder sent.</p>}
+      {sp.cancelled && (
+        <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">Invite cancelled. That address can no longer sign in.</p>
+      )}
       {sp.unsent && (
         <p className="mb-6 border-l-2 border-primary pl-4 text-sm text-copy">
           The invite is saved, but the email didn’t send. Tell them to sign in at connect.quantt.ca/login with the
@@ -141,11 +154,19 @@ export default async function PeoplePage({
           ) : (
             <ul className="mb-6">
               {sponsorInvites.map((i) => (
-                <li key={i.email} className="border-t border-line py-3 text-sm text-ink [overflow-wrap:anywhere]">
-                  {i.full_name}{" "}
-                  <span className="text-copy">
-                    {i.email} · {one(i.companies)?.name ?? "Company"} · invited {formatDate(i.created_at)}
+                <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line py-3 text-sm">
+                  <span className="min-w-0 text-ink [overflow-wrap:anywhere]">
+                    {i.full_name}{" "}
+                    <span className="text-copy">
+                      {i.email} · {one(i.companies)?.name ?? "Company"} · invited {formatDate(i.created_at)}
+                    </span>
                   </span>
+                  <InviteActions
+                    id={i.id}
+                    name={i.full_name || i.email}
+                    remind={remindSponsorInvite}
+                    cancel={cancelSponsorInvite}
+                  />
                 </li>
               ))}
             </ul>
@@ -167,15 +188,17 @@ export default async function PeoplePage({
           <h2 className="mb-2 font-heading text-lg font-bold text-ink">Waiting to join ({alumInvites.length})</h2>
           <ul className="mb-6">
             {alumInvites.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-4 border-t border-line py-3 text-sm">
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line py-3 text-sm">
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   {i.full_name} <span className="text-muted">{i.email} · invited {formatDate(i.created_at)}</span>
                 </span>
-                <form action={removeAlumniAction}>
-                  <input type="hidden" name="id" value={i.id} />
-                  <input type="hidden" name="what" value="invite" />
-                  <QuietButton type="submit">Cancel</QuietButton>
-                </form>
+                <InviteActions
+                  id={i.id}
+                  name={i.full_name || i.email}
+                  remind={remindAlumniInviteAction}
+                  cancel={removeAlumniAction}
+                  extra={{ what: "invite" }}
+                />
               </li>
             ))}
           </ul>
@@ -206,5 +229,48 @@ export default async function PeoplePage({
         </section>
       )}
     </>
+  );
+}
+
+/** Send reminder + Cancel invite for one pending invite. Cancelling asks first. */
+function InviteActions({
+  id,
+  name,
+  remind,
+  cancel,
+  extra = {},
+}: {
+  id: string;
+  name: string;
+  remind: (formData: FormData) => Promise<void>;
+  cancel: (formData: FormData) => Promise<void>;
+  extra?: Record<string, string>;
+}) {
+  const hidden = (
+    <>
+      <input type="hidden" name="id" value={id} />
+      {Object.entries(extra).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+    </>
+  );
+  return (
+    <span className="flex shrink-0 gap-2">
+      <form action={remind}>
+        {hidden}
+        <QuietButton type="submit">Send reminder</QuietButton>
+      </form>
+      <form action={cancel}>
+        {hidden}
+        <ConfirmSubmitButton
+          variant="danger"
+          confirmLabel="Cancel invite"
+          dismissLabel="Keep invite"
+          confirmMessage={`Cancel ${name}'s invite? They won't be able to sign in with it, including any code already emailed. You can invite them again later.`}
+        >
+          Cancel invite
+        </ConfirmSubmitButton>
+      </form>
+    </span>
   );
 }
