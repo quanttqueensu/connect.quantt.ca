@@ -260,18 +260,17 @@ describe("code email", () => {
     expect(codes.size).toBeGreaterThan(190);
   });
 
-  it("posts to Resend with the code and the sender", async () => {
-    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
-    await sendLoginCodeEmail({ RESEND_API_KEY: "test-key", LOGIN_EMAIL_FROM: "Hub <hub@quantt.ca>" }, "ann@queensu.ca", "123456", fetchImpl as unknown as typeof fetch);
-    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://api.resend.com/emails");
-    const body = JSON.parse(String(init.body));
-    expect(body).toMatchObject({ from: "Hub <hub@quantt.ca>", to: ["ann@queensu.ca"] });
-    expect(body.subject).toContain("123456");
+  it("sends through the Mailer as QUANTT Connect, with the code", async () => {
+    const send = vi.fn(async () => 1);
+    await sendLoginCodeEmail({ MAILER: { send } }, "ann@queensu.ca", "123456");
+    const [msgs] = send.mock.calls[0] as unknown as [{ to: string[]; subject: string; fromName: string }[]];
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({ to: ["ann@queensu.ca"], fromName: "QUANTT Connect" });
+    expect(msgs[0].subject).toContain("123456");
     expect(loginCodeEmail("123456").text).toContain("10 minutes");
   });
 
-  it("fails loudly without an API key", async () => {
-    await expect(sendLoginCodeEmail({}, "a@b.co", "123456")).rejects.toThrow(/RESEND_API_KEY/);
+  it("fails loudly without the Mailer binding", async () => {
+    await expect(sendLoginCodeEmail({}, "a@b.co", "123456")).rejects.toThrow(/MAILER/);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Email notifications (Resend), with a per-person on/off for each kind.
+ * Email notifications (from quantt@clubs.queensu.ca, lib/cf-auth/email.ts), with a per-person on/off for each kind.
  *
  *  - messages:            a new message in one of your conversations
  *  - applications:        sponsors: someone applied to your firm's job
@@ -19,7 +19,7 @@
  */
 
 import type { D1Database } from "@/lib/db/d1";
-import { DEFAULT_FROM, type EmailEnv } from "@/lib/cf-auth/email";
+import { sendMail, type EmailEnv } from "@/lib/cf-auth/email";
 import { getAlumniPrefs } from "@/lib/alumni/data";
 import { siteUrl } from "@/lib/site-url";
 
@@ -150,18 +150,11 @@ export function notificationEmail(to: string, subject: string, line: string, pat
   };
 }
 
-/** Resend's batch endpoint takes up to 100 emails a call. */
-export function resendSender(env: EmailEnv, fetchImpl: typeof fetch = fetch): SendEmails {
+/** Through the quantt-calendar Mailer, 50 at a time (one Gmail batch request each). */
+export function mailSender(env: EmailEnv): SendEmails {
   return async (emails) => {
-    if (!env.RESEND_API_KEY || !emails.length) return;
-    const from = env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM;
-    for (let i = 0; i < emails.length; i += 100) {
-      const res = await fetchImpl("https://api.resend.com/emails/batch", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify(emails.slice(i, i + 100).map((e) => ({ from, ...e, to: [e.to] }))),
-      });
-      if (!res.ok) throw new Error(`Resend refused the emails (${res.status})`);
+    for (let i = 0; i < emails.length; i += 50) {
+      await sendMail(env, emails.slice(i, i + 50).map((e) => ({ ...e, to: [e.to] })));
     }
   };
 }

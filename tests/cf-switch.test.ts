@@ -65,14 +65,16 @@ function form(fields: Record<string, string>) {
 
 beforeEach(() => {
   state.raw = freshDb();
-  state.env = { DB: asD1(state.raw), FILES: memoryR2(), RESEND_API_KEY: "test", FILES_SIGNING_KEY: "test-signing-key" };
-  state.jar = new Map();
   state.sent = [];
-  vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
-    const body = JSON.parse(String(init.body)) as { to: string[]; text: string };
-    state.sent.push({ to: body.to[0], text: body.text });
-    return new Response("{}", { status: 200 });
-  });
+  // The quantt-calendar Mailer: records what would go out from quantt@clubs.queensu.ca.
+  const MAILER = {
+    send: async (msgs: { to: string[]; text: string }[]) => {
+      for (const m of msgs) state.sent.push({ to: m.to[0], text: m.text });
+      return msgs.length;
+    },
+  };
+  state.env = { DB: asD1(state.raw), FILES: memoryR2(), FILES_SIGNING_KEY: "test-signing-key", MAILER };
+  state.jar = new Map();
 });
 
 describe("emailed-code sign-in", () => {

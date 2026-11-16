@@ -28,7 +28,7 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
   skipped silently; a refused write returns error `42501`. `createAdminClient()` skips
   them, so check who may do what first.
 - **Sign-in:** members use Sign in with QUANTT (auth.quantt.ca, below), like the
-  calendar. Sponsors get a six-digit emailed code (Resend, `lib/cf-auth/`), valid once
+  calendar. Sponsors get a six-digit emailed code (from quantt@clubs.queensu.ca, `lib/cf-auth/`), valid once
   for 10 minutes. The session is an HttpOnly cookie `connect_session`; D1 keeps only its
   hash, for 30 days. Nobody has a password. An invite is just an `invites` row: the
   person's profile is created the first time they sign in with that email.
@@ -51,9 +51,10 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
    `npx wrangler r2 bucket create connect-files`. Put the database id in `wrangler.jsonc`.
 2. `npx wrangler d1 migrations apply connect-db --remote`, then
    `npx wrangler d1 execute connect-db --remote --file db/seed.sql`.
-3. Worker secrets on `quantt-connect`: `RESEND_API_KEY`, `FILES_SIGNING_KEY`
-   (`openssl rand -hex 32`), `OPPORTUNITIES_SYNC_TOKEN` (see Opportunities). Optional `LOGIN_EMAIL_FROM`
-   (default `QUANTT Connect <connect@quantt.ca>`; its domain must be verified in Resend).
+3. Worker secrets on `quantt-connect`: `FILES_SIGNING_KEY`
+   (`openssl rand -hex 32`), `OPPORTUNITIES_SYNC_TOKEN` (see Opportunities). Email needs no secret: every
+   email goes out from quantt@clubs.queensu.ca through the `MAILER` binding to the `quantt-calendar` Worker,
+   which holds the club's Gmail connection (deploy that Worker first).
    Variable `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`.
 4. First admin:
 
@@ -201,7 +202,7 @@ push and pull request.
 - Posts can have comments. Comments are not applications.
 - External job links: “Open listing”, optional off-platform log.
 - Member feed is global. Companies see **only their own posts**.
-- Email: sign-in codes and invite notices go through Resend. If an invite email
+- Email: every email (codes, invites, notifications) goes out from quantt@clubs.queensu.ca via the calendar Worker. If an invite email
   fails, the invite still works and the admin screen says to tell the person to sign in.
   Notification emails (`lib/notifications.ts`): new messages (both sides, at most one
   per conversation every 15 minutes), new applications (sponsors), application stage
