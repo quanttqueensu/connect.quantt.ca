@@ -249,12 +249,12 @@ export async function remindAlumniInviteAction(formData: FormData) {
   const invite = UUID_RE.test(id) ? await getPendingAlumniInvite(env.DB, id) : null;
   if (!invite) denyRedirect("/admin/people?tab=alumni", "invite_not_pending");
   try {
-    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "alumni", fetch, true);
+    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "alumni", true);
   } catch (e) {
     console.error("alumni invite reminder not sent", e);
     denyRedirect("/admin/people?tab=alumni", "invite_remind_failed");
   }
-  // Only once Resend has accepted it, so the row's "Reminded" date means sent.
+  // Only once Gmail has accepted it, so the row's "Reminded" date means sent.
   await recordInviteReminder(env.DB, "alumni", invite.id, admin.id).catch((e) => console.error("reminder log failed", e));
   revalidatePath("/admin/people");
   redirect(`/admin/people?tab=alumni&reminded=${invite.id}`);

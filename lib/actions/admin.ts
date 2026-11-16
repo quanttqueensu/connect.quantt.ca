@@ -632,12 +632,12 @@ export async function remindSponsorInvite(formData: FormData) {
   const { invite, profile } = await pendingSponsorInvite(formData);
   const env = await hubEnv();
   try {
-    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "sponsor", fetch, true);
+    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "sponsor", true);
   } catch (e) {
     console.error("invite reminder not sent", e);
     denyRedirect("/admin/people?tab=sponsors", "invite_remind_failed");
   }
-  // Only once Resend has accepted it, so the row's "Reminded" date means sent.
+  // Only once Gmail has accepted it, so the row's "Reminded" date means sent.
   await recordInviteReminder(env.DB, "sponsor", invite.id, profile.id).catch((e) => console.error("reminder log failed", e));
   revalidatePath("/admin/people");
   redirect(`/admin/people?tab=sponsors&reminded=${invite.id}`);

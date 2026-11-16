@@ -1,12 +1,24 @@
 /**
- * Sign-in emails through Resend (the same provider the calendar uses).
- * Needs the Worker secret RESEND_API_KEY. LOGIN_EMAIL_FROM sets the sender;
- * its domain must be verified in Resend.
+ * Every Connect email goes out from quantt@clubs.queensu.ca, the only address any QUANTT site
+ * sends from (Ethan's rule). It is sent by calendar.quantt.ca's Mailer (Worker quantt-calendar,
+ * src/mailer.js), which holds the club's Gmail connection; the service binding MAILER in
+ * wrangler.jsonc reaches it. Connect itself has no email credentials.
  */
 
-export const DEFAULT_FROM = "QUANTT Connect <connect@quantt.ca>";
+/** The display name; the address is always quantt@clubs.queensu.ca (Gmail sets it). */
+export const FROM_NAME = "QUANTT Connect";
 
-export type EmailEnv = { RESEND_API_KEY?: string; LOGIN_EMAIL_FROM?: string };
+export type MailMessage = { to: string[]; subject: string; text: string; html: string; fromName?: string };
+/** The quantt-calendar Mailer entrypoint. */
+export type Mailer = { send(msgs: MailMessage[]): Promise<number> };
+export type EmailEnv = { MAILER?: Mailer };
+
+/** Sends through the club's Gmail. Throws when the binding is missing or Gmail didn't take every email. */
+export async function sendMail(env: EmailEnv, msgs: Omit<MailMessage, "fromName">[]) {
+  if (!msgs.length) return;
+  if (!env.MAILER) throw new Error("The MAILER binding (quantt-calendar) is missing");
+  await env.MAILER.send(msgs.map((m) => ({ fromName: FROM_NAME, ...m })));
+}
 
 export function loginCodeEmail(code: string) {
   const subject = `${code} is your QUANTT Connect sign-in code`;
@@ -22,16 +34,9 @@ export function loginCodeEmail(code: string) {
   return { subject, text, html };
 }
 
-export async function sendLoginCodeEmail(env: EmailEnv, to: string, code: string, fetchImpl: typeof fetch = fetch) {
-  if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+export async function sendLoginCodeEmail(env: EmailEnv, to: string, code: string) {
   if (!/^\d{6}$/.test(code)) throw new Error("bad code");
-  const { subject, text, html } = loginCodeEmail(code);
-  const res = await fetchImpl("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM, to: [to], subject, text, html }),
-  });
-  if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
+  await sendMail(env, [{ to: [to], ...loginCodeEmail(code) }]);
 }
 
 function escapeHtml(s: string) {
@@ -85,33 +90,14 @@ export async function sendInviteEmail(
   name: string,
   loginUrl: string,
   audience: InviteAudience = "sponsor",
-  fetchImpl: typeof fetch = fetch,
   reminder = false,
 ) {
-  if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
-  const { subject, text, html } = inviteEmail(name, loginUrl, audience, reminder);
-  const res = await fetchImpl("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM, to: [to], subject, text, html }),
-  });
-  if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
+  await sendMail(env, [{ to: [to], ...inviteEmail(name, loginUrl, audience, reminder) }]);
 }
 
-/** Any one-off email through Resend. */
-export async function sendEmail(
-  env: EmailEnv,
-  to: string,
-  msg: { subject: string; text: string; html: string },
-  fetchImpl: typeof fetch = fetch,
-) {
-  if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
-  const res = await fetchImpl("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.LOGIN_EMAIL_FROM?.trim() || DEFAULT_FROM, to: [to], ...msg }),
-  });
-  if (!res.ok) throw new Error(`Resend refused the email (${res.status})`);
+/** Any one-off email. */
+export async function sendEmail(env: EmailEnv, to: string, msg: { subject: string; text: string; html: string }) {
+  await sendMail(env, [{ to: [to], ...msg }]);
 }
 
 /** To a member who just graduated (lib/alumni/graduates.ts), at their personal email. */

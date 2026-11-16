@@ -3,7 +3,7 @@ import type { D1Database } from "@/lib/db/d1";
 /**
  * A log of "Send reminder" emails for pending invites (Admin -> People), so
  * each "Waiting to join" row can show "Reminded <date> · N times".
- * One row per reminder that Resend accepted. Rows go when the invite is
+ * One row per reminder that Gmail accepted. Rows go when the invite is
  * cancelled. db/migrations/0017_invite_reminders.sql; also created on first use.
  */
 export type InviteKind = "sponsor" | "alumni";

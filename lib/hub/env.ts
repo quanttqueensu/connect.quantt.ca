@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import type { D1Database } from "@/lib/db/d1";
 import type { R2BucketLike } from "@/lib/db/storage";
+import type { Mailer } from "@/lib/cf-auth/email";
 import type { QuanttDirectory } from "@/lib/quantt-signin";
 import { siteUrl } from "@/lib/site-url";
 
@@ -9,8 +10,8 @@ import { siteUrl } from "@/lib/site-url";
 export type HubEnv = {
   DB: D1Database;
   FILES: R2BucketLike;
-  RESEND_API_KEY?: string;
-  LOGIN_EMAIL_FROM?: string;
+  // Email, sent as quantt@clubs.queensu.ca by the quantt-calendar Worker (wrangler.jsonc).
+  MAILER?: Mailer;
   FILES_SIGNING_KEY?: string;
   // Alumni in the QUANTT Discord (lib/alumni/discord.ts).
   DISCORD_CLIENT_ID?: string;

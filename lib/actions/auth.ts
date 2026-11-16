@@ -58,7 +58,7 @@ export async function requestCode(formData: FormData) {
       await requestLoginCode(env.DB, email, send);
     }
   } catch (e) {
-    // Same answer either way; the log says what went wrong (usually Resend).
+    // Same answer either way; the log says what went wrong (usually email sending).
     console.error("login code not sent", e);
   }
   const jar = await cookies();
