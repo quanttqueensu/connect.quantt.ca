@@ -603,3 +603,49 @@ function httpUrlOrNull(
   if (u.protocol !== "https:" && u.protocol !== "http:") return INVALID_URL;
   return u.toString();
 }
+
+/**
+ * Pending sponsor invites (Admin -> People -> Sponsors): email the invite
+ * again, or cancel it. Cancelling deletes the pending invites row, which is
+ * the only thing that lets that address sign in (canSignIn / profileForSignIn
+ * in lib/cf-auth/accounts.ts), so any code already sent stops working too.
+ * Accepted invites are never touched.
+ */
+async function pendingSponsorInvite(formData: FormData) {
+  const profile = await requireProfile();
+  if (!profile.is_admin) redirect("/feed");
+  const id = String(formData.get("id") ?? "");
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("invites")
+    .select("id, email, full_name")
+    .eq("id", id)
+    .eq("role", "company_user")
+    .is("accepted_at", null)
+    .maybeSingle();
+  if (!data) denyRedirect("/admin/people?tab=sponsors", "invite_not_pending");
+  return { admin, invite: data as { id: string; email: string; full_name: string } };
+}
+
+export async function remindSponsorInvite(formData: FormData) {
+  const { invite } = await pendingSponsorInvite(formData);
+  try {
+    await sendInviteEmail(await hubEnv(), invite.email, invite.full_name, `${siteUrl()}/login`, "sponsor", fetch, true);
+  } catch (e) {
+    console.error("invite reminder not sent", e);
+    denyRedirect("/admin/people?tab=sponsors", "invite_remind_failed");
+  }
+  redirect("/admin/people?tab=sponsors&reminded=1");
+}
+
+export async function cancelSponsorInvite(formData: FormData) {
+  const { admin, invite } = await pendingSponsorInvite(formData);
+  const { error } = await admin.from("invites").delete().eq("id", invite.id).is("accepted_at", null);
+  if (error) {
+    console.error("invite cancel failed", error.message);
+    denyRedirect("/admin/people?tab=sponsors", "invite_failed");
+  }
+  revalidatePath("/admin/people");
+  revalidatePath("/admin/companies");
+  redirect("/admin/people?tab=sponsors&cancelled=1");
+}

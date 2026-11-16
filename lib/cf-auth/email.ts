@@ -50,8 +50,11 @@ function howToSignIn(audience: InviteAudience) {
   return "choose Sponsor and enter this email address. We'll email you a one-time code; there's no password to set.";
 }
 
-export function inviteEmail(name: string, loginUrl: string, audience: InviteAudience = "sponsor") {
-  const subject = "You're invited to QUANTT Connect";
+export function inviteEmail(name: string, loginUrl: string, audience: InviteAudience = "sponsor", reminder = false) {
+  const subject = reminder ? "Reminder: you're invited to QUANTT Connect" : "You're invited to QUANTT Connect";
+  const intro = reminder
+    ? "A reminder that you've been invited to QUANTT Connect and haven't signed in yet."
+    : "You've been invited to QUANTT Connect.";
   const greeting = name.trim() ? `Hi ${name.trim()},` : "Hi,";
   const how = howToSignIn(audience);
   // Alumni also get the Discord join link (the Alumni role, #alumni-lounge, #alumni-jobs).
@@ -60,12 +63,12 @@ export function inviteEmail(name: string, loginUrl: string, audience: InviteAudi
   const text = [
     greeting,
     "",
-    "You've been invited to QUANTT Connect.",
+    intro,
     `To sign in, go to ${loginUrl} and ${how}`,
     ...(discordUrl ? ["", `${discordLine} ${discordUrl}`] : []),
   ].join("\n");
   const html = `<p>${escapeHtml(greeting)}</p>
-<p>You've been invited to QUANTT Connect.</p>
+<p>${escapeHtml(intro)}</p>
 <p>To sign in, go to <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a> and ${escapeHtml(how)}</p>${
     discordUrl
       ? `
@@ -83,9 +86,10 @@ export async function sendInviteEmail(
   loginUrl: string,
   audience: InviteAudience = "sponsor",
   fetchImpl: typeof fetch = fetch,
+  reminder = false,
 ) {
   if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
-  const { subject, text, html } = inviteEmail(name, loginUrl, audience);
+  const { subject, text, html } = inviteEmail(name, loginUrl, audience, reminder);
   const res = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },

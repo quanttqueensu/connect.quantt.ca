@@ -10,6 +10,7 @@ import { removeAlumnusFromDiscord } from "@/lib/alumni/discord";
 import { pushConnectAlumni } from "@/lib/alumni/directory-push";
 import {
   cancelAlumniInvite,
+  getPendingAlumniInvite,
   closeAlumniPost,
   createAlumniPost,
   decideRequest,
@@ -239,6 +240,22 @@ export async function inviteAlumniAction(formData: FormData) {
   redirect(`/admin/people?tab=alumni&${sent ? "sent" : "unsent"}=1`);
 }
 
+/** Email a pending alumni invite again. Only rows still waiting (accepted_at IS NULL). */
+export async function remindAlumniInviteAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const env = await hubEnv();
+  const invite = UUID_RE.test(id) ? await getPendingAlumniInvite(env.DB, id) : null;
+  if (!invite) denyRedirect("/admin/people?tab=alumni", "invite_not_pending");
+  try {
+    await sendInviteEmail(env, invite.email, invite.full_name, `${siteUrl()}/login`, "alumni", fetch, true);
+  } catch (e) {
+    console.error("alumni invite reminder not sent", e);
+    denyRedirect("/admin/people?tab=alumni", "invite_remind_failed");
+  }
+  redirect("/admin/people?tab=alumni&reminded=1");
+}
+
 export async function removeAlumniAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
@@ -254,4 +271,5 @@ export async function removeAlumniAction(formData: FormData) {
     await pushConnectAlumni(DB, env.AUTH).catch((e) => console.error("connect alumni push failed", e));
   }
   revalidatePath("/admin/people");
+  if (formData.get("what") === "invite") redirect("/admin/people?tab=alumni&cancelled=1");
 }
