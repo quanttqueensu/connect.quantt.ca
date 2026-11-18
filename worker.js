@@ -12,13 +12,17 @@
 // sign-in codes and join-form admission rows from D1. Hourly too: members who
 // graduated on auth.quantt.ca become alumni (lib/alumni/graduates.ts); in April
 // at 08:00 UTC, graduates without a personal email get one reminder. At 11:00
-// UTC, the daily Opportunities run (lib/jobs/daily.ts).
+// UTC, the daily Opportunities run (lib/jobs/daily.ts), and on any later hour
+// while the last successful run is over a day old (a missed or failed day).
+// Problems a person should see go to the ops Discord channel (lib/ops-alert.ts,
+// var OPS_ALERT_CHANNEL), at most once per kind per day.
 //
 // See https://opennext.js.org/cloudflare/howtos/custom-worker
 // `.open-next/worker.js` only exists after `opennextjs-cloudflare build`.
 import handler from "./.open-next/worker.js";
 import { handleSync } from "./lib/jobs/store";
-import { DAILY_HOUR_UTC, handleRun, runOpportunities } from "./lib/jobs/daily";
+import { handleRun, isDue, runOpportunities, RunInProgress } from "./lib/jobs/daily";
+import { opsAlert } from "./lib/ops-alert";
 import { syncAllDirectoryFiles } from "./lib/directory-files";
 import { syncGraduates, remindPersonalEmail } from "./lib/alumni/graduates";
 import { syncAllGradYears } from "./lib/graduation-sync";
@@ -52,24 +56,35 @@ const worker = {
     if (env.FILES && env.AUTH) {
       ctx.waitUntil(
         syncAllGradYears(env.DB, env.AUTH).catch((err) => console.error("grad year sync failed", err)).then(() => syncGraduates(env.DB, env.FILES, env.AUTH, (to, name) => sendEmail(env, to, graduationEmail(name, `${SITE}/alumni/login`)))).then(
-          (r) => console.log("graduates", JSON.stringify(r)),
-          (err) => console.error("graduates sync failed", err),
-        ),
-      );
-    }
-    const hour = new Date(controller.scheduledTime).getUTCHours();
-    if (hour === DAILY_HOUR_UTC) {
-      ctx.waitUntil(
-        runOpportunities(env).then(
-          (r) => {
-            const line = JSON.stringify({ ...r, added: r.added.length });
-            if (r.discord.startsWith("failed")) console.error("opportunities: discord post failed", line);
-            else console.log("opportunities", line);
+          async (r) => {
+            console.log("graduates", JSON.stringify(r));
+            if (r?.suspendSkipped) await opsAlert(env, "graduates-suspend", `graduates: ${r.suspendSkipped}`);
+            if (r?.failed.length) await opsAlert(env, "graduates-failed", `graduates: ${r.failed.length} failed (retried hourly): ${r.failed.join(", ")}`);
           },
-          (err) => console.error("opportunities run failed", err),
+          (err) => opsAlert(env, "graduates-run", `graduates sync failed: ${err instanceof Error ? err.message : String(err)}`),
         ),
       );
     }
+    const scheduled = new Date(controller.scheduledTime);
+    const hour = scheduled.getUTCHours();
+    // 11:00 UTC daily, or any hour once the last successful run is over a day old (lib/jobs/daily.ts isDue).
+    ctx.waitUntil(
+      isDue(env.DB, scheduled)
+        .then((due) => (due ? runOpportunities(env) : null))
+        .then(
+          async (r) => {
+            if (!r) return;
+            const line = JSON.stringify({ ...r, added: r.added.length });
+            if (r.discord.startsWith("failed")) await opsAlert(env, "opportunities-discord", `opportunities: Discord post ${r.discord}`);
+            else console.log("opportunities", line);
+            for (const a of r.alerts) await opsAlert(env, a, a);
+          },
+          (err) => {
+            if (err instanceof RunInProgress) return console.log("opportunities: another run is in progress");
+            return opsAlert(env, "opportunities-run", `opportunities run failed: ${err instanceof Error ? err.message : String(err)}`);
+          },
+        ),
+    );
     if (hour !== 8) return;
     // April, daily at 08:00 UTC: remind this spring's graduates to give auth a personal email (once each).
     if (env.AUTH) {
