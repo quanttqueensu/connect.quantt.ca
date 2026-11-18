@@ -75,7 +75,9 @@ describe("firm access", () => {
     const db = freshDb();
     const firm = addCompany(db, "none", { grace: "grandfathered", graceUntil: "2026-11-01" });
     expect(loadAccess(db, firm.companyId, NOW)!.has("post_event")).toBe(true);
-    const nextDay = new Date("2026-11-02T00:00:01Z");
+    // The grace date is a Kingston date: still Nov 1 there until 05:00 UTC.
+    expect(loadAccess(db, firm.companyId, new Date("2026-11-02T04:59:59Z"))!.has("post_event")).toBe(true);
+    const nextDay = new Date("2026-11-02T05:00:01Z");
     expect(loadAccess(db, firm.companyId, nextDay)!.has("post_event")).toBe(false);
   });
 

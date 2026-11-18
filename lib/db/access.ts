@@ -55,15 +55,17 @@ export type CompanyAccess = {
   value(cap: CapabilityKey): number | null;
 };
 
-/** YYYY-MM-DD in UTC, the same calendar Postgres current_date used on Supabase. */
-export function utcDate(now: Date): string {
-  return now.toISOString().slice(0, 10);
+const TORONTO_DAY = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/Toronto" });
+
+/** YYYY-MM-DD in Kingston (America/Toronto): a grace date "until Dec 31" lasts through Dec 31 there, not in UTC. */
+export function torontoDate(now: Date): string {
+  return TORONTO_DAY.format(now);
 }
 
 export function effectiveTierId(company: AccessCompany, now: Date): string {
   if (
     company.tier_grace_until != null &&
-    company.tier_grace_until >= utcDate(now) &&
+    company.tier_grace_until >= torontoDate(now) &&
     company.grace_tier_id != null
   ) {
     return company.grace_tier_id;

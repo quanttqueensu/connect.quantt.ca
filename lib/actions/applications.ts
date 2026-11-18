@@ -243,17 +243,22 @@ export async function updateApplicationStage(formData: FormData) {
     denyRedirect(deniedPath, "stage_invalid");
   }
 
+  // Only rows whose stage actually changes, so saving the same stage again emails no one.
   const { data, error } = await supabase
     .from("applications")
     .update({ stage })
     .eq("id", id)
+    .neq("stage", stage)
     .select("id");
 
   if (error) denyRedirect(deniedPath, "application_update_failed");
   if (!data?.length) {
-    denyRedirect(deniedPath, "application_update_failed");
+    // Nothing changed: either it was already at this stage (fine), or it isn't theirs to change.
+    const { data: same } = await supabase.from("applications").select("id").eq("id", id).eq("stage", stage).maybeSingle();
+    if (!same) denyRedirect(deniedPath, "application_update_failed");
+  } else {
+    notifyLater("application stage", (db, send) => notifyApplicationStage(db, send, id, stage));
   }
-  notifyLater("application stage", (db, send) => notifyApplicationStage(db, send, id, stage));
 
   revalidatePath("/applications");
   revalidatePath("/company");
