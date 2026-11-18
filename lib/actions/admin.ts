@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { sendInviteEmail, type InviteAudience } from "@/lib/cf-auth/email";
 import { hubEnv } from "@/lib/hub/env";
+import { approveJoinRequest } from "@/lib/join-approval";
 import { clearInviteReminders, recordInviteReminder } from "@/lib/invite-reminders";
 import { siteUrl } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -267,84 +268,22 @@ export async function reviewJoinRequest(formData: FormData) {
       denyRedirect("/admin/companies", "join_request_review_failed");
     }
 
-    const { data: req } = await supabase
-      .from("company_join_requests")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (!req) denyRedirect("/admin/companies", "join_request_review_failed");
-    if (req.status !== "pending") {
-      denyRedirect("/admin/companies", "join_request_review_race");
-    }
-
-    const admin = createAdminClient();
     const tierId = emptyToNull(formData.get("sponsor_tier_id"));
     if (!tierId) denyRedirect("/admin/companies", "invite_tier_required");
-    const { data: company, error: cErr } = await admin
-      .from("companies")
-      .insert({
-        name: req.company_name,
-        slug: slugify(req.company_name) + "-" + crypto.randomUUID().slice(0, 4),
-        sponsor_tier_id: tierId,
-        website: req.website,
-        status: "active",
-      })
-      .select("id")
-      .single();
-    if (cErr || !company) denyRedirect("/admin/companies", "join_request_review_failed");
-
-    const { data: inviteRow, error: inviteRowErr } = await admin
-      .from("invites")
-      .insert({
-        email: req.contact_email,
-        full_name: req.contact_name,
-        role: "company_user",
-        company_id: company.id,
-        invited_by: profile.id,
-      })
-      .select("id")
-      .maybeSingle();
-    if (inviteRowErr && !isUniqueViolation(inviteRowErr.message, inviteRowErr.code)) {
-      denyRedirect("/admin/companies", "join_request_review_failed");
-    }
-
-    let invite: InviteResult | null = null;
-    try {
-      invite = await sendAuthInvite(admin, req.contact_email, req.contact_name, "sponsor");
-    } catch (e) {
-      if (!(e instanceof AlreadyRegisteredError)) throw e;
-      // The contact already has an account, so there is nothing to invite and
-      // certainly nothing to reset. Drop the invite row this call just added so
-      // it does not sit in "Waiting to join" forever waiting for a signup that
-      // can never happen, and say so below.
-      if (inviteRow?.id) {
-        await admin
-          .from("invites")
-          .delete()
-          .eq("id", inviteRow.id)
-          .then(undefined, () => undefined);
-      }
-    }
-
-    const { data: approved, error: updErr } = await admin
-      .from("company_join_requests")
-      .update({
-        status: "approved",
-        reviewed_by: profile.id,
-        reviewed_at: new Date().toISOString(),
-        company_id: company.id,
-      })
-      .eq("id", id)
-      .eq("status", "pending")
-      .select("id");
-    if (updErr) denyRedirect("/admin/companies", "join_request_review_failed");
+    // Claim, then company + invite + approved in one batch (lib/join-approval.ts), so a double click makes one firm.
+    const env = await hubEnv();
+    const approved = await approveJoinRequest(env.DB, { id, adminId: profile.id, tierId });
+    if (!approved.ok) denyRedirect("/admin/companies", approved.code);
     revalidatePath("/admin/companies");
     revalidatePath("/admin/people");
-    // The .eq("status", "pending") filter means zero rows here is a race: another
-    // admin reviewed this request between the check above and now. The firm and
-    // the invite were still created, so say so rather than reporting success.
-    if (!approved?.length) {
-      denyRedirect("/admin/companies", "join_request_review_race");
+
+    let invite: InviteResult | null = null;
+    if (!approved.registered) {
+      try {
+        invite = await sendAuthInvite(createAdminClient(), approved.email, approved.name, "sponsor");
+      } catch (e) {
+        if (!(e instanceof AlreadyRegisteredError)) throw e;
+      }
     }
     if (!invite) {
       denyRedirect("/admin/companies", "join_request_contact_already_registered");
