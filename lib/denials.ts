@@ -70,6 +70,7 @@ const MESSAGES = {
   login_email_required: "Enter your email address to get a sign-in code.",
   login_code_invalid: "That code didn't work. Check it, or ask for a new one.",
   login_code_expired: "That code expired. Enter your email to get a new one.",
+  login_code_not_sent: "We couldn't send your sign-in code. Try again in a few minutes.",
   login_account_missing:
     "This email isn't on an invite. Sponsors and alumni: use the address you were invited with. Members: use Sign in with your Queen's email.",
 

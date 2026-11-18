@@ -90,6 +90,27 @@ describe("sign-in codes", () => {
     expect((await verifyLoginCode(db, "ann@acme.com", code!, NOW)).ok).toBe(false);
   });
 
+  it("counts guesses made at the same time, so parallel tries can't get past the limit", async () => {
+    const { raw, db } = setup();
+    addSponsor(raw, "ann@acme.com");
+    const code = await codeFor(db, "ann@acme.com");
+    const wrong = code === "000000" ? "111111" : "000000";
+    await Promise.all(Array.from({ length: MAX_ATTEMPTS * 3 }, () => verifyLoginCode(db, "ann@acme.com", wrong, NOW)));
+    expect(all(raw, `SELECT attempts FROM login_codes`)[0]).toEqual({ attempts: MAX_ATTEMPTS });
+    expect((await verifyLoginCode(db, "ann@acme.com", code!, NOW)).ok).toBe(false);
+  });
+
+  it("a code that couldn't be emailed throws and doesn't use up the hourly allowance", async () => {
+    const { raw, db } = setup();
+    addSponsor(raw, "ann@acme.com");
+    const fail = async () => { throw new Error("mailer down"); };
+    for (let i = 0; i < CODES_PER_HOUR; i++) {
+      await expect(requestLoginCode(db, "ann@acme.com", fail, new Date(NOW.getTime() + i * 1000))).rejects.toThrow("mailer down");
+    }
+    expect(all(raw, `SELECT count(*) AS n FROM login_codes`)[0].n).toBe(0);
+    expect(await codeFor(db, "ann@acme.com", new Date(NOW.getTime() + 10_000))).toMatch(/^\d{6}$/);
+  });
+
   it("only the newest code works", async () => {
     const { raw, db } = setup();
     addSponsor(raw, "ann@acme.com");
