@@ -28,7 +28,8 @@ import { siteUrl } from "@/lib/site-url";
  * Step 1 takes an email and sends a code; step 2 takes the code. Between the
  * two the email sits in a short-lived HttpOnly cookie rather than the URL.
  * The page answers the same way whether or not the email has an account, so
- * /login cannot be used to find out who is a member or a sponsor.
+ * /login cannot be used to find out who is a member or a sponsor. The one
+ * exception: if the code email to a real account fails, it says to try again.
  *
  * Sponsors and alumni share this one form. A sponsor account (or invite) wins;
  * otherwise an alumni account (or invite) gets an alumni code. Which one was
@@ -58,8 +59,10 @@ export async function requestCode(formData: FormData) {
       await requestLoginCode(env.DB, email, send);
     }
   } catch (e) {
-    // Same answer either way; the log says what went wrong (usually email sending).
+    // Only a known account (or a database error) gets here: unknown emails never reach the send.
+    // Say so, rather than leave them waiting for a code that isn't coming.
     console.error("login code not sent", e);
+    redirect("/login?error=login_code_not_sent");
   }
   const jar = await cookies();
   const opts = { httpOnly: true, secure: secure(), sameSite: "lax" as const, path: "/login", maxAge: LOGIN_EMAIL_MINUTES * 60 };

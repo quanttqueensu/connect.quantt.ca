@@ -1,8 +1,11 @@
 import { csvCell } from "@/lib/files";
 import { buildZip, safeFileName, type ZipEntry } from "@/lib/zip";
 
-/** Keeps the whole archive well inside a Worker's memory. */
-export const MAX_RESUME_BOOK_BYTES = 60 * 1024 * 1024;
+/**
+ * Keeps the whole archive well inside a Worker's 128 MB: the PDFs are held once
+ * as entries and once more in the finished ZIP, so about twice this at the peak.
+ */
+export const MAX_RESUME_BOOK_BYTES = 30 * 1024 * 1024;
 
 export type ResumeBookMember = {
   id: string;

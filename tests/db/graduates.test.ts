@@ -80,14 +80,19 @@ describe("graduates become alumni", () => {
     expect(await syncGraduates(db, files, auth, async (to) => void sent.push(to), NOW)).toMatchObject({ created: 0, linked: 0, reactivated: 0 });
     expect(sent.length).toBe(1);
 
-    // "Make member again" on auth: suspended, member profile and resume book back, nothing deleted.
+    // An empty list from auth looks like a bad read: nobody is suspended, and the run says so.
     auth.list = [];
-    expect(await syncGraduates(db, files, auth, async () => {}, NOW)).toMatchObject({ suspended: 1 });
+    expect(await syncGraduates(db, files, auth, async () => {}, NOW)).toMatchObject({ suspended: 0, suspendSkipped: expect.stringContaining("0 alumni") });
+    expect(await canAlumniSignIn(db, "ann@gmail.com")).toBe(true);
+
+    // "Make member again" on auth (another graduate still listed): suspended, member profile and resume book back, nothing deleted.
+    auth.list = [alum({ id: "m_bo", name: "Bo", personal: "bo@gmail.com", emails: ["bo@queensu.ca"], discord: null })];
+    expect(await syncGraduates(db, files, auth, async () => {}, NOW)).toMatchObject({ suspended: 1, suspendSkipped: null });
     expect(await canAlumniSignIn(db, "ann@gmail.com")).toBe(false);
-    expect(await listAlumni(db)).toEqual([]);
+    expect((await listAlumni(db)).map((a) => a.full_name)).toEqual(["Bo"]);
     expect(await graduatedProfileIds(db)).toEqual([]);
     expect(all(raw, `SELECT resume_book_opt_in FROM profiles WHERE id = ?`, pid)[0]).toEqual({ resume_book_opt_in: 1 });
-    expect(all(raw, `SELECT count(*) AS n FROM alumni`)[0]).toEqual({ n: 1 });
+    expect(all(raw, `SELECT count(*) AS n FROM alumni WHERE email = 'ann@gmail.com'`)[0]).toEqual({ n: 1 });
 
     // Graduates again a year later: same account comes back.
     auth.list = [alum({ gradYear: 2028 })];
@@ -108,6 +113,45 @@ describe("graduates become alumni", () => {
     expect(all(raw, `SELECT alumni_id FROM alumni_graduation`)).toEqual([{ alumni_id: "a_old" }]);
   });
 
+  it("keeps going past a graduate that fails, and retries a failed welcome email next run", async () => {
+    const { raw, db } = setup();
+    const auth = authWith([
+      alum({ id: "m_x", name: "Xi", personal: "not-unique@gmail.com", emails: ["xi@queensu.ca"], discord: null }),
+      alum({ id: "m_y", name: "Yu", personal: "not-unique@gmail.com", emails: ["yu@queensu.ca"], discord: null }),
+      alum(),
+    ]);
+    let down = true;
+    const sent: string[] = [];
+    const send = async (to: string) => {
+      if (down) throw new Error("mailer down");
+      sent.push(to);
+    };
+    const r1 = await syncGraduates(db, r2(), auth, send, NOW);
+    // Yu gave the same personal email as Xi: refused and counted, and Ann after them is still made.
+    expect(r1).toMatchObject({ created: 2, welcomed: 0 });
+    expect(r1!.failed).toContain("Yu");
+    expect(all(raw, `SELECT count(*) AS n FROM alumni_graduation`)[0]).toEqual({ n: 2 });
+    expect(all(raw, `SELECT count(*) AS n FROM alumni_graduation WHERE welcome_sent_at IS NULL`)[0]).toEqual({ n: 2 });
+
+    down = false;
+    const r2nd = await syncGraduates(db, r2(), auth, send, NOW);
+    expect(r2nd).toMatchObject({ created: 0, welcomed: 2 });
+    expect(sent.sort()).toEqual(["ann@gmail.com", "not-unique@gmail.com"]);
+    await syncGraduates(db, r2(), auth, send, NOW);
+    expect(sent).toHaveLength(2);
+  });
+
+  it("writes nothing for a graduate whose save fails part-way", async () => {
+    const { raw, db } = setup();
+    // A Discord id another alum already holds is fine (ignored); a broken graduation insert is not.
+    run(raw, `CREATE TRIGGER no_grads BEFORE INSERT ON alumni_graduation BEGIN SELECT RAISE(ABORT, 'boom'); END`);
+    const files = r2();
+    const r = await syncGraduates(db, files, authWith([alum()]), async () => {}, NOW);
+    expect(r).toMatchObject({ created: 0, failed: ["Ann Lee"] });
+    expect(all(raw, `SELECT count(*) AS n FROM alumni`)[0]).toEqual({ n: 0 });
+    expect([...files.m.keys()]).toEqual([]);
+  });
+
   it("sends the April reminder once per member, only in April", async () => {
     const { db } = setup();
     const auth = authWith([]);
@@ -116,6 +160,16 @@ describe("graduates become alumni", () => {
     expect(await remindPersonalEmail(db, auth, send, new Date("2027-03-31T12:00:00Z"))).toBe(0);
     expect(await remindPersonalEmail(db, auth, send, new Date("2027-04-01T12:00:00Z"))).toBe(1);
     expect(await remindPersonalEmail(db, auth, send, new Date("2027-04-02T12:00:00Z"))).toBe(0);
+    expect(to).toEqual(["bo@queensu.ca"]);
+  });
+
+  it("counts a reminder only once it is sent, and tries a failed one again", async () => {
+    const { db } = setup();
+    const auth = authWith([]);
+    const fail = async () => { throw new Error("mailer down"); };
+    expect(await remindPersonalEmail(db, auth, fail, new Date("2027-04-01T12:00:00Z"))).toBe(0);
+    const to: string[] = [];
+    expect(await remindPersonalEmail(db, auth, async (t) => void to.push(t), new Date("2027-04-02T12:00:00Z"))).toBe(1);
     expect(to).toEqual(["bo@queensu.ca"]);
   });
 });

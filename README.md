@@ -55,7 +55,9 @@ Node **22.20.0** (see `.nvmrc` and the `engines` field in `package.json`). Run
    (`openssl rand -hex 32`), `OPPORTUNITIES_SYNC_TOKEN` (see Opportunities). Email needs no secret: every
    email goes out from quantt@clubs.queensu.ca through the `MAILER` binding to the `quantt-calendar` Worker,
    which holds the club's Gmail connection (deploy that Worker first).
-   Variable `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca`.
+   Variable `NEXT_PUBLIC_SITE_URL=https://connect.quantt.ca` (also committed in `.env.production`, which
+   `next build` reads: a production build without it throws rather than linking to localhost).
+   Optional variable `OPS_ALERT_CHANNEL`: a Discord channel id for ops alerts (below).
 4. First admin:
 
 ```bash
@@ -94,6 +96,8 @@ Once a day at 11:00 UTC the quantt-connect Worker's cron runs `lib/jobs/daily.ts
 it fetches the lists, keeps the quant roles whose term hasn't started
 (`lib/jobs/sources.ts`), and upserts them into `job_listings` by link (`lib/jobs/store.ts`).
 A listing a source stops showing is closed; closed listings are deleted after 90 days.
+A source whose list falls below 60% of its open listings (with 10 or more open) looks broken,
+so nothing of it is closed that run (`held` in the result, and an ops alert).
 Actions → Opportunities → Run workflow asks the Worker for a run now
 (`POST /api/opportunities/run`, bearer `OPPORTUNITIES_SYNC_TOKEN`).
 `POST /api/opportunities/sync` still stores listings fetched elsewhere.
@@ -113,11 +117,21 @@ QUANTT Discord from QUANTT Bot, grouped by internship term, then new grad, with 
 on Canadian roles, using the Worker secret `DISCORD_BOT_TOKEN` (the same one the alumni
 join uses, so a token reset only has to update the Worker). Run workflow with "Post all
 open roles" ticked posts the whole list the same way. A failed Discord post turns a
-manual run red and logs an error on the Worker for the cron run.
+manual run red and posts an ops alert for the cron run.
+
+What is posted comes from D1: open listings with `job_listings.discord_posted_at` empty,
+first seen in the last 3 days (`db/migrations/0019`). Each Discord message marks its
+roles as posted once it goes through, so a failed post is retried and nothing is posted
+twice; a listing that closes and reopens isn't new. One run at a time (a lease in
+`cron_state`; a second run gets 409). If the 11:00 run fails or is missed, the next hourly
+tick runs it once the last success is over a day old. A source file that gives zero roles
+two days running is alerted (Simplify's internship list moves to a new repo each year:
+update `SOURCES` in `lib/jobs/sources.ts`).
 
 Setup, once:
 
-1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, and 0008's `applications.job_listing_id`).
+1. `npx wrangler d1 migrations apply connect-db --remote` (adds `job_listings`, 0008's `applications.job_listing_id`,
+   and 0019's `discord_posted_at` and `cron_state`; apply 0019 before deploying code that uses it).
 2. Make a token with `openssl rand -hex 32`. Put it in the Worker secret
    `OPPORTUNITIES_SYNC_TOKEN` on `quantt-connect` and in the GitHub repo secret of the
    same name (Settings → Secrets and variables → Actions). It's only for Run workflow.
@@ -129,6 +143,14 @@ Setup, once:
 
 Preview what a run would fetch with `node --experimental-strip-types scripts/sync-opportunities.mjs --dry-run`.
 
+## Ops alerts
+
+Scheduled jobs post problems a person should look at (a skipped suspend pass, failed
+graduates, a failed or partial Opportunities run, an empty source) to the Discord channel
+in the Worker variable `OPS_ALERT_CHANNEL`, from QUANTT Bot (`DISCORD_BOT_TOKEN`), at most
+once per kind per day (`lib/ops-alert.ts`, `cron_state`). Without the variable they are only
+logged (`console.error`, Workers Logs).
+
 ## Sign in with QUANTT (club members)
 
 Club members sign in only one way, the same as the calendar and the other QUANTT sites: **Sign in with your Queen's email** on `/login` sends them to auth.quantt.ca (the shared QUANTT member directory, behind Cloudflare Access), which sends them back to `/auth/quantt/callback` with a one-time code. The callback redeems the code through the service binding `AUTH` (the `quantt-auth` Worker), signs them in, creating their profile the first time, and copies their Connect role from auth.quantt.ca onto `is_admin` (Admin there makes them a hub admin; anyone else is a member). Emails that aren't in the directory, and company accounts, are refused. No secret is shared: only a Worker bound to `quantt-auth` in the same Cloudflare account can redeem a code. Code: `lib/quantt-signin.ts`, `app/auth/quantt/`. Emailed codes are for sponsors only: `/login` never sends one to a member account or member invite.
@@ -139,7 +161,7 @@ If the site runs anywhere but `https://connect.quantt.ca` (a preview, `http://lo
 
 Alumni have their own area at `/alumni`, kept apart from members and sponsors: their own tables (`alumni*`, `db/migrations/0006_alumni.sql`, also created on first use by `lib/alumni/schema.ts`), their own invites, sign-in codes and session cookie (`connect_alumni`). A member or sponsor session never opens the alumni area, and an alumni session never opens the member or company app.
 
-- **Graduates (automatic):** members who graduate on auth.quantt.ca (May 1 of their grad year) get an alumni account at their personal email within the hour (`lib/alumni/graduates.ts`, hourly cron). Their name, grad year, program, bio, LinkedIn, headshot and resume are copied. Their member profile is hidden from member lists and the resume book, and they get a welcome email. If auth undoes it ("Make member again"), the account is suspended (no sign-in, hidden) and the member profile comes back; nothing is deleted. Grad year and personal email are stored on auth and editable in either place: the Connect profile saves both to auth, the personal email is read from auth, and the grad year is copied back from auth on profile load and hourly (`lib/graduation-sync.ts`). In April, members graduating that spring without a personal email get one reminder email. Table `alumni_graduation`, migration 0011 (also created on first use).
+- **Graduates (automatic):** members who graduate on auth.quantt.ca (May 1 of their grad year) get an alumni account at their personal email within the hour (`lib/alumni/graduates.ts`, hourly cron). Their name, grad year, program, bio, LinkedIn, headshot and resume are copied. Their member profile is hidden from member lists and the resume book, and they get a welcome email (once: `alumni_graduation.welcome_sent_at`, migration 0018; a failed send is retried next hour). Each graduate is saved in one batch, and one that fails is logged and alerted while the rest go on. If auth undoes it ("Make member again"), the account is suspended (no sign-in, hidden) and the member profile comes back; nothing is deleted. If auth's alumni list is empty or under half of the active graduates, nobody is suspended that run (it looks like a bad read) and an ops alert says so. Grad year and personal email are stored on auth and editable in either place: the Connect profile saves both to auth, the personal email is read from auth, and the grad year is copied back from auth on profile load and hourly (`lib/graduation-sync.ts`). In April, members graduating that spring without a personal email get one reminder email. Table `alumni_graduation`, migration 0011 (also created on first use).
 - **Invite:** Admin → Alumni. The alum gets an email and signs in at `/alumni/login` with a six-digit code (10 minutes, 5 tries, 5 codes an hour). Removing an alum deletes their account, posts, messages and sessions.
 - **Alumni can:** post jobs and mentorship offers (and close their own), browse current members and other alumni, message members, and edit their profile, including whether to get an email when a member messages them (off until they turn it on).
 - **Members can:** see alumni posts and the alumni directory at `/alumni-network`, and message alumni. Alumni messages follow the member's normal Messages email setting.

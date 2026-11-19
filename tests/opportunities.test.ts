@@ -2,7 +2,7 @@
  * Opportunities: parsing the public job lists, storing them in D1, and who may
  * read or change them.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createHubClient } from "@/lib/db/client";
 import {
@@ -16,7 +16,7 @@ import {
   type Listing,
 } from "@/lib/jobs/sources";
 import { handleSync, storeListings } from "@/lib/jobs/store";
-import { digestMessages, handleRun, runOpportunities } from "@/lib/jobs/daily";
+import { digestMessages, digestParts, discordSender, handleRun, isDue, runOpportunities, RunInProgress } from "@/lib/jobs/daily";
 import { SOURCES } from "@/lib/jobs/sources";
 
 import { addCompany, addMember, addPost, all, asD1, freshDb, viewer } from "./db/sqlite";
@@ -258,6 +258,18 @@ describe("storeListings", () => {
     expect(all(raw, "SELECT url FROM job_listings WHERE active = 1")).toEqual([{ url: "https://example.com/a" }]);
   });
 
+  it("doesn't close a source's listings when its list shrinks below 60% of what is open", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    const many = Array.from({ length: 20 }, (_, i) => listing({ url: `https://example.com/${i}`, company: `Firm ${i}` }));
+    await storeListings(db, { sources: { simplify: many } }, new Date("2026-11-01T11:00:00Z"));
+    const r = await storeListings(db, { sources: { simplify: many.slice(0, 5) } }, new Date("2026-11-02T11:00:00Z"));
+    expect(r).toMatchObject({ held: ["simplify"], closed: {} });
+    expect(all(raw, "SELECT count(*) AS n FROM job_listings WHERE active = 1")[0]).toEqual({ n: 20 });
+    const ok = await storeListings(db, { sources: { simplify: many.slice(0, 15) } }, new Date("2026-11-03T11:00:00Z"));
+    expect(ok).toMatchObject({ held: [], closed: { simplify: 5 } });
+  });
+
   it("rejects junk rows and an empty source never closes anything", async () => {
     const raw = freshDb();
     const db = asD1(raw);
@@ -393,6 +405,7 @@ describe("sponsor jobs tab", () => {
 });
 
 describe("daily run (Worker cron)", () => {
+  afterEach(() => vi.restoreAllMocks());
   const simplifyFile = (rows: Record<string, unknown>[]) => JSON.stringify(rows, null, 2);
   const files = (interns: Record<string, unknown>[]) => async (url: string) => {
     if (url === SOURCES.simplifyInternships) return simplifyFile(interns);
@@ -436,6 +449,74 @@ describe("daily run (Worker cron)", () => {
     expect(r.discord).toBe("failed: 401 Unauthorized");
   });
 
+  it("posts roles a failed run didn't, once, and marks each message's roles as it goes", async () => {
+    const raw = freshDb();
+    const env = { DB: asD1(raw) };
+    const get = files([simplifyRow({ ...future, url: "https://a.com/1" }), simplifyRow({ ...future, url: "https://b.com/2", company_name: "Citadel", title: "Quant Researcher Intern" })]);
+    const r1 = await runOpportunities(env, { get, send: async () => { throw new Error("500 down"); } });
+    expect(r1.discord).toBe("failed: 500 down");
+    expect(all(raw, "SELECT count(*) AS n FROM job_listings WHERE discord_posted_at IS NULL")[0]).toEqual({ n: 2 });
+    // A failed run isn't a success, so the next hourly tick is due.
+    expect(await isDue(env.DB, new Date(Date.now() + 3_600_000 * 25))).toBe(true);
+
+    const sent: string[] = [];
+    const r2 = await runOpportunities(env, { get, send: async (c) => void sent.push(c) });
+    expect(r2.discord).toBe("posted 2");
+    expect(sent.join("\n")).toContain("Citadel");
+    expect(all(raw, "SELECT count(*) AS n FROM job_listings WHERE discord_posted_at IS NULL")[0]).toEqual({ n: 0 });
+
+    sent.length = 0;
+    expect((await runOpportunities(env, { get, send: async (c) => void sent.push(c) })).discord).toBe("nothing new");
+    expect(sent).toEqual([]);
+  });
+
+  it("doesn't post a listing again when it closes and reopens", async () => {
+    const raw = freshDb();
+    const env = { DB: asD1(raw) };
+    const sent: string[] = [];
+    const send = async (c: string) => void sent.push(c);
+    const one = simplifyRow({ ...future, url: "https://a.com/1" });
+    const two = simplifyRow({ ...future, url: "https://b.com/2", company_name: "Citadel", title: "Quant Researcher Intern" });
+    await runOpportunities(env, { get: files([one, two]), send });
+    await runOpportunities(env, { get: files([two]), send }); // /1 closes
+    expect(all(raw, "SELECT active FROM job_listings WHERE url = 'https://a.com/1'")).toEqual([{ active: 0 }]);
+    sent.length = 0;
+    const r = await runOpportunities(env, { get: files([one, two]), send }); // /1 reopens
+    expect(r.discord).toBe("nothing new");
+    expect(sent).toEqual([]);
+  });
+
+  it("runs one at a time", async () => {
+    const raw = freshDb();
+    const env = { DB: asD1(raw) };
+    raw.exec(`INSERT INTO cron_state (key, value) VALUES ('opportunities:lease', '2999-01-01T00:00:00.000Z')`);
+    await expect(runOpportunities(env, { get: files([]), send: async () => {} })).rejects.toBeInstanceOf(RunInProgress);
+    // An abandoned lease (past its end) is taken over.
+    raw.exec(`UPDATE cron_state SET value = '2000-01-01T00:00:00.000Z' WHERE key = 'opportunities:lease'`);
+    await expect(runOpportunities(env, { get: files([simplifyRow(future)]), send: async () => {} })).resolves.toMatchObject({ stored: 1 });
+    expect(all(raw, "SELECT key FROM cron_state WHERE key = 'opportunities:lease'")).toEqual([]);
+  });
+
+  it("is due at 11:00 UTC, or when the last success is over a day old", async () => {
+    const raw = freshDb();
+    const db = asD1(raw);
+    expect(await isDue(db, new Date("2026-11-02T11:00:00Z"))).toBe(true);
+    expect(await isDue(db, new Date("2026-11-02T12:00:00Z"))).toBe(true); // never ran
+    raw.exec(`INSERT INTO cron_state (key, value) VALUES ('opportunities:last_success', '2026-11-01T11:00:30.000Z')`);
+    expect(await isDue(db, new Date("2026-11-02T10:00:00Z"))).toBe(false);
+    expect(await isDue(db, new Date("2026-11-02T12:00:00Z"))).toBe(true);
+  });
+
+  it("alerts when a source file gives zero roles two days running", async () => {
+    const env = { DB: asD1(freshDb()) };
+    const send = async () => {};
+    const get = files([simplifyRow(future)]); // the new-grad file gives "[]"
+    const day1 = await runOpportunities(env, { get, send, now: new Date("2026-11-01T11:00:00Z") });
+    expect(day1.alerts).toEqual([]);
+    const day2 = await runOpportunities(env, { get, send, now: new Date("2026-11-02T11:00:00Z") });
+    expect(day2.alerts).toEqual([expect.stringContaining("simplifyNewGrad has given 0 quant roles since 2026-11-01")]);
+  });
+
   it("fails when every source fails", async () => {
     const env = { DB: asD1(freshDb()) };
     await expect(runOpportunities(env, { get: async () => { throw new Error("down"); } })).rejects.toThrow(/every source failed/);
@@ -455,6 +536,32 @@ describe("daily run (Worker cron)", () => {
     for (const m of msgs) expect(m.length).toBeLessThanOrEqual(2000);
     expect(msgs[0]).toMatch(/^## 80 new quant roles/);
     expect(msgs.join("\n")).toContain("🇨🇦");
+  });
+
+  it("each digest message carries the links it covers, including a section's \"more\" line", () => {
+    const list = Array.from({ length: 40 }, (_, i) => ({
+      company: `Firm ${i}`,
+      title: "Quantitative Trader Intern",
+      url: `https://x.com/${i}`,
+      locations: [],
+      role_type: "internship" as const,
+      term: "Summer 2027",
+    }));
+    const parts = digestParts(list, "new");
+    expect(parts.flatMap((p) => p.urls).sort()).toEqual(list.map((l) => l.url).sort());
+    expect(parts.map((p) => p.content)).toEqual(digestMessages(list, "new"));
+  });
+
+  it("waits out one Discord 429 and tries again", async () => {
+    const calls: number[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      calls.push(Date.now());
+      return calls.length === 1
+        ? new Response(JSON.stringify({ retry_after: 0.01 }), { status: 429 })
+        : new Response("{}", { status: 200 });
+    });
+    await discordSender("token", "1")("hi");
+    expect(calls).toHaveLength(2);
   });
 
   it("POST /api/opportunities/run needs the bearer token", async () => {

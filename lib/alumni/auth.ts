@@ -41,7 +41,7 @@ export async function canAlumniSignIn(db: D1Database, email: string) {
   return Boolean((await alumnusByEmail(db, email)) || (await pendingAlumniInvite(db, email)));
 }
 
-/** Sends a code if the email is allowed and under its hourly limit. Same outcome either way for the caller. */
+/** Sends a code if the email is allowed and under its hourly limit. Throws only when sending to a known alum failed. */
 export async function requestAlumniCode(
   db: D1Database,
   rawEmail: string,
@@ -58,13 +58,20 @@ export async function requestAlumniCode(
   if ((recent?.n ?? 0) >= CODES_PER_HOUR) return;
   const code = randomCode();
   const at = now.toISOString();
+  const id = crypto.randomUUID();
   await db.batch([
     db.prepare(`UPDATE alumni_login_codes SET used_at = ? WHERE email = ? AND used_at IS NULL`).bind(at, email),
     db
       .prepare(`INSERT INTO alumni_login_codes (id, email, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .bind(crypto.randomUUID(), email, await hashCode(email, code), new Date(now.getTime() + CODE_TTL_MINUTES * 60_000).toISOString(), at),
+      .bind(id, email, await hashCode(email, code), new Date(now.getTime() + CODE_TTL_MINUTES * 60_000).toISOString(), at),
   ]);
-  await send(email, code);
+  try {
+    await send(email, code);
+  } catch (e) {
+    // Not sent: drop the code so it doesn't count against the hourly limit, and tell the caller.
+    await db.prepare(`DELETE FROM alumni_login_codes WHERE id = ?`).bind(id).run();
+    throw e;
+  }
 }
 
 export type AlumniVerify = { ok: true; alumniId: string } | { ok: false; code: "login_code_invalid" | "alumni_account_missing" };
@@ -75,24 +82,18 @@ export async function verifyAlumniCode(db: D1Database, rawEmail: string, rawCode
   const code = rawCode.replace(/\s+/g, "");
   if (!/^\d{6}$/.test(code)) return { ok: false, code: "login_code_invalid" };
   const at = now.toISOString();
+  // Count the try before comparing, in one statement (see lib/cf-auth/login-codes.ts). No row back: no live code, or locked.
   const row = await db
     .prepare(
-      `SELECT id, code_hash, attempts FROM alumni_login_codes
-        WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1`,
+      `UPDATE alumni_login_codes SET attempts = attempts + 1
+        WHERE id = (SELECT id FROM alumni_login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ?
+                     ORDER BY created_at DESC LIMIT 1)
+          AND attempts < ?
+       RETURNING id, code_hash`,
     )
-    .bind(email, at)
-    .first<{ id: string; code_hash: string; attempts: number }>();
-  if (!row || row.attempts >= MAX_ATTEMPTS) return { ok: false, code: "login_code_invalid" };
-  if (!sameHex(row.code_hash, await hashCode(email, code))) {
-    await db
-      .prepare(
-        `UPDATE alumni_login_codes SET attempts = attempts + 1,
-           used_at = CASE WHEN attempts + 1 >= ? THEN ? ELSE used_at END WHERE id = ?`,
-      )
-      .bind(MAX_ATTEMPTS, at, row.id)
-      .run();
-    return { ok: false, code: "login_code_invalid" };
-  }
+    .bind(email, at, MAX_ATTEMPTS)
+    .first<{ id: string; code_hash: string }>();
+  if (!row || !sameHex(row.code_hash, await hashCode(email, code))) return { ok: false, code: "login_code_invalid" };
   const spent = await db
     .prepare(`UPDATE alumni_login_codes SET used_at = ? WHERE id = ? AND used_at IS NULL`)
     .bind(at, row.id)

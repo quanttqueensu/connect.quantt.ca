@@ -15,8 +15,11 @@ export type SyncPayload = { sources: Partial<Record<ListingSource, Listing[] | n
 
 export type NewListing = Pick<Listing, "company" | "title" | "url" | "locations" | "role_type" | "term">;
 
-/** `added` is what this run saw for the first time, for the Discord post (newest first). */
-export type SyncResult = { stored: number; closed: Record<string, number>; skipped: string[]; added: NewListing[] };
+/**
+ * `added` is what this run saw for the first time (newest first). `held` are fresh sources whose
+ * list shrank too much to trust, so their missing listings were left open.
+ */
+export type SyncResult = { stored: number; closed: Record<string, number>; skipped: string[]; held: string[]; added: NewListing[] };
 
 const SOURCES: ListingSource[] = ["simplify", "nwft"];
 /** Far more than the ~400 quant listings today; a cap so a bad payload can't flood the table. */
@@ -25,6 +28,13 @@ const MAX_PER_SOURCE = 3000;
 const CHUNK = 150;
 /** Closed listings are kept this long (so a brief gap in a source doesn't lose them), then deleted. */
 const KEEP_CLOSED_DAYS = 90;
+/**
+ * A source whose list drops below this share of its open listings looks broken (a format change
+ * that only some rows survive), so nothing of it is closed that run. Only once it has MIN_TO_HOLD
+ * open listings, so small lists can still shrink normally.
+ */
+const MIN_SHARE_TO_CLOSE = 0.6;
+const MIN_TO_HOLD = 10;
 
 function text(v: unknown, max: number): string {
   return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
@@ -60,7 +70,7 @@ export function sanitize(raw: unknown, source: ListingSource): Listing | null {
 
 const UPSERT = `
 INSERT INTO job_listings
-  (id, url, source, company, title, locations, role_type, term, posted_at, first_seen_at, last_seen_at, active)
+  (id, url, source, company, title, locations, role_type, term, posted_at, first_seen_at, last_seen_at, active, discord_posted_at)
 SELECT lower(hex(randomblob(16))),
        json_extract(value, '$.url'),
        json_extract(value, '$.source'),
@@ -70,7 +80,8 @@ SELECT lower(hex(randomblob(16))),
        json_extract(value, '$.role_type'),
        json_extract(value, '$.term'),
        coalesce(json_extract(value, '$.posted_at'), ?1),
-       ?1, ?1, 1
+       ?1, ?1, 1,
+       json_extract(value, '$.discord_posted_at')
   FROM json_each(?2)
  WHERE true -- SQLite needs a WHERE before ON CONFLICT in INSERT ... SELECT
 ON CONFLICT (url) DO UPDATE SET
@@ -81,6 +92,7 @@ ON CONFLICT (url) DO UPDATE SET
   term = excluded.term,
   last_seen_at = excluded.last_seen_at,
   active = 1`;
+// discord_posted_at is left alone on update: a listing that reopens keeps the date it was posted, so it isn't "new".
 
 export async function storeListings(db: D1Database, payload: SyncPayload, now = new Date()): Promise<SyncResult> {
   const at = now.toISOString();
@@ -112,21 +124,30 @@ export async function storeListings(db: D1Database, payload: SyncPayload, now = 
   const seen = new RoleIndex<{ url: string; company: string; title: string; term: string | null }>();
   for (const row of open) if (!lists.has(row.source as ListingSource)) seen.add(row);
   const fresh: ListingSource[] = [];
+  const held: string[] = [];
   const newRoles: string[] = [];
   for (const [source, list] of lists) {
-    const keep: Listing[] = [];
+    const keep: (Listing & { discord_posted_at: string | null })[] = [];
     for (const l of list) {
       if (seen.find(l)) continue;
       seen.add(l);
-      keep.push(l);
-      if (!before.find(l)) newRoles.push(l.url);
+      // A role already open under another link isn't new: its new row counts as already posted.
+      const isNew = !before.find(l);
+      keep.push({ ...l, discord_posted_at: isNew ? null : at });
+      if (isNew) newRoles.push(l.url);
     }
-    // Still "fresh" when every listing was a duplicate: its old rows should close.
-    fresh.push(source);
     stored += keep.length;
     for (let i = 0; i < keep.length; i += CHUNK) {
       statements.push(db.prepare(UPSERT).bind(at, JSON.stringify(keep.slice(i, i + CHUNK))));
     }
+    const openHere = open.filter((row) => row.source === source).length;
+    if (openHere >= MIN_TO_HOLD && list.length < openHere * MIN_SHARE_TO_CLOSE) {
+      held.push(source);
+      console.error(`opportunities: ${source} listed ${list.length} of ${openHere} open roles; nothing closed`);
+      continue;
+    }
+    // Still "fresh" when every listing was a duplicate: its old rows should close.
+    fresh.push(source);
   }
 
   // Anything a fresh source no longer lists is closed. A link listed by two
@@ -154,7 +175,7 @@ export async function storeListings(db: D1Database, payload: SyncPayload, now = 
     .bind(JSON.stringify(newRoles))
     .all<{ company: string; title: string; url: string; locations: string; role_type: Listing["role_type"]; term: string | null }>();
   const added = rows.map((r) => ({ ...r, locations: JSON.parse(r.locations || "[]") as string[] }));
-  return { stored, closed, skipped, added };
+  return { stored, closed, skipped, held, added };
 }
 
 /** Constant-time compare of the Action's bearer token with the Worker secret. */

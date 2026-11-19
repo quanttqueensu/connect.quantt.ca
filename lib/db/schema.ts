@@ -101,7 +101,7 @@ export const TABLES: Record<TableName, TableInfo> = {
   job_listings: {
     columns: [
       "id", "url", "source", "company", "title", "locations", "role_type", "term", "posted_at", "first_seen_at",
-      "last_seen_at", "active", "hidden",
+      "last_seen_at", "active", "hidden", "discord_posted_at",
     ],
     key: ["id"],
     booleans: ["active", "hidden"],

@@ -1,3 +1,4 @@
+import { torontoDate } from "@/lib/db/access";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CompanyCapabilityOverride,
@@ -121,9 +122,10 @@ export function lowestTierWith(tiers: TierWithCaps[], key: CapabilityKey) {
   );
 }
 
-export function graceIsOpen(until: string | null | undefined) {
+/** Grace runs through its last day in Kingston (lib/db/access.ts torontoDate). */
+export function graceIsOpen(until: string | null | undefined, now = new Date()) {
   if (!until) return false;
-  return until >= new Date().toISOString().slice(0, 10);
+  return until >= torontoDate(now);
 }
 
 /** True if this firm's live access is `tierId` (assigned, or still in grace on it). */

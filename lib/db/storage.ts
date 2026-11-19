@@ -79,7 +79,12 @@ export async function verifyFileLink(secret: string, url: URL, now = new Date())
   const m = /^\/files\/(resumes|photos)\/(.+)$/.exec(url.pathname);
   if (!m) return null;
   const bucket = m[1] as Bucket;
-  const path = m[2].split("/").map(decodeURIComponent).join("/");
+  let path: string;
+  try {
+    path = m[2].split("/").map(decodeURIComponent).join("/");
+  } catch {
+    return null; // a malformed %-escape is a bad link (404), not a server error
+  }
   const exp = Number(url.searchParams.get("exp"));
   const download = url.searchParams.get("download") === "1";
   const sig = url.searchParams.get("sig") ?? "";

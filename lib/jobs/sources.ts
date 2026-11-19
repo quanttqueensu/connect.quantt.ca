@@ -311,8 +311,13 @@ export function dropPastTerms(listings: Listing[], now = new Date()): Listing[] 
   });
 }
 
-/** What a sync stores: each source's listings, or null when its fetch failed. */
-export type CollectedSources = { simplify: Listing[] | null; nwft: Listing[] | null };
+/**
+ * What a sync stores: each source's listings, or null when its fetch failed. `counts` is how many
+ * roles each file gave after filtering (null when it wasn't read), so the daily run can alert when
+ * a file keeps giving none: Simplify's internship list moves to a new repo each year (SOURCES).
+ */
+export type CollectedSources = { simplify: Listing[] | null; nwft: Listing[] | null; counts?: Record<SourceFile, number | null> };
+export type SourceFile = keyof typeof SOURCES;
 
 /**
  * Fetches every source with `get`, keeps the quant roles whose term hasn't
@@ -336,13 +341,20 @@ export async function collectListings(
       return null;
     }
   }
+  const counts: Record<SourceFile, number | null> = { simplifyInternships: null, simplifyNewGrad: null, nwftInternships: null };
   const simplify = await source("simplify", async () => {
     const interns = parseSimplify(await get(SOURCES.simplifyInternships), "internship");
     const newGrad = parseSimplify(await get(SOURCES.simplifyNewGrad), "full_time");
+    counts.simplifyInternships = dropPastTerms(interns).length;
+    counts.simplifyNewGrad = dropPastTerms(newGrad).length;
     return dropPastTerms(dedupe([...interns, ...newGrad]));
   });
-  const nwft = await source("nwft", async () => dropPastTerms(parseNwft(await get(SOURCES.nwftInternships))));
+  const nwft = await source("nwft", async () => {
+    const list = dropPastTerms(parseNwft(await get(SOURCES.nwftInternships)));
+    counts.nwftInternships = list.length;
+    return list;
+  });
   const onSimplify = new RoleIndex<Listing>();
   for (const l of simplify ?? []) onSimplify.add(l);
-  return { simplify, nwft: nwft && dedupe(nwft).filter((l) => !onSimplify.find(l)) };
+  return { simplify, nwft: nwft && dedupe(nwft).filter((l) => !onSimplify.find(l)), counts };
 }

@@ -8,9 +8,12 @@ import {
   notifyNewJob,
   notifyNewMessage,
   hasChosenPrefs,
+  mailSender,
+  notificationEmail,
   savePrefs,
   type Email,
 } from "@/lib/notifications";
+import type { EmailEnv } from "@/lib/cf-auth/email";
 
 import { addCompany, addMember, all, asD1, freshDb, NOW, run, uuid } from "./sqlite";
 
@@ -61,6 +64,26 @@ describe("message emails", () => {
     await notifyNewMessage(db, send, convo, firm.userId, NOW);
     expect(sent[2]).toMatchObject({ to: "ann@queensu.ca" });
     expect(sent[2].text).toContain(`/messages/${convo}`);
+  });
+
+  it("gives the quiet-period slot back when the email fails, so the next message tries again", async () => {
+    const { db, sent, send, member, firm, recruiter, convo, allOn } = setup();
+    await savePrefs(db, member, allOn);
+    await savePrefs(db, firm.userId, allOn);
+    await expect(notifyNewMessage(db, async () => { throw new Error("mailer down"); }, convo, member, NOW)).rejects.toThrow("mailer down");
+    await notifyNewMessage(db, send, convo, member, new Date(NOW.getTime() + 60_000));
+    expect(sent.map((e) => e.to)).toEqual([recruiter]);
+  });
+
+  it("a failed batch doesn't stop the later ones, and the send still reports it", async () => {
+    const batches: number[] = [];
+    const env = { MAILER: { send: async (msgs: unknown[]) => {
+      batches.push(msgs.length);
+      if (batches.length === 1) throw new Error("bad address");
+    } } } as unknown as EmailEnv;
+    const emails = Array.from({ length: 120 }, (_, i) => notificationEmail(`m${i}@queensu.ca`, "s", "l", "/feed"));
+    await expect(mailSender(env)(emails)).rejects.toThrow(/50 of 120/);
+    expect(batches).toEqual([50, 50, 20]);
   });
 
   it("sends nothing to someone who turned message emails off", async () => {

@@ -116,7 +116,10 @@ async function wanting(db: D1Database, kind: NotificationKind, recipients: Recip
   return recipients.filter((r) => set.get(r.id) ?? DEFAULT_PREFS[kind]);
 }
 
-/** True (and records the send) if `recipient` wasn't emailed about `topic` in the last `minutes`. */
+/**
+ * True (and records the send) if `recipient` wasn't emailed about `topic` in the last `minutes`.
+ * Claimed before sending so two messages at once send one email; releaseSlot gives it back if the send fails.
+ */
 async function claimSlot(db: D1Database, recipient: string, topic: string, minutes: number, now: Date) {
   await ensureNotificationTables(db);
   const cutoff = new Date(now.getTime() - minutes * 60_000).toISOString();
@@ -129,6 +132,25 @@ async function claimSlot(db: D1Database, recipient: string, topic: string, minut
     .bind(recipient, topic, now.toISOString(), cutoff)
     .run();
   return res.meta.changes === 1;
+}
+
+/** Undoes claimSlot after a failed send, so the next message can try again. */
+async function releaseSlot(db: D1Database, recipient: string, topic: string, now: Date) {
+  await db
+    .prepare(`DELETE FROM notification_log WHERE recipient = ? AND topic = ? AND sent_at = ?`)
+    .bind(recipient, topic, now.toISOString())
+    .run();
+}
+
+/** Claims the quiet-period slot, sends, and releases the slot if the send failed. */
+async function sendThrottled(db: D1Database, send: SendEmails, recipient: string, topic: string, email: Email, now: Date) {
+  if (!(await claimSlot(db, recipient, topic, MESSAGE_QUIET_MINUTES, now))) return;
+  try {
+    await send([email]);
+  } catch (e) {
+    await releaseSlot(db, recipient, topic, now);
+    throw e;
+  }
 }
 
 export type Email = { to: string; subject: string; text: string; html: string };
@@ -150,12 +172,25 @@ export function notificationEmail(to: string, subject: string, line: string, pat
   };
 }
 
-/** Through the quantt-calendar Mailer, 50 at a time (one Gmail batch request each). */
+/**
+ * Through the quantt-calendar Mailer, 50 at a time (one Gmail batch request each).
+ * A failed batch doesn't stop the rest; it throws at the end if any failed.
+ */
 export function mailSender(env: EmailEnv): SendEmails {
   return async (emails) => {
+    let failed = 0;
+    let last: unknown = null;
     for (let i = 0; i < emails.length; i += 50) {
-      await sendMail(env, emails.slice(i, i + 50).map((e) => ({ ...e, to: [e.to] })));
+      const batch = emails.slice(i, i + 50);
+      try {
+        await sendMail(env, batch.map((e) => ({ ...e, to: [e.to] })));
+      } catch (e) {
+        failed += batch.length;
+        last = e;
+        console.error(`notification batch failed (${batch.length} emails)`, e);
+      }
     }
+    if (failed) throw new Error(`${failed} of ${emails.length} notification emails not sent: ${last instanceof Error ? last.message : String(last)}`);
   };
 }
 
@@ -202,14 +237,17 @@ export async function notifyNewMessage(
     path = `/messages/${conversationId}`;
   }
 
-  const out: Email[] = [];
+  // One send per recipient (a firm has a handful), so one bad address only loses its own email and slot.
+  let failed: unknown = null;
   for (const r of await wanting(db, "messages", recipients)) {
     if (r.id === senderId) continue;
-    if (await claimSlot(db, r.id, `conversation:${conversationId}`, MESSAGE_QUIET_MINUTES, now)) {
-      out.push(notificationEmail(r.email, "New message on QUANTT Connect", line, path));
+    try {
+      await sendThrottled(db, send, r.id, `conversation:${conversationId}`, notificationEmail(r.email, "New message on QUANTT Connect", line, path), now);
+    } catch (e) {
+      failed = e;
     }
   }
-  await send(out);
+  if (failed) throw failed;
 }
 
 /** A member applied in the hub: email the firm's users. */
@@ -318,15 +356,13 @@ export async function notifyAlumniMessage(
   const topic = `alumni-conversation:${conversationId}`;
   if (sender === "alumni") {
     const [to] = await wanting(db, "messages", [{ id: c.member_id, email: c.member_email }]);
-    if (to && (await claimSlot(db, to.id, topic, MESSAGE_QUIET_MINUTES, now))) {
-      await send([
-        notificationEmail(to.email, "New message on QUANTT Connect", `${c.alumni_name || "A QUANTT alum"} (alumni) sent you a message on Connect.`, `/alumni-network/messages/${conversationId}`),
-      ]);
+    if (to) {
+      await sendThrottled(db, send, to.id, topic,
+        notificationEmail(to.email, "New message on QUANTT Connect", `${c.alumni_name || "A QUANTT alum"} (alumni) sent you a message on Connect.`, `/alumni-network/messages/${conversationId}`), now);
     }
-  } else if (c.email_messages === 1 && (await claimSlot(db, `alumni:${c.alumni_id}`, topic, MESSAGE_QUIET_MINUTES, now))) {
-    await send([
-      notificationEmail(c.alumni_email, "New message on QUANTT Connect", `${c.member_name || "A QUANTT member"} sent you a message on Connect.`, `/alumni/messages/${conversationId}`),
-    ]);
+  } else if (c.email_messages === 1) {
+    await sendThrottled(db, send, `alumni:${c.alumni_id}`, topic,
+      notificationEmail(c.alumni_email, "New message on QUANTT Connect", `${c.member_name || "A QUANTT member"} sent you a message on Connect.`, `/alumni/messages/${conversationId}`), now);
   }
 }
 
